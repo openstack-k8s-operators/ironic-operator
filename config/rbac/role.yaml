@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicapis/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicapis/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -1,0 +1,24 @@
+# permissions for end users to edit ironicapis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ironicapi-editor-role
+rules:
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicapis/status
+  verbs:
+  - get
