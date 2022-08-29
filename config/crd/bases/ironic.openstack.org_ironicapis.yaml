@@ -44,22 +44,9 @@ spec:
           spec:
             description: IronicAPISpec defines the desired state of IronicAPI
             properties:
-              containerImages:
-                description: Ironic Container Image URLs
-                properties:
-                  API:
-                    description: API Container Image URL
-                    type: string
-                  Conductor:
-                    description: Conductor Container Image URL
-                    type: string
-                  Inspector:
-                    description: Inspector Container Image URL
-                    type: string
-                  PXE:
-                    description: PXE Container Image URL
-                    type: string
-                type: object
+              containerImage:
+                description: ContainerImage - Ironic API Container Image URL
+                type: string
               customServiceConfig:
                 default: '# add your customization here'
                 description: CustomServiceConfig - customize the service config using
@@ -68,16 +55,14 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
-              databaseInstance:
-                description: MariaDB instance name. Right now required by the maridb-operator
-                  to get the credentials from the instance to create the DB. Might
-                  not be required in future.
+              databaseHostname:
+                description: DatabaseHostname - Ironic Database Hostname
                 type: string
               databaseUser:
                 default: ironic
                 description: 'DatabaseUser - optional username used for ironic DB,
-                  defaults to ironic. TODO: -> implement needs work in mariadb-operator,
-                  right now only ironic.'
+                  defaults to ironic TODO: -> implement needs work in mariadb-operator,
+                  right now only ironic'
                 type: string
               debug:
                 description: Debug - enable debug for different deploy stages. If
@@ -105,14 +90,20 @@ spec:
                   to add additional files. Those get added to the service config dir
                   in /etc/<service> . TODO: -> implement'
                 type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector to target subset of worker nodes for running
+                  the API service
+                type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
-                  AdminUser password from the Secret
+                  AdminUser password and TransportURL from the Secret
                 properties:
                   admin:
-                    default: AdminPassword
-                    description: Database - Selector to get the ironic Database user
-                      password from the Secret
+                    default: IronicPassword
+                    description: Database - Selector to get the ironic service password
+                      from the Secret
                     type: string
                   database:
                     default: IronicDatabasePassword
@@ -120,6 +111,11 @@ spec:
                       password from the Secret TODO: not used, need change in mariadb-operator'
                     type: string
                 type: object
+              replicas:
+                default: 1
+                description: Replicas - Ironic API Replicas
+                format: int32
+                type: integer
               resources:
                 description: Resources - Compute Resources required by this service
                   (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
@@ -147,18 +143,24 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
-              standalone:
-                default: true
-                description: 'Whether to deploy a single node standalone Ironic. TODO:
-                  -> not implemented, always standalone for now'
-                type: boolean
+              secret:
+                description: Secret containing OpenStack password information for
+                  IronicDatabasePassword, AdminPassword
+                type: string
+              serviceUser:
+                default: ironic
+                description: ServiceUser - optional username used for this service
+                  to register in ironic
+                type: string
             type: object
           status:
             description: IronicAPIStatus defines the observed state of IronicAPI
             properties:
-              apiEndpoint:
+              apiEndpoints:
                 additionalProperties:
-                  type: string
+                  additionalProperties:
+                    type: string
+                  type: object
                 description: API endpoint
                 type: object
               conditions:
@@ -204,9 +206,6 @@ spec:
                   - type
                   type: object
                 type: array
-              databaseHostname:
-                description: Ironic Database Hostname
-                type: string
               hash:
                 additionalProperties:
                   type: string
@@ -216,6 +215,11 @@ spec:
                 description: ReadyCount of ironic API instances
                 format: int32
                 type: integer
+              serviceIDs:
+                additionalProperties:
+                  type: string
+                description: ServiceIDs
+                type: object
             type: object
         type: object
     served: true

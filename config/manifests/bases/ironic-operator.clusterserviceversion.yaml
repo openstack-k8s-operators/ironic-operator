@@ -16,10 +16,10 @@ spec:
       kind: IronicAPI
       name: ironicapis.ironic.openstack.org
       version: v1beta1
-    - description: ironicService is the Schema for the ironicservices API
-      displayName: Ironic Service
-      kind: IronicService
-      name: ironicservices.ironic.openstack.org
+    - description: Ironic is the Schema for the ironics API
+      displayName: Ironic
+      kind: Ironic
+      name: ironics.ironic.openstack.org
       version: v1beta1
   description: Ironic Operator
   displayName: Ironic Operator

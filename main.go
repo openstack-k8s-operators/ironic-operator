@@ -89,11 +89,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.IronicAPIReconciler{
+	if err = (&controllers.IronicReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "IronicAPI")
+		setupLog.Error(err, "unable to create controller", "controller", "Ironic")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

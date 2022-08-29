@@ -1,5 +1,5 @@
 {
-    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "command": "/usr/bin/bootstrap_host_exec ironic_api su ironic -s /bin/bash -c 'ironic-dbsync --config-file /etc/ironic/ironic.conf'",
     "config_files": [
         {
             "source": "/var/lib/config-data/merged/ironic.conf",
@@ -12,12 +12,6 @@
             "dest": "/etc/ironic/ironic.conf.d/custom.conf",
             "owner": "ironic",
             "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/merged/ironic-api-httpd.conf",
-            "dest": "/etc/httpd/conf/httpd.conf",
-            "owner": "root",
-            "perm": "0644"
         },
         {
             "source": "/var/lib/config-data/merged/logging.conf",
