@@ -193,6 +193,11 @@ spec:
                     description: ServiceUser - optional username used for this service
                       to register in ironic
                     type: string
+                  standalone:
+                    default: true
+                    description: 'Whether to deploy a single node standalone Ironic.
+                      TODO: -> not implemented, always standalone for now'
+                    type: boolean
                 type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and

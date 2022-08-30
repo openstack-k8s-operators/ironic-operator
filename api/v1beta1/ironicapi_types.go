@@ -24,6 +24,12 @@ import (
 
 // IronicAPISpec defines the desired state of IronicAPI
 type IronicAPISpec struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=true
+	// Whether to deploy a single node standalone Ironic.
+	// TODO: -> not implemented, always standalone for now
+	Standalone bool `json:"standalone,omitempty"`
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic
 	// ServiceUser - optional username used for this service to register in ironic
