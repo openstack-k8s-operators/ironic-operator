@@ -1,0 +1,24 @@
+# permissions for end users to edit ironics.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ironic-editor-role
+rules:
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironics/status
+  verbs:
+  - get

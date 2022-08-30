@@ -13,6 +13,15 @@ resources:
   controller: true
   domain: openstack.org
   group: ironic
+  kind: Ironic
+  path: github.com/openstack-k8s-operators/ironic-operator/api/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openstack.org
+  group: ironic
   kind: IronicAPI
   path: github.com/openstack-k8s-operators/ironic-operator/api/v1beta1
   version: v1beta1

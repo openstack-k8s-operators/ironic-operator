@@ -1,0 +1,23 @@
+{
+    "command": "/usr/sbin/dnsmasq -k",
+    "config_files": [
+        {
+            "source": "/var/lib/config-data/merged/dnsmasq.conf",
+            "dest": "/etc/dnsmasq.conf",
+            "owner": "dnsmasq",
+            "perm": "0644"
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/ironic",
+            "owner": "ironic:ironic",
+            "recurse": true
+        },
+        {
+            "path": "/var/lib/ironic",
+            "owner": "ironic:ironic",
+            "recurse": true
+        }
+    ]
+}
