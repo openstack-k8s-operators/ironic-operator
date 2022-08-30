@@ -50,7 +50,10 @@ func init() {
 
 	utilruntime.Must(ironicv1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1beta1.AddToScheme(scheme))
-	utilruntime.Must(keystonev1beta1.AddToScheme(scheme))
+	err := keystonev1beta1.AddToScheme(scheme)
+	if err != nil {
+		setupLog.Info("Adding keystone schema failed, only standalone deployments are available")
+	}
 	//+kubebuilder:scaffold:scheme
 }
 
