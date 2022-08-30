@@ -25,7 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	// "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -41,48 +41,48 @@ func Deployment(
 ) *appsv1.Deployment {
 	// runAsUser := int64(0)
 
-	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
-		InitialDelaySeconds: 3,
-	}
-	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 5,
-	}
+	// livenessProbe := &corev1.Probe{
+	// 	// TODO might need tuning
+	// 	TimeoutSeconds:      5,
+	// 	PeriodSeconds:       3,
+	// 	InitialDelaySeconds: 3,
+	// }
+	// readinessProbe := &corev1.Probe{
+	// 	// TODO might need tuning
+	// 	TimeoutSeconds:      5,
+	// 	PeriodSeconds:       5,
+	// 	InitialDelaySeconds: 5,
+	// }
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	// args := []string{"-c"}
+	// if instance.Spec.Debug.Service {
+	// 	args = append(args, common.DebugCommand)
+	// 	livenessProbe.Exec = &corev1.ExecAction{
+	// 		Command: []string{
+	// 			"/bin/true",
+	// 		},
+	// 	}
 
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, ServiceCommand)
+	// 	readinessProbe.Exec = &corev1.ExecAction{
+	// 		Command: []string{
+	// 			"/bin/true",
+	// 		},
+	// 	}
+	// } else {
+	// 	args = append(args, ServiceCommand)
 
-		//
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		//
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-		}
-	}
+	// 	//
+	// 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+	// 	//
+	// 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+	// 		Path: "/v1",
+	// 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+	// 	}
+	// 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+	// 		Path: "/v1",
+	// 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+	// 	}
+	// }
 
 	// envVars := map[string]env.Setter{}
 	// envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
