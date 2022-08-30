@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	// routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -238,7 +238,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Owns(&keystonev1.KeystoneService{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
-		// Owns(&routev1.Route{}).
+		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
 		// watch the config CMs we don't own
 		Watches(&source.Kind{Type: &corev1.ConfigMap{}},
