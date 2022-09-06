@@ -27,10 +27,12 @@ type APIDetails struct {
 	DatabaseHost         string
 	DatabaseUser         string
 	DatabaseName         string
+	TransportURL         string
 	OSPSecret            string
 	DBPasswordSelector   string
 	UserPasswordSelector string
 	VolumeMounts         []corev1.VolumeMount
+	Privileged           bool
 }
 
 const (
@@ -38,9 +40,18 @@ const (
 	InitContainerCommand = "/usr/local/bin/container-scripts/init.sh"
 )
 
-// InitContainer - init container for ironic api pods
+// InitContainer - init container for Ironic pods
 func InitContainer(init APIDetails) []corev1.Container {
 	runAsUser := int64(0)
+	trueVar := true
+
+	securityContext := &corev1.SecurityContext{
+		RunAsUser: &runAsUser,
+	}
+
+	if init.Privileged {
+		securityContext.Privileged = &trueVar
+	}
 
 	args := []string{
 		"-c",
@@ -65,7 +76,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 			},
 		},
 		{
-			Name: "AdminPassword",
+			Name: "IronicPassword",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -80,17 +91,15 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	return []corev1.Container{
 		{
-			Name:  "init",
-			Image: init.ContainerImage,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
-			},
+			Name:            "init",
+			Image:           init.ContainerImage,
+			SecurityContext: securityContext,
 			Command: []string{
 				"/bin/bash",
 			},
 			Args:         args,
 			Env:          envs,
-			VolumeMounts: GetInitVolumeMounts(),
+			VolumeMounts: init.VolumeMounts,
 		},
 	}
 }
