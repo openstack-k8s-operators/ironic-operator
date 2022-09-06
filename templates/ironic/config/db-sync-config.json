@@ -1,5 +1,5 @@
 {
-    "command": "/usr/bin/bootstrap_host_exec ironic_api su ironic -s /bin/bash -c 'ironic-dbsync --config-file /etc/ironic/ironic.conf'",
+    "command": "/usr/local/bin/container-scripts/bootstrap.sh",
     "config_files": [
         {
             "source": "/var/lib/config-data/merged/ironic.conf",

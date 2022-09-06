@@ -68,7 +68,7 @@ type IronicSpec struct {
 	Debug IronicDebug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
+	// +kubebuilder:default=true
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs,omitempty"`
 

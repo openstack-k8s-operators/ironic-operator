@@ -215,7 +215,7 @@ spec:
                     type: string
                 type: object
               preserveJobs:
-                default: false
+                default: true
                 description: PreserveJobs - do not delete jobs after they finished
                   e.g. to check logs
                 type: boolean
