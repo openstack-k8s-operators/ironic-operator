@@ -86,14 +86,14 @@ var (
 		{
 			"type": ironic.ServiceType,
 			"name": ironic.ServiceName,
-			"desc": "Ironic V2 Service",
+			"desc": "Ironic Service",
 		},
 	}
 )
 
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete;watch
@@ -130,9 +130,12 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
-			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
 		)
+
+		if !instance.Spec.Standalone {
+			// right now we have no dedicated KeystoneServiceReadyInitMessage
+			cl = append(cl, *condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""))
+		}
 
 		instance.Status.Conditions.Init(&cl)
 
@@ -231,7 +234,8 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
-		Owns(&keystonev1.KeystoneService{}).
+		// TODO(sbaker), how to handle optional Owns? Standalone Ironic doesn't own a KeystoneService
+		// Owns(&keystonev1.KeystoneService{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
@@ -246,7 +250,7 @@ func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *iro
 	r.Log.Info("Reconciling Service delete")
 
 	// It's possible to get here before the endpoints have been set in the status, so check for this
-	if instance.Status.APIEndpoints != nil {
+	if instance.Status.APIEndpoints != nil && !instance.Spec.Standalone {
 		for _, ksSvc := range keystoneServices {
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{
 				ServiceType:        ksSvc["type"],
@@ -344,36 +348,38 @@ func (r *IronicAPIReconciler) reconcileInit(
 		instance.Status.ServiceIDs = map[string]string{}
 	}
 
-	for _, ksSvc := range keystoneServices {
-		ksSvcSpec := keystonev1.KeystoneServiceSpec{
-			ServiceType:        ksSvc["type"],
-			ServiceName:        ksSvc["name"],
-			ServiceDescription: ksSvc["desc"],
-			Enabled:            true,
-			APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
-			ServiceUser:        instance.Spec.ServiceUser,
-			Secret:             instance.Spec.Secret,
-			PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-		}
+	if !instance.Spec.Standalone {
+		for _, ksSvc := range keystoneServices {
+			ksSvcSpec := keystonev1.KeystoneServiceSpec{
+				ServiceType:        ksSvc["type"],
+				ServiceName:        ksSvc["name"],
+				ServiceDescription: ksSvc["desc"],
+				Enabled:            true,
+				APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
+				ServiceUser:        instance.Spec.ServiceUser,
+				Secret:             instance.Spec.Secret,
+				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+			}
 
-		ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
-		ctrlResult, err = ksSvcObj.CreateOrPatch(ctx, helper)
-		if err != nil {
-			return ctrlResult, err
-		}
+			ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+			ctrlResult, err = ksSvcObj.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrlResult, err
+			}
 
-		// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
-		// into a local condition with the type condition.KeystoneServiceReadyCondition
-		c := ksSvcObj.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
-		if c != nil {
-			instance.Status.Conditions.Set(c)
-		}
+			// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
+			// into a local condition with the type condition.KeystoneServiceReadyCondition
+			c := ksSvcObj.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
+			if c != nil {
+				instance.Status.Conditions.Set(c)
+			}
 
-		if (ctrlResult != ctrl.Result{}) {
-			return ctrlResult, nil
-		}
+			if (ctrlResult != ctrl.Result{}) {
+				return ctrlResult, nil
+			}
 
-		instance.Status.ServiceIDs[ksSvc["name"]] = ksSvcObj.GetServiceID()
+			instance.Status.ServiceIDs[ksSvc["name"]] = ksSvcObj.GetServiceID()
+		}
 	}
 
 	r.Log.Info("Reconciled Service init successfully")

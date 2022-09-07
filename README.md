@@ -8,8 +8,8 @@ The operator is intended to be deployed via OLM [Operator Lifecycle Manager](htt
 
 # API Example
 
-The Operator creates a custom KeystoneAPI resource that can be used to create Keystone API
-instances within the cluster. Example CR to create an Keystone API in your cluster:
+The Operator creates a custom Ironic resource that can be used to create Ironic API
+instances within the cluster. Example CR to create an Ironic API in your cluster:
 
 ```yaml
 apiVersion: ironic.openstack.org/v1beta1
@@ -26,7 +26,7 @@ spec:
   databaseUser: ironic
   ironicAPI:
     replicas: 1
-    containerImage: quay.io/tripleowallabycentos9/openstack-ironic-api:current-tripleo
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
   secret: ironic-secret
 ```
 
@@ -37,4 +37,4 @@ The current design takes care of the following:
 - Creates an ironic deployment with the specified replicas
 - Creates an ironic service
 - Ironic bootstrap, and db sync are executed automatically on install and updates
-- ConfigMap is recreated on any changes Keystone object changes and the Deployment updated.
+- ConfigMap is recreated on any changes Ironic object changes and the Deployment updated.

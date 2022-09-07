@@ -31,16 +31,16 @@ const (
 
 // IronicSpec defines the desired state of Ironic
 type IronicSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=ironic
-	// ServiceUser - optional username used for this service to register in ironic
-	ServiceUser string `json:"serviceUser"`
-
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=true
 	// Whether to deploy a single node standalone Ironic.
 	// TODO: -> not implemented, always standalone for now
 	Standalone bool `json:"standalone,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=ironic
+	// ServiceUser - optional username used for this service to register in ironic
+	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Required
 	// MariaDB instance name.
@@ -68,7 +68,7 @@ type IronicSpec struct {
 	Debug IronicDebug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
+	// +kubebuilder:default=true
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs,omitempty"`
 

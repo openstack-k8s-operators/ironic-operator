@@ -92,6 +92,64 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironics/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - keystone.openstack.org
+  resources:
+  - keystoneapis
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - keystone.openstack.org
+  resources:
+  - keystoneservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mariadb.openstack.org
+  resources:
+  - mariadbdatabases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - route.openshift.io
   resources:
   - routes

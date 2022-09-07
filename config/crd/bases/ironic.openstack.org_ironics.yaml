@@ -193,6 +193,11 @@ spec:
                     description: ServiceUser - optional username used for this service
                       to register in ironic
                     type: string
+                  standalone:
+                    default: true
+                    description: 'Whether to deploy a single node standalone Ironic.
+                      TODO: -> not implemented, always standalone for now'
+                    type: boolean
                 type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
@@ -210,7 +215,7 @@ spec:
                     type: string
                 type: object
               preserveJobs:
-                default: false
+                default: true
                 description: PreserveJobs - do not delete jobs after they finished
                   e.g. to check logs
                 type: boolean

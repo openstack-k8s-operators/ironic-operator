@@ -44,7 +44,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -60,9 +59,18 @@ type IronicReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironics,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironics/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironics/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -166,7 +174,6 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&routev1.Route{}).
 		Complete(r)
 }
 
@@ -474,6 +481,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 		deployment.Spec = instance.Spec.IronicAPI
 		// Add in transfers from umbrella Ironic (this instance) spec
 		// TODO: Add logic to determine when to set/overwrite, etc
+		deployment.Spec.Standalone = instance.Spec.Standalone
 		deployment.Spec.ServiceUser = instance.Spec.ServiceUser
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
