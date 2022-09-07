@@ -26,7 +26,7 @@ spec:
   databaseUser: ironic
   ironicAPI:
     replicas: 1
-    containerImage: quay.io/tripleowallabycentos9/openstack-ironic-api:current-tripleo
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
   secret: ironic-secret
 ```
 
