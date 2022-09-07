@@ -15,9 +15,6 @@
 # under the License.
 set -ex
 
-# This script generates the nova.conf/logging.conf file and
-# copies the result to the ephemeral /var/lib/config-data/merged volume.
-#
 # Secrets are obtained from ENV variables.
 export DB=${DatabaseName:-"ironic"}
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
