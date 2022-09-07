@@ -20,12 +20,12 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
-	// env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	// "k8s.io/apimachinery/pkg/util/intstr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -39,93 +39,93 @@ func Deployment(
 	configHash string,
 	labels map[string]string,
 ) *appsv1.Deployment {
-	// runAsUser := int64(0)
+	runAsUser := int64(0)
 
-	// livenessProbe := &corev1.Probe{
-	// 	// TODO might need tuning
-	// 	TimeoutSeconds:      5,
-	// 	PeriodSeconds:       3,
-	// 	InitialDelaySeconds: 3,
-	// }
-	// readinessProbe := &corev1.Probe{
-	// 	// TODO might need tuning
-	// 	TimeoutSeconds:      5,
-	// 	PeriodSeconds:       5,
-	// 	InitialDelaySeconds: 5,
-	// }
+	livenessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      5,
+		PeriodSeconds:       3,
+		InitialDelaySeconds: 3,
+	}
+	readinessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      5,
+		PeriodSeconds:       5,
+		InitialDelaySeconds: 5,
+	}
 
-	// args := []string{"-c"}
-	// if instance.Spec.Debug.Service {
-	// 	args = append(args, common.DebugCommand)
-	// 	livenessProbe.Exec = &corev1.ExecAction{
-	// 		Command: []string{
-	// 			"/bin/true",
-	// 		},
-	// 	}
+	args := []string{"-c"}
+	if instance.Spec.Debug.Service {
+		args = append(args, common.DebugCommand)
+		livenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
 
-	// 	readinessProbe.Exec = &corev1.ExecAction{
-	// 		Command: []string{
-	// 			"/bin/true",
-	// 		},
-	// 	}
-	// } else {
-	// 	args = append(args, ServiceCommand)
+		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+	} else {
+		args = append(args, ServiceCommand)
 
-	// 	//
-	// 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-	// 	//
-	// 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-	// 		Path: "/v1",
-	// 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-	// 	}
-	// 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-	// 		Path: "/v1",
-	// 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-	// 	}
-	// }
+		//
+		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+		//
+		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Path: "/v1",
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+		}
+		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Path: "/v1",
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+		}
+	}
 
-	// envVars := map[string]env.Setter{}
-	// envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
-	// envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	// envVars["CONFIG_HASH"] = env.SetValue(configHash)
+	envVars := map[string]env.Setter{}
+	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
+	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	deployment := &appsv1.Deployment{
-		// ObjectMeta: metav1.ObjectMeta{
-		// 	Name:      ServiceName,
-		// 	Namespace: instance.Namespace,
-		// },
-		// Spec: appsv1.DeploymentSpec{
-		// 	Selector: &metav1.LabelSelector{
-		// 		MatchLabels: labels,
-		// 	},
-		// 	Replicas: &instance.Spec.Replicas,
-		// 	Template: corev1.PodTemplateSpec{
-		// 		ObjectMeta: metav1.ObjectMeta{
-		// 			Labels: labels,
-		// 		},
-		// 		Spec: corev1.PodSpec{
-		// 			ServiceAccountName: ServiceAccount,
-		// 			Containers: []corev1.Container{
-		// 				{
-		// 					Name: ServiceName + "-api",
-		// 					Command: []string{
-		// 						"/bin/bash",
-		// 					},
-		// 					Args:  args,
-		// 					Image: instance.Spec.ContainerImage,
-		// 					SecurityContext: &corev1.SecurityContext{
-		// 						RunAsUser: &runAsUser,
-		// 					},
-		// 					Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		// 					VolumeMounts:   getVolumeMounts(),
-		// 					Resources:      instance.Spec.Resources,
-		// 					ReadinessProbe: readinessProbe,
-		// 					LivenessProbe:  livenessProbe,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ironic.ServiceName,
+			Namespace: instance.Namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: &instance.Spec.Replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: ironic.ServiceAccount,
+					Containers: []corev1.Container{
+						{
+							Name: ironic.ServiceName + "-api",
+							Command: []string{
+								"/bin/bash",
+							},
+							Args:  args,
+							Image: instance.Spec.ContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &runAsUser,
+							},
+							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:   GetVolumeMounts(),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: readinessProbe,
+							LivenessProbe:  livenessProbe,
+						},
+					},
+				},
+			},
+		},
 	}
 	deployment.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName, instance.Name)
 	// If possible two pods of the same service should not
