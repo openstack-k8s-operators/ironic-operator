@@ -13,25 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ironic
+package ironicconductor
 
 const (
-	// ServiceName -
-	ServiceName = "ironic"
-	// ServiceType -
-	ServiceType = "ironic"
-	// ServiceAccount -
-	ServiceAccount = "ironic-operator-ironic"
-	// DatabaseName -
-	DatabaseName = "ironic"
-	// IronicAPIPort -
-	IronicAPIPort int32 = 6385
-	// KollaConfigDbSync -
-	KollaConfigDbSync = "/var/lib/config-data/merged/db-sync-config.json"
-	// ComponentSelector - used by operators to specify labels
-	ComponentSelector = "component"
-	// ConductorComponent
-	ConductorComponent = "conductor"
-	// APIComponent
-	APIComponent = "api"
+	// KollaConfig -
+	KollaConfig = "/var/lib/config-data/merged/ironic-conductor-config.json"
 )

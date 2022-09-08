@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ironicapis.ironic.openstack.org
+  name: ironicconductors.ironic.openstack.org
 spec:
   group: ironic.openstack.org
   names:
-    kind: IronicAPI
-    listKind: IronicAPIList
-    plural: ironicapis
-    singular: ironicapi
+    kind: IronicConductor
+    listKind: IronicConductorList
+    plural: ironicconductors
+    singular: ironicconductor
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -27,7 +27,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: IronicAPI is the Schema for the ironicapis API
+        description: IronicConductor is the Schema for the ironicconductors API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,7 +42,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: IronicAPISpec defines the desired state of IronicAPI
+            description: IronicConductorSpec defines the desired state of IronicConductor
             properties:
               containerImage:
                 description: ContainerImage - Ironic API Container Image URL
@@ -159,15 +159,8 @@ spec:
                 type: boolean
             type: object
           status:
-            description: IronicAPIStatus defines the observed state of IronicAPI
+            description: IronicConductorStatus defines the observed state of IronicConductor
             properties:
-              apiEndpoints:
-                additionalProperties:
-                  additionalProperties:
-                    type: string
-                  type: object
-                description: API endpoint
-                type: object
               conditions:
                 description: Conditions
                 items:

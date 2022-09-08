@@ -120,6 +120,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Ironic")
 		os.Exit(1)
 	}
+	if err = (&controllers.IronicConductorReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Kclient: kclient,
+		Log:     ctrl.Log.WithName("controllers").WithName("IronicConductor"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "IronicConductor")
+		os.Exit(1)
+	}
 	if err = (&controllers.IronicAPIReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  mgr.GetScheme(),

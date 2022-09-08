@@ -18,6 +18,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - batch
   resources:
   - jobs
@@ -87,6 +99,32 @@ rules:
   - ironic.openstack.org
   resources:
   - ironicapis/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicconductors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicconductors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicconductors/status
   verbs:
   - get
   - patch

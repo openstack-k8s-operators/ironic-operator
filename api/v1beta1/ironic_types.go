@@ -80,7 +80,7 @@ type IronicSpec struct {
 	CustomServiceConfig string `json:"customServiceConfig,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. logging.conf or policy.json.
+	// ConfigOverwrite - interface to overwrite default config files like e.g. policy.json.
 	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
 	// TODO: -> implement
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
@@ -89,9 +89,9 @@ type IronicSpec struct {
 	// IronicAPI - Spec definition for the API service of this Ironic deployment
 	IronicAPI IronicAPISpec `json:"ironicAPI"`
 
-	// // +kubebuilder:validation:Required
-	// // IronicAPI - Spec definition for the API service of this Ironic deployment
-	// IronicConductor IronicConductorSpec `json:"ironicConductor"`
+	// +kubebuilder:validation:Required
+	// IronicAPI - Spec definition for the API service of this Ironic deployment
+	IronicConductor IronicConductorSpec `json:"ironicConductor"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret

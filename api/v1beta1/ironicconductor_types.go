@@ -22,8 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IronicAPISpec defines the desired state of IronicAPI
-type IronicAPISpec struct {
+// IronicConductorSpec defines the desired state of IronicConductor
+type IronicConductorSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=true
 	// Whether to deploy a single node standalone Ironic.
@@ -90,13 +90,10 @@ type IronicAPISpec struct {
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// IronicAPIStatus defines the observed state of IronicAPI
-type IronicAPIStatus struct {
+// IronicConductorStatus defines the observed state of IronicConductor
+type IronicConductorStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
-
-	// API endpoint
-	APIEndpoints map[string]map[string]string `json:"apiEndpoints,omitempty"`
 
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
@@ -113,29 +110,29 @@ type IronicAPIStatus struct {
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
-// IronicAPI is the Schema for the ironicapis API
-type IronicAPI struct {
+// IronicConductor is the Schema for the ironicconductors API
+type IronicConductor struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   IronicAPISpec   `json:"spec,omitempty"`
-	Status IronicAPIStatus `json:"status,omitempty"`
+	Spec   IronicConductorSpec   `json:"spec,omitempty"`
+	Status IronicConductorStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// IronicAPIList contains a list of IronicAPI
-type IronicAPIList struct {
+// IronicConductorList contains a list of IronicConductor
+type IronicConductorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []IronicAPI `json:"items"`
+	Items           []IronicConductor `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&IronicAPI{}, &IronicAPIList{})
+	SchemeBuilder.Register(&IronicConductor{}, &IronicConductorList{})
 }
 
 // IsReady - returns true if service is ready to server requests
-func (instance IronicAPI) IsReady() bool {
+func (instance IronicConductor) IsReady() bool {
 	return instance.Status.ReadyCount >= 1
 }
