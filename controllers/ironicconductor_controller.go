@@ -38,75 +38,62 @@ import (
 	"github.com/go-logr/logr"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
-	ironicapi "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicapi"
-	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
+	ironicconductor "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicconductor"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
 // GetClient -
-func (r *IronicAPIReconciler) GetClient() client.Client {
+func (r *IronicConductorReconciler) GetClient() client.Client {
 	return r.Client
 }
 
 // GetKClient -
-func (r *IronicAPIReconciler) GetKClient() kubernetes.Interface {
+func (r *IronicConductorReconciler) GetKClient() kubernetes.Interface {
 	return r.Kclient
 }
 
 // GetLogger -
-func (r *IronicAPIReconciler) GetLogger() logr.Logger {
+func (r *IronicConductorReconciler) GetLogger() logr.Logger {
 	return r.Log
 }
 
 // GetScheme -
-func (r *IronicAPIReconciler) GetScheme() *runtime.Scheme {
+func (r *IronicConductorReconciler) GetScheme() *runtime.Scheme {
 	return r.Scheme
 }
 
-// IronicAPIReconciler reconciles a IronicAPI object
-type IronicAPIReconciler struct {
+// IronicConductorReconciler reconciles a IronicConductor object
+type IronicConductorReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
 
-var (
-	keystoneServices = []map[string]string{
-		{
-			"type": ironic.ServiceType,
-			"name": ironic.ServiceName,
-			"desc": "Ironic Service",
-		},
-	}
-)
-
-// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update;patch;delete;watch
 
 // Reconcile -
-func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// Fetch the IronicAPI instance
-	instance := &ironicv1.IronicAPI{}
+	// Fetch the IronicConductor instance
+	instance := &ironicv1.IronicConductor{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
@@ -146,9 +133,6 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
-	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
 	}
 	if instance.Status.ServiceIDs == nil {
 		instance.Status.ServiceIDs = map[string]string{}
@@ -195,13 +179,13 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(o client.Object) []reconcile.Request {
 		result := []reconcile.Request{}
 
 		// get all API CRs
-		apis := &ironicv1.IronicAPIList{}
+		apis := &ironicv1.IronicConductorList{}
 		listOpts := []client.ListOption{
 			client.InNamespace(o.GetNamespace()),
 		}
@@ -233,7 +217,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ironicv1.IronicAPI{}).
+		For(&ironicv1.IronicConductor{}).
 		// TODO(sbaker), how to handle optional Owns? Standalone Ironic doesn't own a KeystoneService
 		// Owns(&keystonev1.KeystoneService{}).
 		Owns(&appsv1.Deployment{}).
@@ -246,31 +230,8 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
-
-	// It's possible to get here before the endpoints have been set in the status, so check for this
-	if instance.Status.APIEndpoints != nil && !instance.Spec.Standalone {
-		for _, ksSvc := range keystoneServices {
-			ksSvcSpec := keystonev1.KeystoneServiceSpec{
-				ServiceType:        ksSvc["type"],
-				ServiceName:        ksSvc["name"],
-				ServiceDescription: ksSvc["desc"],
-				Enabled:            true,
-				APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
-				ServiceUser:        instance.Spec.ServiceUser,
-				Secret:             instance.Spec.Secret,
-				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-			}
-
-			ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, map[string]string{}, 10)
-
-			err := ksSvcObj.Delete(ctx, helper)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	}
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
@@ -282,63 +243,13 @@ func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *iro
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileInit(
+func (r *IronicConductorReconciler) reconcileInit(
 	ctx context.Context,
-	instance *ironicv1.IronicAPI,
+	instance *ironicv1.IronicConductor,
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service init")
-
-	//
-	// expose the service (create service, route and return the created endpoint URLs)
-	//
-
-	// V1
-	data := map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointPublic: {
-			Port: ironic.IronicAPIPort,
-			Path: "/v1/%(project_id)s",
-		},
-	}
-
-	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
-		ctx,
-		helper,
-		ironic.ServiceName,
-		serviceLabels,
-		data,
-	)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ExposeServiceReadyErrorMessage,
-			err.Error()))
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ExposeServiceReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.ExposeServiceReadyRunningMessage))
-		return ctrlResult, nil
-	}
-
-	//
-	// Update instance status with service endpoint url from route host information for v2
-	//
-	// TODO: need to support https default here
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
-	}
-	instance.Status.APIEndpoints[ironic.ServiceName] = apiEndpoints
-	// V1 - end
-
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
-
-	// expose service - end
 
 	//
 	// create users and endpoints
@@ -348,45 +259,11 @@ func (r *IronicAPIReconciler) reconcileInit(
 		instance.Status.ServiceIDs = map[string]string{}
 	}
 
-	if !instance.Spec.Standalone {
-		for _, ksSvc := range keystoneServices {
-			ksSvcSpec := keystonev1.KeystoneServiceSpec{
-				ServiceType:        ksSvc["type"],
-				ServiceName:        ksSvc["name"],
-				ServiceDescription: ksSvc["desc"],
-				Enabled:            true,
-				APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
-				ServiceUser:        instance.Spec.ServiceUser,
-				Secret:             instance.Spec.Secret,
-				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-			}
-
-			ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
-			ctrlResult, err = ksSvcObj.CreateOrPatch(ctx, helper)
-			if err != nil {
-				return ctrlResult, err
-			}
-
-			// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
-			// into a local condition with the type condition.KeystoneServiceReadyCondition
-			c := ksSvcObj.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
-			if c != nil {
-				instance.Status.Conditions.Set(c)
-			}
-
-			if (ctrlResult != ctrl.Result{}) {
-				return ctrlResult, nil
-			}
-
-			instance.Status.ServiceIDs[ksSvc["name"]] = ksSvcObj.GetServiceID()
-		}
-	}
-
 	r.Log.Info("Reconciled Service init successfully")
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service")
 
 	// If the service object doesn't have our finalizer, add it.
@@ -497,7 +374,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 
 	serviceLabels := map[string]string{
 		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.APIComponent,
+		ironic.ComponentSelector: ironic.ConductorComponent,
 	}
 
 	// Handle service init
@@ -529,12 +406,12 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	//
 
 	// Define a new Deployment object
-	depl := deployment.NewDeployment(
-		ironicapi.Deployment(instance, inputHash, serviceLabels),
+	ss := statefulset.NewStatefulSet(
+		ironicconductor.StatefulSet(instance, inputHash, serviceLabels),
 		5,
 	)
 
-	ctrlResult, err = depl.CreateOrPatch(ctx, helper)
+	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -551,7 +428,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
-	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
@@ -561,7 +438,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service update")
 
 	// TODO: should have minor update tasks if required
@@ -571,7 +448,7 @@ func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *iro
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service upgrade")
 
 	// TODO: should have major version upgrade tasks
@@ -585,10 +462,10 @@ func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ir
 // generateServiceConfigMaps - create custom configmap to hold service-specific config
 // TODO add DefaultConfigOverwrite
 //
-func (r *IronicAPIReconciler) generateServiceConfigMaps(
+func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
-	instance *ironicv1.IronicAPI,
+	instance *ironicv1.IronicConductor,
 	envVars *map[string]env.Setter,
 ) error {
 	//
@@ -633,9 +510,9 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
 //
-func (r *IronicAPIReconciler) createHashOfInputHashes(
+func (r *IronicConductorReconciler) createHashOfInputHashes(
 	ctx context.Context,
-	instance *ironicv1.IronicAPI,
+	instance *ironicv1.IronicConductor,
 	envVars map[string]env.Setter,
 ) (string, error) {
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)

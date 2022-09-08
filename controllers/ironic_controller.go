@@ -65,6 +65,9 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
@@ -82,7 +85,7 @@ type IronicReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("ironicapi", req.NamespacedName)
+	_ = r.Log.WithValues("ironic", req.NamespacedName)
 
 	// Fetch the Ironic instance
 	instance := &ironicv1.Ironic{}
@@ -330,6 +333,30 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.Set(c)
 	}
 
+	// deploy ironic-conductor
+	ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(instance)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			ironicv1.IronicConductorReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			ironicv1.IronicConductorReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+	}
+	// Mirror IronicConductor status' ReadyCount to this parent CR
+	// instance.Status.ServiceIDs = ironicConductor.Status.ServiceIDs
+	instance.Status.IronicConductorReadyCount = ironicConductor.Status.ReadyCount
+
+	// Mirror IronicConductor's condition status
+	c = ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
 	r.Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
 }
@@ -467,6 +494,35 @@ func (r *IronicReconciler) reconcileUpgrade(ctx context.Context, instance *ironi
 
 	r.Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil
+}
+
+func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(instance *ironicv1.Ironic) (*ironicv1.IronicConductor, controllerutil.OperationResult, error) {
+	deployment := &ironicv1.IronicConductor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-conductor", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
+		deployment.Spec = instance.Spec.IronicConductor
+		// Add in transfers from umbrella Ironic (this instance) spec
+		// TODO: Add logic to determine when to set/overwrite, etc
+		deployment.Spec.Standalone = instance.Spec.Standalone
+		deployment.Spec.ServiceUser = instance.Spec.ServiceUser
+		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
+		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
+		deployment.Spec.Secret = instance.Spec.Secret
+
+		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return deployment, op, err
 }
 
 func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {

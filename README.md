@@ -6,10 +6,11 @@ on Kubernetes. This Operator was developed using [RDO](https://www.rdoproject.or
 
 The operator is intended to be deployed via OLM [Operator Lifecycle Manager](https://github.com/operator-framework/operator-lifecycle-manager)
 
-# API Example
+# Example
 
-The Operator creates a custom Ironic resource that can be used to create Ironic API
-instances within the cluster. Example CR to create an Ironic API in your cluster:
+The Operator creates a custom Ironic resource that can be used to create Ironic
+API and conductor instances within the cluster. Example CR to create an Ironic
+in your cluster:
 
 ```yaml
 apiVersion: ironic.openstack.org/v1beta1
@@ -27,6 +28,9 @@ spec:
   ironicAPI:
     replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
+  ironicConductor:
+    replicas: 1
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
   secret: ironic-secret
 ```
 

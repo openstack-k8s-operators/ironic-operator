@@ -1,0 +1,24 @@
+# permissions for end users to edit ironicconductors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ironicconductor-editor-role
+rules:
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicconductors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicconductors/status
+  verbs:
+  - get

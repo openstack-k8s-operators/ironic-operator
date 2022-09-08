@@ -199,6 +199,125 @@ spec:
                       TODO: -> not implemented, always standalone for now'
                     type: boolean
                 type: object
+              ironicConductor:
+                description: IronicAPI - Spec definition for the API service of this
+                  Ironic deployment
+                properties:
+                  containerImage:
+                    description: ContainerImage - Ironic API Container Image URL
+                    type: string
+                  customServiceConfig:
+                    default: '# add your customization here'
+                    description: CustomServiceConfig - customize the service config
+                      using this parameter to change service defaults, or overwrite
+                      rendered information using raw OpenStack config format. The
+                      content gets added to to /etc/<service>/<service>.conf.d directory
+                      as custom.conf file.
+                    type: string
+                  databaseHostname:
+                    description: DatabaseHostname - Ironic Database Hostname
+                    type: string
+                  databaseUser:
+                    default: ironic
+                    description: 'DatabaseUser - optional username used for ironic
+                      DB, defaults to ironic TODO: -> implement needs work in mariadb-operator,
+                      right now only ironic'
+                    type: string
+                  debug:
+                    description: Debug - enable debug for different deploy stages.
+                      If an init container is used, it runs and the actual action
+                      pod gets started with sleep infinity
+                    properties:
+                      bootstrap:
+                        default: false
+                        description: ReadyCount enable debug
+                        type: boolean
+                      dbSync:
+                        default: false
+                        description: DBSync enable debug
+                        type: boolean
+                      service:
+                        default: false
+                        description: Service enable debug
+                        type: boolean
+                    type: object
+                  defaultConfigOverwrite:
+                    additionalProperties:
+                      type: string
+                    description: 'ConfigOverwrite - interface to overwrite default
+                      config files like e.g. policy.json. But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> . TODO: -> implement'
+                    type: object
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector to target subset of worker nodes for
+                      running the API service
+                    type: object
+                  passwordSelectors:
+                    description: PasswordSelectors - Selectors to identify the DB
+                      and AdminUser password and TransportURL from the Secret
+                    properties:
+                      admin:
+                        default: IronicPassword
+                        description: Database - Selector to get the ironic service
+                          password from the Secret
+                        type: string
+                      database:
+                        default: IronicDatabasePassword
+                        description: 'Database - Selector to get the ironic Database
+                          user password from the Secret TODO: not used, need change
+                          in mariadb-operator'
+                        type: string
+                    type: object
+                  replicas:
+                    default: 1
+                    description: Replicas - Ironic API Replicas
+                    format: int32
+                    type: integer
+                  resources:
+                    description: Resources - Compute Resources required by this service
+                      (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                  secret:
+                    description: Secret containing OpenStack password information
+                      for IronicDatabasePassword, AdminPassword
+                    type: string
+                  serviceUser:
+                    default: ironic
+                    description: ServiceUser - optional username used for this service
+                      to register in ironic
+                    type: string
+                  standalone:
+                    default: true
+                    description: 'Whether to deploy a single node standalone Ironic.
+                      TODO: -> not implemented, always standalone for now'
+                    type: boolean
+                type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
                   AdminUser password from the Secret
@@ -235,6 +354,7 @@ spec:
                 type: boolean
             required:
             - ironicAPI
+            - ironicConductor
             type: object
           status:
             description: IronicStatus defines the observed state of Ironic

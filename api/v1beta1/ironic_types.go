@@ -89,9 +89,9 @@ type IronicSpec struct {
 	// IronicAPI - Spec definition for the API service of this Ironic deployment
 	IronicAPI IronicAPISpec `json:"ironicAPI"`
 
-	// // +kubebuilder:validation:Required
-	// // IronicAPI - Spec definition for the API service of this Ironic deployment
-	// IronicConductor IronicConductorSpec `json:"ironicConductor"`
+	// +kubebuilder:validation:Required
+	// IronicAPI - Spec definition for the API service of this Ironic deployment
+	IronicConductor IronicConductorSpec `json:"ironicConductor"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret

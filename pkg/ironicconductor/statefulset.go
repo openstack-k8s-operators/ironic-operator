@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ironicapi
+package ironicconductor
 
 import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -25,26 +25,19 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
 	// ServiceCommand -
-	ServiceCommand = `/usr/local/bin/kolla_httpd_setup && ` +
-		`mkdir -p /var/www/cgi-bin/ironic && ` +
-		`chown -R ironic /var/www/cgi-bin/ironic && ` +
-		`cp -a /usr/bin/ironic-api-wsgi /var/www/cgi-bin/ironic/app && ` +
-		// TODO(sbaker): remove when https://review.opendev.org/c/openstack/tripleo-common/+/854459 is in the image
-		`/usr/local/bin/kolla_set_configs && ` +
-		`/usr/local/bin/kolla_start`
+	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 )
 
-// Deployment func
-func Deployment(
-	instance *ironicv1.IronicAPI,
+// StatefulSet func
+func StatefulSet(
+	instance *ironicv1.IronicConductor,
 	configHash string,
 	labels map[string]string,
-) *appsv1.Deployment {
+) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
@@ -77,17 +70,6 @@ func Deployment(
 	} else {
 		args = append(args, ServiceCommand)
 
-		//
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		//
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
-		}
 	}
 
 	envVars := map[string]env.Setter{}
@@ -95,12 +77,12 @@ func Deployment(
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
-	deployment := &appsv1.Deployment{
+	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ironic.ServiceName,
+			Name:      instance.Name,
 			Namespace: instance.Namespace,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -113,7 +95,7 @@ func Deployment(
 					ServiceAccountName: ironic.ServiceAccount,
 					Containers: []corev1.Container{
 						{
-							Name: ironic.ServiceName + "-" + ironic.APIComponent,
+							Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
 							Command: []string{
 								"/bin/bash",
 							},
@@ -133,11 +115,11 @@ func Deployment(
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName, instance.Name)
+	statefulset.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName, instance.Name)
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.
-	deployment.Spec.Template.Spec.Affinity = affinity.DistributePods(
+	statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
 		common.AppSelector,
 		[]string{
 			ironic.ServiceName,
@@ -145,7 +127,7 @@ func Deployment(
 		corev1.LabelHostname,
 	)
 	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
-		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
+		statefulset.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
 	initContainerDetails := ironic.APIDetails{
@@ -158,7 +140,7 @@ func Deployment(
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
 	}
-	deployment.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
+	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
-	return deployment
+	return statefulset
 }

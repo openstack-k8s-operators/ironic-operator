@@ -13,4 +13,7 @@ spec:
   ironicAPI:
     replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
+  ironicConductor:
+    replicas: 1
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
   secret: ironic-secret
