@@ -31,6 +31,7 @@ spec:
   ironicConductor:
     replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
+    pxeContainerImage: quay.io/tripleomastercentos9/openstack-ironic-pxe:current-tripleo
   secret: ironic-secret
 ```
 

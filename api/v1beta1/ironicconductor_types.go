@@ -36,12 +36,16 @@ type IronicConductorSpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
-	// ContainerImage - Ironic API Container Image URL
+	// ContainerImage - Ironic Conductor Container Image URL
 	ContainerImage string `json:"containerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image URL
+	PxeContainerImage string `json:"pxeContainerImage,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
-	// Replicas - Ironic API Replicas
+	// Replicas - Ironic Conductor Replicas
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
@@ -63,7 +67,7 @@ type IronicConductorSpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes for running the API service
+	// NodeSelector to target subset of worker nodes for running the Conductor service
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -98,7 +102,7 @@ type IronicConductorStatus struct {
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
-	// ReadyCount of ironic API instances
+	// ReadyCount of ironic Conductor instances
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// ServiceIDs
@@ -110,7 +114,7 @@ type IronicConductorStatus struct {
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
-// IronicConductor is the Schema for the ironicconductors API
+// IronicConductor is the Schema for the ironicconductors Conductor
 type IronicConductor struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

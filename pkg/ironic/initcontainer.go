@@ -24,6 +24,7 @@ import (
 // APIDetails information
 type APIDetails struct {
 	ContainerImage       string
+	PxeContainerImage    string
 	DatabaseHost         string
 	DatabaseUser         string
 	DatabaseName         string
@@ -33,11 +34,15 @@ type APIDetails struct {
 	UserPasswordSelector string
 	VolumeMounts         []corev1.VolumeMount
 	Privileged           bool
+	PxeInit              bool
 }
 
 const (
 	// InitContainerCommand -
 	InitContainerCommand = "/usr/local/bin/container-scripts/init.sh"
+
+	// PxeInitContainerCommand -
+	PxeInitContainerCommand = "/usr/local/bin/container-scripts/pxe-init.sh"
 )
 
 // InitContainer - init container for Ironic pods
@@ -51,11 +56,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	if init.Privileged {
 		securityContext.Privileged = &trueVar
-	}
-
-	args := []string{
-		"-c",
-		InitContainerCommand,
 	}
 
 	envVars := map[string]env.Setter{}
@@ -89,7 +89,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	}
 	envs = env.MergeEnvs(envs, envVars)
 
-	return []corev1.Container{
+	containers := []corev1.Container{
 		{
 			Name:            "init",
 			Image:           init.ContainerImage,
@@ -97,9 +97,30 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Command: []string{
 				"/bin/bash",
 			},
-			Args:         args,
+			Args: []string{
+				"-c",
+				InitContainerCommand,
+			},
 			Env:          envs,
 			VolumeMounts: init.VolumeMounts,
 		},
 	}
+	if init.PxeInit {
+		pxeInit := corev1.Container{
+			Name:            "pxe-init",
+			Image:           init.PxeContainerImage,
+			SecurityContext: securityContext,
+			Command: []string{
+				"/bin/bash",
+			},
+			Args: []string{
+				"-c",
+				PxeInitContainerCommand,
+			},
+			Env:          envs,
+			VolumeMounts: init.VolumeMounts,
+		}
+		containers = append(containers, pxeInit)
+	}
+	return containers
 }

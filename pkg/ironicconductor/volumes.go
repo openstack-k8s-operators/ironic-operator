@@ -9,7 +9,7 @@ import (
 func GetVolumes(parentName string, name string) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
 
-	backupVolumes := []corev1.Volume{
+	conductorVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
@@ -21,24 +21,44 @@ func GetVolumes(parentName string, name string) []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: "var-lib-ironic",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 	}
 
-	return append(ironic.GetVolumes(parentName), backupVolumes...)
+	return append(ironic.GetVolumes(parentName), conductorVolumes...)
 }
 
-// GetInitVolumeMounts - Ironic API init task VolumeMounts
+// GetInitVolumeMounts - Ironic Conductor init task VolumeMounts
 func GetInitVolumeMounts() []corev1.VolumeMount {
 
-	customConfVolumeMount := corev1.VolumeMount{
-		Name:      "config-data-custom",
-		MountPath: "/var/lib/config-data/custom",
-		ReadOnly:  true,
+	initVolumdMounts := []corev1.VolumeMount{
+		{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "var-lib-ironic",
+			MountPath: "/var/lib/ironic",
+			ReadOnly:  false,
+		},
 	}
 
-	return append(ironic.GetInitVolumeMounts(), customConfVolumeMount)
+	return append(ironic.GetInitVolumeMounts(), initVolumdMounts...)
 }
 
-// GetVolumeMounts - Ironic API VolumeMounts
+// GetVolumeMounts - Ironic Conductor VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
-	return ironic.GetVolumeMounts()
+	conductorVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "var-lib-ironic",
+			MountPath: "/var/lib/ironic",
+			ReadOnly:  false,
+		},
+	}
+	return append(ironic.GetVolumeMounts(), conductorVolumeMounts...)
 }

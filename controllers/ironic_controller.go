@@ -583,8 +583,6 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 
 	templateParameters := make(map[string]interface{})
-	// TODO(sbaker): Wire this into a spec value
-	templateParameters["Debug"] = "true"
 
 	cms := []util.Template{
 		// ScriptsConfigMap

@@ -30,13 +30,7 @@ import (
 
 const (
 	// ServiceCommand -
-	ServiceCommand = `/usr/local/bin/kolla_httpd_setup && ` +
-		`mkdir -p /var/www/cgi-bin/ironic && ` +
-		`chown -R ironic /var/www/cgi-bin/ironic && ` +
-		`cp -a /usr/bin/ironic-api-wsgi /var/www/cgi-bin/ironic/app && ` +
-		// TODO(sbaker): remove when https://review.opendev.org/c/openstack/tripleo-common/+/854459 is in the image
-		`/usr/local/bin/kolla_set_configs && ` +
-		`/usr/local/bin/kolla_start`
+	ServiceCommand = "/usr/local/bin/container-scripts/api-prep.sh && /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 )
 
 // Deployment func
@@ -157,6 +151,7 @@ func Deployment(
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
+		PxeInit:              false,
 	}
 	deployment.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 

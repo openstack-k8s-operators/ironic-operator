@@ -27,7 +27,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: IronicConductor is the Schema for the ironicconductors API
+        description: IronicConductor is the Schema for the ironicconductors Conductor
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -45,7 +45,7 @@ spec:
             description: IronicConductorSpec defines the desired state of IronicConductor
             properties:
               containerImage:
-                description: ContainerImage - Ironic API Container Image URL
+                description: ContainerImage - Ironic Conductor Container Image URL
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -94,7 +94,7 @@ spec:
                 additionalProperties:
                   type: string
                 description: NodeSelector to target subset of worker nodes for running
-                  the API service
+                  the Conductor service
                 type: object
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
@@ -111,9 +111,13 @@ spec:
                       password from the Secret TODO: not used, need change in mariadb-operator'
                     type: string
                 type: object
+              pxeContainerImage:
+                description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
+                  URL
+                type: string
               replicas:
                 default: 1
-                description: Replicas - Ironic API Replicas
+                description: Replicas - Ironic Conductor Replicas
                 format: int32
                 type: integer
               resources:
@@ -210,7 +214,7 @@ spec:
                 description: Map of hashes to track e.g. job status
                 type: object
               readyCount:
-                description: ReadyCount of ironic API instances
+                description: ReadyCount of ironic Conductor instances
                 format: int32
                 type: integer
               serviceIDs:

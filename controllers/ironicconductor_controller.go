@@ -220,7 +220,7 @@ func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&ironicv1.IronicConductor{}).
 		// TODO(sbaker), how to handle optional Owns? Standalone Ironic doesn't own a KeystoneService
 		// Owns(&keystonev1.KeystoneService{}).
-		Owns(&appsv1.Deployment{}).
+		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
@@ -405,7 +405,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	// normal reconcile tasks
 	//
 
-	// Define a new Deployment object
+	// Define a new StatefulSet object
 	ss := statefulset.NewStatefulSet(
 		ironicconductor.StatefulSet(instance, inputHash, serviceLabels),
 		5,
@@ -432,7 +432,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
-	// create Deployment - end
+	// create StatefulSet - end
 
 	r.Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
