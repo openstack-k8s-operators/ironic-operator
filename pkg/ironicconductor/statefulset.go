@@ -70,6 +70,21 @@ func StatefulSet(
 	} else {
 		args = append(args, ServiceCommand)
 
+		//
+		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+		//
+		// Make a POST request to the JSON-RPC port
+		livenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"curl -v -X POST localhost:8089",
+			},
+		}
+		// Make a POST request to the JSON-RPC port
+		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"curl -v -X POST localhost:8089",
+			},
+		}
 	}
 
 	envVars := map[string]env.Setter{}
@@ -109,6 +124,7 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
+							// StartupProbe:   startupProbe,
 						},
 					},
 				},
@@ -132,6 +148,7 @@ func StatefulSet(
 
 	initContainerDetails := ironic.APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
+		PxeContainerImage:    instance.Spec.PxeContainerImage,
 		DatabaseHost:         instance.Spec.DatabaseHostname,
 		DatabaseUser:         instance.Spec.DatabaseUser,
 		DatabaseName:         ironic.DatabaseName,
@@ -139,6 +156,7 @@ func StatefulSet(
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
+		PxeInit:              true,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 

@@ -204,7 +204,8 @@ spec:
                   Ironic deployment
                 properties:
                   containerImage:
-                    description: ContainerImage - Ironic API Container Image URL
+                    description: ContainerImage - Ironic Conductor Container Image
+                      URL
                     type: string
                   customServiceConfig:
                     default: '# add your customization here'
@@ -253,7 +254,7 @@ spec:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes for
-                      running the API service
+                      running the Conductor service
                     type: object
                   passwordSelectors:
                     description: PasswordSelectors - Selectors to identify the DB
@@ -271,9 +272,13 @@ spec:
                           in mariadb-operator'
                         type: string
                     type: object
+                  pxeContainerImage:
+                    description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container
+                      Image URL
+                    type: string
                   replicas:
                     default: 1
-                    description: Replicas - Ironic API Replicas
+                    description: Replicas - Ironic Conductor Replicas
                     format: int32
                     type: integer
                   resources:
