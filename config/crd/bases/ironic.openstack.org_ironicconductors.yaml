@@ -90,6 +90,16 @@ spec:
                   files. Those get added to the service config dir in /etc/<service>
                   . TODO: -> implement'
                 type: object
+              dhcpRange:
+                description: DHCPRange - DHCP range to use for provisioning
+                properties:
+                  end:
+                    description: End - End of DHCP range
+                    type: string
+                  start:
+                    description: Start - Start of DHCP range
+                    type: string
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -111,6 +121,10 @@ spec:
                       password from the Secret TODO: not used, need change in mariadb-operator'
                     type: string
                 type: object
+              provisioningInterface:
+                description: ProvisioningInterface - Host network interface used by
+                  Ironic, TFTP, DHCP and HTTP
+                type: string
               pxeContainerImage:
                 description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
                   URL

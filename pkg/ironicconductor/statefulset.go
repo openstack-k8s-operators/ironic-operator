@@ -43,13 +43,25 @@ func StatefulSet(
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
+		PeriodSeconds:       30,
 		InitialDelaySeconds: 3,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
+	}
+	dnsmasqLivenessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 3,
+	}
+	dnsmasqReadinessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
 
@@ -67,6 +79,17 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
+		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+
+		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
 	} else {
 		args = append(args, ServiceCommand)
 
@@ -76,21 +99,50 @@ func StatefulSet(
 		// Make a POST request to the JSON-RPC port
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"curl -v -X POST localhost:8089",
+				"/usr/bin/curl", "-v", "-X", "POST", "localhost:8089", "-d",
+				"{\"jsonrpc\": \"2.0\", \"method\": \"get_driver_properties\", \"params\": {\"driver_name\": \"redfish\", \"context\": {}}}",
 			},
 		}
 		// Make a POST request to the JSON-RPC port
 		readinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"curl -v -X POST localhost:8089",
+				"/usr/bin/curl", "-v", "-X", "POST", "localhost:8089", "-d",
+				"{\"jsonrpc\": \"2.0\", \"method\": \"get_driver_properties\", \"params\": {\"driver_name\": \"redfish\", \"context\": {}}}",
 			},
 		}
+		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+
+		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+		// dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+		// 	Command: []string{
+		// 		"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		// 	},
+		// }
+
+		// dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+		// 	Command: []string{
+		// 		"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		// 	},
+		// }
 	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
+
+	dnsmasqEnvVars := map[string]env.Setter{}
+	dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
+	dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,6 +176,29 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
+							// StartupProbe:   startupProbe,
+						},
+						{
+							Name: "dnsmasq",
+							Command: []string{
+								"/bin/bash",
+							},
+							Args:  args,
+							Image: instance.Spec.PxeContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &runAsUser,
+								Capabilities: &corev1.Capabilities{
+									Add: []corev1.Capability{
+										"NET_ADMIN",
+										"NET_RAW",
+									},
+								},
+							},
+							Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
+							VolumeMounts:   GetVolumeMounts(),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: dnsmasqReadinessProbe,
+							LivenessProbe:  dnsmasqLivenessProbe,
 							// StartupProbe:   startupProbe,
 						},
 					},

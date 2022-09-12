@@ -18,4 +18,6 @@ package ironicconductor
 const (
 	// KollaConfig -
 	KollaConfig = "/var/lib/config-data/merged/ironic-conductor-config.json"
+	// DnsmasqKollaConfig -
+	DnsmasqKollaConfig = "/var/lib/config-data/merged/dnsmasq-config.json"
 )

@@ -583,6 +583,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 
 	templateParameters := make(map[string]interface{})
+	templateParameters["ProvisioningInterface"] = instance.Spec.IronicConductor.ProvisioningInterface
+	templateParameters["DHCPRange"] = instance.Spec.IronicConductor.DHCPRange
 
 	cms := []util.Template{
 		// ScriptsConfigMap

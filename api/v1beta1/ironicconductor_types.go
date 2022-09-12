@@ -44,6 +44,14 @@ type IronicConductorSpec struct {
 	PxeContainerImage string `json:"pxeContainerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// ProvisioningInterface - Host network interface used by Ironic, TFTP, DHCP and HTTP
+	ProvisioningInterface string `json:"provisioningInterface,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// DHCPRange - DHCP range to use for provisioning
+	DHCPRange DHCPRange `json:"dhcpRange,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// Replicas - Ironic Conductor Replicas
 	Replicas int32 `json:"replicas"`
