@@ -79,6 +79,11 @@ type IronicConductorSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// NodeProvisioningAddresses Map of nodes to node host network IP addresses to bind for TFTP/DHCP/HTTP
+	// provisioning services
+	NodeProvisioningAddresses map[string][]string `json:"nodeProvisioningAddresses,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
 	// actual action pod gets started with sleep infinity
 	Debug IronicDebug `json:"debug,omitempty"`

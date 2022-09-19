@@ -64,6 +64,18 @@ func StatefulSet(
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
+	httpbootLivenessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 3,
+	}
+	httpbootReadinessProbe := &corev1.Probe{
+		// TODO might need tuning
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
+	}
 
 	args := []string{"-c"}
 	if instance.Spec.Debug.Service {
@@ -121,6 +133,17 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
+		httpbootLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+
+		httpbootReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
 		// dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
 		// 	Command: []string{
 		// 		"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
@@ -143,6 +166,11 @@ func StatefulSet(
 	dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
 	dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+
+	httpbootEnvVars := map[string]env.Setter{}
+	httpbootEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(HttpbootKollaConfig)
+	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -199,6 +227,23 @@ func StatefulSet(
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: dnsmasqReadinessProbe,
 							LivenessProbe:  dnsmasqLivenessProbe,
+							// StartupProbe:   startupProbe,
+						},
+						{
+							Name: "httpboot",
+							Command: []string{
+								"/bin/bash",
+							},
+							Args:  args,
+							Image: instance.Spec.PxeContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &runAsUser,
+							},
+							Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
+							VolumeMounts:   GetVolumeMounts(),
+							Resources:      instance.Spec.Resources,
+							ReadinessProbe: httpbootReadinessProbe,
+							LivenessProbe:  httpbootLivenessProbe,
 							// StartupProbe:   startupProbe,
 						},
 					},

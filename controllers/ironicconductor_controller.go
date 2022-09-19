@@ -25,6 +25,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s_labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +47,9 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
@@ -87,6 +91,7 @@ type IronicConductorReconciler struct {
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
 
 // Reconcile -
 func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -243,13 +248,99 @@ func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instanc
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicConductorReconciler) reconcileInit(
+func (r *IronicConductorReconciler) reconcileServices(
 	ctx context.Context,
 	instance *ironicv1.IronicConductor,
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service init")
+
+	podSelectorString := k8s_labels.Set(serviceLabels).String()
+	podList, err := helper.GetKClient().CoreV1().Pods(instance.Namespace).List(ctx, metav1.ListOptions{LabelSelector: podSelectorString})
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	for _, pod := range podList.Items {
+		externalIPs, hasExternalIP := instance.Spec.NodeProvisioningAddresses[pod.Spec.NodeName]
+		r.Log.Info(fmt.Sprintf("Reconciling Service for conductor pod %s on node %s", pod.Name, pod.Spec.NodeName))
+		if !hasExternalIP {
+			r.Log.Info(fmt.Sprintf("No NodeProvisioningAddresses found for node %s, provisioning services won't be exposed", pod.Spec.NodeName))
+			continue
+		}
+
+		//
+		// Create the conductor pod service if none exists
+		//
+		conductorServiceLabels := map[string]string{
+			common.AppSelector:       ironic.ServiceName,
+			ironic.ComponentSelector: ironic.ConductorComponent,
+		}
+		conductorServiceName := pod.Name
+		svc := service.NewService(
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      conductorServiceName,
+					Namespace: instance.Namespace,
+					Labels:    conductorServiceLabels,
+				},
+				Spec: corev1.ServiceSpec{
+					Selector: conductorServiceLabels,
+					Ports: []corev1.ServicePort{
+						{
+							Name:     ironic.HttpbootComponent,
+							Port:     8088,
+							Protocol: corev1.ProtocolTCP,
+						},
+						{
+							Name:     ironic.DhcpComponent,
+							Port:     67,
+							Protocol: corev1.ProtocolUDP,
+						},
+					},
+					ExternalIPs: externalIPs,
+				},
+			},
+			conductorServiceLabels,
+			5,
+		)
+		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrl.Result{}, nil
+		}
+		// create service - end
+
+		// Create the conductor pod route if none exists
+		conductorRoute := route.NewRoute(
+			&routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      conductorServiceName,
+					Namespace: instance.Namespace,
+					Labels:    conductorServiceLabels,
+				},
+				Spec: routev1.RouteSpec{
+					To: routev1.RouteTargetReference{
+						Kind: "Service",
+						Name: conductorServiceName,
+					},
+				},
+			},
+			conductorServiceLabels,
+			5,
+		)
+
+		ctrlResult, err = conductorRoute.CreateOrPatch(ctx, helper)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrl.Result{}, nil
+		}
+
+		// create route - end
+	}
 
 	//
 	// create users and endpoints
@@ -319,7 +410,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("Could not find all config maps for parent Ironic CR %s", parentIronicName)
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("could not find all config maps for parent Ironic CR %s", parentIronicName)
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -372,21 +463,8 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
 	//
 
-	serviceLabels := map[string]string{
-		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.ConductorComponent,
-	}
-
-	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err := r.reconcileUpdate(ctx, instance, helper)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -404,6 +482,11 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	//
 	// normal reconcile tasks
 	//
+
+	serviceLabels := map[string]string{
+		common.AppSelector:       ironic.ServiceName,
+		ironic.ComponentSelector: ironic.ConductorComponent,
+	}
 
 	// Define a new StatefulSet object
 	ss := statefulset.NewStatefulSet(
@@ -428,11 +511,20 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
+	// create StatefulSet - end
+
+	// Handle service init
+	ctrlResult, err = r.reconcileServices(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
-	// create StatefulSet - end
 
 	r.Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil

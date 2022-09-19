@@ -16,5 +16,13 @@ spec:
   ironicConductor:
     replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
+    ## For each node provide the IP address of the interface on the provisioning network
+    #nodeProvisioningAddresses:
+    #  node1:
+    #    - 172.22.0.1
+    #  node2:
+    #    - 172.22.0.2
+    #  node3:
+    #    - 172.22.0.3
     pxeContainerImage: quay.io/tripleomastercentos9/openstack-ironic-pxe:current-tripleo
   secret: ironic-secret

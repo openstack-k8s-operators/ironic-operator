@@ -100,6 +100,14 @@ spec:
                     description: Start - Start of DHCP range
                     type: string
                 type: object
+              nodeProvisioningAddresses:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: NodeProvisioningAddresses Map of nodes to node host network
+                  IP addresses to bind for TFTP/DHCP/HTTP provisioning services
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string

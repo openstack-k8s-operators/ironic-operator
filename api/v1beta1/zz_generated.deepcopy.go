@@ -283,6 +283,21 @@ func (in *IronicConductorSpec) DeepCopyInto(out *IronicConductorSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.NodeProvisioningAddresses != nil {
+		in, out := &in.NodeProvisioningAddresses, &out.NodeProvisioningAddresses
+		*out = make(map[string][]string, len(*in))
+		for key, val := range *in {
+			var outVal []string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make([]string, len(*in))
+				copy(*out, *in)
+			}
+			(*out)[key] = outVal
+		}
+	}
 	out.Debug = in.Debug
 	if in.DefaultConfigOverwrite != nil {
 		in, out := &in.DefaultConfigOverwrite, &out.DefaultConfigOverwrite
