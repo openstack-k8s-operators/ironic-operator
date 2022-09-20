@@ -25,8 +25,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s_labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -256,17 +254,16 @@ func (r *IronicConductorReconciler) reconcileServices(
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service init")
 
-	podSelectorString := k8s_labels.Set(serviceLabels).String()
-	podList, err := helper.GetKClient().CoreV1().Pods(instance.Namespace).List(ctx, metav1.ListOptions{LabelSelector: podSelectorString})
+	podList, err := ironicconductor.ConductorPods(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	for _, pod := range podList.Items {
-		externalIPs, hasExternalIP := instance.Spec.NodeProvisioningAddresses[pod.Spec.NodeName]
-		r.Log.Info(fmt.Sprintf("Reconciling Service for conductor pod %s on node %s", pod.Name, pod.Spec.NodeName))
+	for _, conductorPod := range podList.Items {
+		externalIPs, hasExternalIP := instance.Spec.NodeProvisioningAddresses[conductorPod.Spec.NodeName]
+		r.Log.Info(fmt.Sprintf("Reconciling Service for conductor pod %s on node %s", conductorPod.Name, conductorPod.Spec.NodeName))
 		if !hasExternalIP {
-			r.Log.Info(fmt.Sprintf("No NodeProvisioningAddresses found for node %s, provisioning services won't be exposed", pod.Spec.NodeName))
+			r.Log.Info(fmt.Sprintf("No NodeProvisioningAddresses found for node %s, provisioning services won't be exposed", conductorPod.Spec.NodeName))
 			continue
 		}
 
@@ -277,31 +274,8 @@ func (r *IronicConductorReconciler) reconcileServices(
 			common.AppSelector:       ironic.ServiceName,
 			ironic.ComponentSelector: ironic.ConductorComponent,
 		}
-		conductorServiceName := pod.Name
 		svc := service.NewService(
-			&corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      conductorServiceName,
-					Namespace: instance.Namespace,
-					Labels:    conductorServiceLabels,
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: conductorServiceLabels,
-					Ports: []corev1.ServicePort{
-						{
-							Name:     ironic.HttpbootComponent,
-							Port:     8088,
-							Protocol: corev1.ProtocolTCP,
-						},
-						{
-							Name:     ironic.DhcpComponent,
-							Port:     67,
-							Protocol: corev1.ProtocolUDP,
-						},
-					},
-					ExternalIPs: externalIPs,
-				},
-			},
+			ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels, externalIPs),
 			conductorServiceLabels,
 			5,
 		)
@@ -315,19 +289,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 
 		// Create the conductor pod route if none exists
 		conductorRoute := route.NewRoute(
-			&routev1.Route{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      conductorServiceName,
-					Namespace: instance.Namespace,
-					Labels:    conductorServiceLabels,
-				},
-				Spec: routev1.RouteSpec{
-					To: routev1.RouteTargetReference{
-						Kind: "Service",
-						Name: conductorServiceName,
-					},
-				},
-			},
+			ironicconductor.Route(conductorPod.Name, instance, serviceLabels),
 			conductorServiceLabels,
 			5,
 		)
@@ -338,8 +300,8 @@ func (r *IronicConductorReconciler) reconcileServices(
 		} else if (ctrlResult != ctrl.Result{}) {
 			return ctrl.Result{}, nil
 		}
-
 		// create route - end
+
 	}
 
 	//
