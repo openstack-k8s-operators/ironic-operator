@@ -90,7 +90,7 @@ type IronicSpec struct {
 	IronicAPI IronicAPISpec `json:"ironicAPI"`
 
 	// +kubebuilder:validation:Required
-	// IronicAPI - Spec definition for the API service of this Ironic deployment
+	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
 	IronicConductor IronicConductorSpec `json:"ironicConductor"`
 }
 
@@ -105,6 +105,16 @@ type PasswordSelector struct {
 	// +kubebuilder:default="IronicPassword"
 	// Database - Selector to get the ironic service password from the Secret
 	Service string `json:"admin,omitempty"`
+}
+
+// DHCPRange to define address range for DHCP requestes
+type DHCPRange struct {
+	// +kubebuilder:validation:Optional
+	// Start - Start of DHCP range
+	Start string `json:"start,omitempty"`
+	// +kubebuilder:validation:Optional
+	// End - End of DHCP range
+	End string `json:"end,omitempty"`
 }
 
 // IronicDebug defines the observed state of Ironic

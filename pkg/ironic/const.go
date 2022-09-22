@@ -28,10 +28,14 @@ const (
 	IronicAPIPort int32 = 6385
 	// KollaConfigDbSync -
 	KollaConfigDbSync = "/var/lib/config-data/merged/db-sync-config.json"
-	// ComponentSelector - used by operators to specify labels
+	// ComponentSelector - used by operators to specify pod labels
 	ComponentSelector = "component"
 	// ConductorComponent
 	ConductorComponent = "conductor"
+	// HttpbootComponent
+	HttpbootComponent = "httpboot"
+	// HttpbootComponent
+	DhcpComponent = "dhcp"
 	// APIComponent
 	APIComponent = "api"
 )
