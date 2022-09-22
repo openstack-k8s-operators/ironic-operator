@@ -35,7 +35,7 @@ func Service(
 					Protocol: corev1.ProtocolUDP,
 				},
 			},
-			ExternalIPs: externalIPs,
+			// ExternalIPs: externalIPs,
 		},
 	}
 }

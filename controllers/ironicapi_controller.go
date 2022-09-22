@@ -234,8 +234,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
-		// TODO(sbaker), how to handle optional Owns? Standalone Ironic doesn't own a KeystoneService
-		// Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneService{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).

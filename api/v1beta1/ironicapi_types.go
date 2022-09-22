@@ -24,10 +24,9 @@ import (
 
 // IronicAPISpec defines the desired state of IronicAPI
 type IronicAPISpec struct {
-	// +kubebuilder:validation:Required
-	// +kubebuilder:default=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
 	// Whether to deploy a single node standalone Ironic.
-	// TODO: -> not implemented, always standalone for now
 	Standalone bool `json:"standalone,omitempty"`
 
 	// +kubebuilder:validation:Optional
