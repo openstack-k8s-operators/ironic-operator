@@ -27,6 +27,7 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	configmap "github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
@@ -36,6 +37,7 @@ import (
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
+	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -574,17 +576,28 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
 	// customData hold any customization for the service.
-	// custom.conf is going to /etc/<service>/<service>.conf.d
-	// all other files get placed into /etc/<service> to allow overwrite of e.g. policy.json
+	// custom.conf is going to /etc/ironic/ironic.conf.d
+	// all other files get placed into /etc/ironic to allow overwrite of e.g. policy.json
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
 
+	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	if err != nil {
+		return err
+	}
 	templateParameters := make(map[string]interface{})
+	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	templateParameters["KeystoneInternalURL"] = authURL
 	templateParameters["ProvisioningInterface"] = instance.Spec.IronicConductor.ProvisioningInterface
 	templateParameters["DHCPRange"] = instance.Spec.IronicConductor.DHCPRange
+	templateParameters["Standalone"] = instance.Spec.Standalone
 
 	cms := []util.Template{
 		// ScriptsConfigMap
@@ -607,7 +620,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		return nil
 	}
