@@ -6,6 +6,7 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Service - Service for conductor pod services
@@ -25,6 +26,11 @@ func Service(
 			Selector: serviceLabels,
 			Ports: []corev1.ServicePort{
 				{
+					Name:     ironic.JSONRPCComponent,
+					Port:     8089,
+					Protocol: corev1.ProtocolTCP,
+				},
+				{
 					Name:     ironic.HttpbootComponent,
 					Port:     8088,
 					Protocol: corev1.ProtocolTCP,
@@ -40,8 +46,8 @@ func Service(
 	}
 }
 
-// Route - Route for conductor pod services
-func Route(
+// HttpbootRoute - Route for conductor httpboot service
+func HttpbootRoute(
 	serviceName string,
 	instance *ironicv1.IronicConductor,
 	serviceLabels map[string]string,
@@ -49,7 +55,7 @@ func Route(
 
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
+			Name:      serviceName + "-" + ironic.HttpbootComponent,
 			Namespace: instance.Namespace,
 			Labels:    serviceLabels,
 		},
@@ -57,6 +63,34 @@ func Route(
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
 				Name: serviceName,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString(ironic.HttpbootComponent),
+			},
+		},
+	}
+}
+
+// DhcpRoute - Route for conductor httpboot service
+func DhcpRoute(
+	serviceName string,
+	instance *ironicv1.IronicConductor,
+	serviceLabels map[string]string,
+) *routev1.Route {
+
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName + "-" + ironic.DhcpComponent,
+			Namespace: instance.Namespace,
+			Labels:    serviceLabels,
+		},
+		Spec: routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: serviceName,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString(ironic.DhcpComponent),
 			},
 		},
 	}

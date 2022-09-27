@@ -38,7 +38,9 @@ const (
 	ConductorComponent = "conductor"
 	// HttpbootComponent -
 	HttpbootComponent = "httpboot"
-	// HttpbootComponent -
+	// JSONRPCComponent -
+	JSONRPCComponent = "jsonrpc"
+	// DhcpComponent -
 	DhcpComponent = "dhcp"
 	// APIComponent -
 	APIComponent = "api"
