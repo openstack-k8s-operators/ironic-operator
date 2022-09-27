@@ -40,7 +40,6 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironicapi "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicapi"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
@@ -100,6 +99,8 @@ var (
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile -
 func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -133,8 +134,10 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 
 		if !instance.Spec.Standalone {
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
-			cl = append(cl, *condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""))
+			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+			cl = append(cl,
+				*condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+				*condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""))
 		}
 
 		instance.Status.Conditions.Init(&cl)
@@ -235,6 +238,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
 		Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
@@ -248,26 +252,33 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
 
-	// It's possible to get here before the endpoints have been set in the status, so check for this
-	if instance.Status.APIEndpoints != nil && !instance.Spec.Standalone {
-		for _, ksSvc := range keystoneServices {
-			ksSvcSpec := keystonev1.KeystoneServiceSpec{
-				ServiceType:        ksSvc["type"],
-				ServiceName:        ksSvc["name"],
-				ServiceDescription: ksSvc["desc"],
-				Enabled:            true,
-				APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
-				ServiceUser:        instance.Spec.ServiceUser,
-				Secret:             instance.Spec.Secret,
-				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-			}
+	for _, ksSvc := range keystoneServices {
+		// Remove the finalizer from our KeystoneEndpoint CR
+		keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, ksSvc["name"], instance.Namespace)
+		if err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
 
-			ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, map[string]string{}, 10)
-
-			err := ksSvcObj.Delete(ctx, helper)
-			if err != nil {
+		if err == nil {
+			controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
+			if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
+			util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
+		}
+
+		// Remove the finalizer from our KeystoneService CR
+		keystoneService, err := keystonev1.GetKeystoneServiceWithName(ctx, helper, ksSvc["name"], instance.Namespace)
+		if err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+
+		if err == nil {
+			controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer())
+			if err = helper.GetClient().Update(ctx, keystoneService); err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 		}
 	}
 
@@ -361,13 +372,12 @@ func (r *IronicAPIReconciler) reconcileInit(
 				ServiceName:        ksSvc["name"],
 				ServiceDescription: ksSvc["desc"],
 				Enabled:            true,
-				APIEndpoints:       instance.Status.APIEndpoints[ksSvc["name"]],
 				ServiceUser:        instance.Spec.ServiceUser,
 				Secret:             instance.Spec.Secret,
 				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 			}
 
-			ksSvcObj := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+			ksSvcObj := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
 			ctrlResult, err = ksSvcObj.CreateOrPatch(ctx, helper)
 			if err != nil {
 				return ctrlResult, err
@@ -385,6 +395,34 @@ func (r *IronicAPIReconciler) reconcileInit(
 			}
 
 			instance.Status.ServiceIDs[ksSvc["name"]] = ksSvcObj.GetServiceID()
+
+			//
+			// register endpoints
+			//
+			ksEndptSpec := keystonev1.KeystoneEndpointSpec{
+				ServiceName: ksSvc["name"],
+				Endpoints:   instance.Status.APIEndpoints[ksSvc["name"]],
+			}
+			ksEndpt := keystonev1.NewKeystoneEndpoint(
+				ksSvc["name"],
+				instance.Namespace,
+				ksEndptSpec,
+				serviceLabels,
+				10)
+			ctrlResult, err = ksEndpt.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrlResult, err
+			}
+			// mirror the Status, Reason, Severity and Message of the latest keystoneendpoint condition
+			// into a local condition with the type condition.KeystoneEndpointReadyCondition
+			c = ksEndpt.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+			if c != nil {
+				instance.Status.Conditions.Set(c)
+			}
+
+			if (ctrlResult != ctrl.Result{}) {
+				return ctrlResult, nil
+			}
 		}
 	}
 
