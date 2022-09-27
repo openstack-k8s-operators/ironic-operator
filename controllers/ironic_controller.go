@@ -37,7 +37,7 @@ import (
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -75,7 +75,6 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
-// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -584,7 +583,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		customData[key] = data
 	}
 
-	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
 		return err
 	}
