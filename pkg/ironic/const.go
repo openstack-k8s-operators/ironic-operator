@@ -19,23 +19,29 @@ const (
 	// ServiceName -
 	ServiceName = "ironic"
 	// ServiceType -
-	ServiceType = "ironic"
+	ServiceType = "baremetal"
 	// ServiceAccount -
 	ServiceAccount = "ironic-operator-ironic"
 	// DatabaseName -
 	DatabaseName = "ironic"
-	// IronicAPIPort -
-	IronicAPIPort int32 = 6385
+	// IronicPublicPort -
+	IronicPublicPort int32 = 6385
+	// IronicAdminPort -
+	IronicAdminPort int32 = 6385
+	// IronicInternalPort -
+	IronicInternalPort int32 = 6385
 	// KollaConfigDbSync -
 	KollaConfigDbSync = "/var/lib/config-data/merged/db-sync-config.json"
 	// ComponentSelector - used by operators to specify pod labels
 	ComponentSelector = "component"
-	// ConductorComponent
+	// ConductorComponent -
 	ConductorComponent = "conductor"
-	// HttpbootComponent
+	// HttpbootComponent -
 	HttpbootComponent = "httpboot"
-	// HttpbootComponent
+	// JSONRPCComponent -
+	JSONRPCComponent = "jsonrpc"
+	// DhcpComponent -
 	DhcpComponent = "dhcp"
-	// APIComponent
+	// APIComponent -
 	APIComponent = "api"
 )

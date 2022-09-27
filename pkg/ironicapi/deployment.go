@@ -76,11 +76,11 @@ func Deployment(
 		//
 		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicInternalPort)},
 		}
 		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
 			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicAPIPort)},
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(ironic.IronicInternalPort)},
 		}
 	}
 

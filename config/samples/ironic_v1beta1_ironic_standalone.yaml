@@ -1,0 +1,29 @@
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  name: ironic
+  namespace: openstack
+spec:
+  standalone: true
+  serviceUser: ironic
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: ironic
+  ironicAPI:
+    replicas: 1
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
+  ironicConductor:
+    replicas: 1
+    containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
+    ## For each node provide the IP address of the interface on the provisioning network
+    #nodeProvisioningAddresses:
+    #  node1:
+    #    - 172.22.0.1
+    #  node2:
+    #    - 172.22.0.2
+    #  node3:
+    #    - 172.22.0.3
+    pxeContainerImage: quay.io/tripleomastercentos9/openstack-ironic-pxe:current-tripleo
+  secret: ironic-secret

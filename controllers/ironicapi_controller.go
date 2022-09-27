@@ -86,7 +86,7 @@ var (
 		{
 			"type": ironic.ServiceType,
 			"name": ironic.ServiceName,
-			"desc": "Ironic Service",
+			"desc": "Ironic baremetal provisioning service",
 		},
 	}
 )
@@ -234,8 +234,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
-		// TODO(sbaker), how to handle optional Owns? Standalone Ironic doesn't own a KeystoneService
-		// Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneService{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
@@ -297,8 +296,13 @@ func (r *IronicAPIReconciler) reconcileInit(
 	// V1
 	data := map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointPublic: {
-			Port: ironic.IronicAPIPort,
-			Path: "/v1/%(project_id)s",
+			Port: ironic.IronicPublicPort,
+		},
+		endpoint.EndpointAdmin: {
+			Port: ironic.IronicAdminPort,
+		},
+		endpoint.EndpointInternal: {
+			Port: ironic.IronicInternalPort,
 		},
 	}
 
@@ -349,7 +353,9 @@ func (r *IronicAPIReconciler) reconcileInit(
 	}
 
 	if !instance.Spec.Standalone {
+
 		for _, ksSvc := range keystoneServices {
+			r.Log.Info("Reconciled Service init successfully")
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{
 				ServiceType:        ksSvc["type"],
 				ServiceName:        ksSvc["name"],

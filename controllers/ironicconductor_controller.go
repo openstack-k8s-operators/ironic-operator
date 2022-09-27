@@ -287,14 +287,26 @@ func (r *IronicConductorReconciler) reconcileServices(
 		}
 		// create service - end
 
-		// Create the conductor pod route if none exists
-		conductorRoute := route.NewRoute(
-			ironicconductor.Route(conductorPod.Name, instance, serviceLabels),
+		// Create the conductor pod routes
+		httpbootRoute := route.NewRoute(
+			ironicconductor.HttpbootRoute(conductorPod.Name, instance, serviceLabels),
 			conductorServiceLabels,
 			5,
 		)
 
-		ctrlResult, err = conductorRoute.CreateOrPatch(ctx, helper)
+		ctrlResult, err = httpbootRoute.CreateOrPatch(ctx, helper)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrl.Result{}, nil
+		}
+		dhcpRoute := route.NewRoute(
+			ironicconductor.DhcpRoute(conductorPod.Name, instance, serviceLabels),
+			conductorServiceLabels,
+			5,
+		)
+
+		ctrlResult, err = dhcpRoute.CreateOrPatch(ctx, helper)
 		if err != nil {
 			return ctrl.Result{}, err
 		} else if (ctrlResult != ctrl.Result{}) {
