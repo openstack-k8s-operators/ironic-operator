@@ -7,6 +7,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.2
 	github.com/openshift/api v3.9.0+incompatible
+	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220927090553-6b3218c776f7
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220923094431-9fca0c85a9dc
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220923094431-9fca0c85a9dc
