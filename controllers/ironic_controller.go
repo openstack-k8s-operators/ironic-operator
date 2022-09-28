@@ -308,6 +308,30 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// normal reconcile tasks
 	//
 
+	// deploy ironic-conductor
+	ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(instance)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			ironicv1.IronicConductorReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			ironicv1.IronicConductorReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+	}
+	// Mirror IronicConductor status' ReadyCount to this parent CR
+	// instance.Status.ServiceIDs = ironicConductor.Status.ServiceIDs
+	instance.Status.IronicConductorReadyCount = ironicConductor.Status.ReadyCount
+
+	// Mirror IronicConductor's condition status
+	c := ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
 	// deploy ironic-api
 	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance)
 	if err != nil {
@@ -329,31 +353,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
 
 	// Mirror IronicAPI's condition status
-	c := ironicAPI.Status.Conditions.Mirror(ironicv1.IronicAPIReadyCondition)
-	if c != nil {
-		instance.Status.Conditions.Set(c)
-	}
-
-	// deploy ironic-conductor
-	ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(instance)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			ironicv1.IronicConductorReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			ironicv1.IronicConductorReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
-	}
-	// Mirror IronicConductor status' ReadyCount to this parent CR
-	// instance.Status.ServiceIDs = ironicConductor.Status.ServiceIDs
-	instance.Status.IronicConductorReadyCount = ironicConductor.Status.ReadyCount
-
-	// Mirror IronicConductor's condition status
-	c = ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
+	c = ironicAPI.Status.Conditions.Mirror(ironicv1.IronicAPIReadyCondition)
 	if c != nil {
 		instance.Status.Conditions.Set(c)
 	}
