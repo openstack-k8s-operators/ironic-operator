@@ -181,11 +181,11 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service delete")
+	r.Log.Info("Reconciling Ironic delete")
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Service delete successfully")
+	r.Log.Info("Reconciled Ironic delete successfully")
 	if err := r.Update(ctx, instance); err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -357,7 +357,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.Set(c)
 	}
 
-	r.Log.Info("Reconciled Service successfully")
+	r.Log.Info("Reconciled Ironic successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -367,7 +367,7 @@ func (r *IronicReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service init")
+	r.Log.Info("Reconciling Ironic init")
 
 	//
 	// create service DB instance
@@ -472,27 +472,27 @@ func (r *IronicReconciler) reconcileInit(
 
 	// run ironic db sync - end
 
-	r.Log.Info("Reconciled Service init successfully")
+	r.Log.Info("Reconciled Ironic init successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service update")
+	r.Log.Info("Reconciling Ironic update")
 
 	// TODO: should have minor update tasks if required
 	// - delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service update successfully")
+	r.Log.Info("Reconciled Ironic update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service upgrade")
+	r.Log.Info("Reconciling Ironic upgrade")
 
 	// TODO: should have major version upgrade tasks
 	// -delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service upgrade successfully")
+	r.Log.Info("Reconciled Ironic upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
