@@ -250,7 +250,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service delete")
+	r.Log.Info("Reconciling API delete")
 
 	for _, ksSvc := range keystoneServices {
 		// Remove the finalizer from our KeystoneEndpoint CR
@@ -284,7 +284,7 @@ func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *iro
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Service delete successfully")
+	r.Log.Info("Reconciled API delete successfully")
 	if err := r.Update(ctx, instance); err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -298,7 +298,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service init")
+	r.Log.Info("Reconciling API init")
 
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
@@ -366,7 +366,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 	if !instance.Spec.Standalone {
 
 		for _, ksSvc := range keystoneServices {
-			r.Log.Info("Reconciled Service init successfully")
+			r.Log.Info("Reconciled API init successfully")
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{
 				ServiceType:        ksSvc["type"],
 				ServiceName:        ksSvc["name"],
@@ -426,7 +426,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 		}
 	}
 
-	r.Log.Info("Reconciled Service init successfully")
+	r.Log.Info("Reconciled API init successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -601,27 +601,27 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 	// create Deployment - end
 
-	r.Log.Info("Reconciled Service successfully")
+	r.Log.Info("Reconciled API successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service update")
+	r.Log.Info("Reconciling API update")
 
 	// TODO: should have minor update tasks if required
 	// - delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service update successfully")
+	r.Log.Info("Reconciled API update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service upgrade")
+	r.Log.Info("Reconciling API upgrade")
 
 	// TODO: should have major version upgrade tasks
 	// -delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service upgrade successfully")
+	r.Log.Info("Reconciled API upgrade successfully")
 	return ctrl.Result{}, nil
 }
 

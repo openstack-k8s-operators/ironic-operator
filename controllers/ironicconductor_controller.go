@@ -234,11 +234,11 @@ func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service delete")
+	r.Log.Info("Reconciling Conductor delete")
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Service delete successfully")
+	r.Log.Info("Reconciled Conductor delete successfully")
 	if err := r.Update(ctx, instance); err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -252,7 +252,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service init")
+	r.Log.Info("Reconciling Conductor init")
 
 	podList, err := ironicconductor.ConductorPods(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -324,12 +324,12 @@ func (r *IronicConductorReconciler) reconcileServices(
 		instance.Status.ServiceIDs = map[string]string{}
 	}
 
-	r.Log.Info("Reconciled Service init successfully")
+	r.Log.Info("Reconciled Conductor init successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service")
+	r.Log.Info("Reconciling Conductor")
 
 	// If the service object doesn't have our finalizer, add it.
 	controllerutil.AddFinalizer(instance, helper.GetFinalizer())
@@ -500,27 +500,27 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
 
-	r.Log.Info("Reconciled Service successfully")
+	r.Log.Info("Reconciled Conductor successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service update")
+	// r.Log.Info("Reconciling Service update")
 
 	// TODO: should have minor update tasks if required
 	// - delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service update successfully")
+	// r.Log.Info("Reconciled Service update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service upgrade")
+	// r.Log.Info("Reconciling Service upgrade")
 
 	// TODO: should have major version upgrade tasks
 	// -delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service upgrade successfully")
+	// r.Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
