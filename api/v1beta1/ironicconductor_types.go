@@ -43,8 +43,8 @@ type IronicConductorSpec struct {
 	PxeContainerImage string `json:"pxeContainerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// ProvisioningInterface - Host network interface used by Ironic, TFTP, DHCP and HTTP
-	ProvisioningInterface string `json:"provisioningInterface,omitempty"`
+	// ProvisionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
+	ProvisionNetwork string `json:"provisionNetwork,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// DHCPRange - DHCP range to use for provisioning
@@ -76,11 +76,6 @@ type IronicConductorSpec struct {
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes for running the Conductor service
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// NodeProvisioningAddresses Map of nodes to node host network IP addresses to bind for TFTP/DHCP/HTTP
-	// provisioning services
-	NodeProvisioningAddresses map[string][]string `json:"nodeProvisioningAddresses,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the

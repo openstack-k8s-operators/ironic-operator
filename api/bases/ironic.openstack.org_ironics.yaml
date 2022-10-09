@@ -259,15 +259,6 @@ spec:
                         description: Start - Start of DHCP range
                         type: string
                     type: object
-                  nodeProvisioningAddresses:
-                    additionalProperties:
-                      items:
-                        type: string
-                      type: array
-                    description: NodeProvisioningAddresses Map of nodes to node host
-                      network IP addresses to bind for TFTP/DHCP/HTTP provisioning
-                      services
-                    type: object
                   nodeSelector:
                     additionalProperties:
                       type: string
@@ -290,9 +281,9 @@ spec:
                           in mariadb-operator'
                         type: string
                     type: object
-                  provisioningInterface:
-                    description: ProvisioningInterface - Host network interface used
-                      by Ironic, TFTP, DHCP and HTTP
+                  provisionNetwork:
+                    description: ProvisionNetwork - Additional network to attach to
+                      expose boot DHCP, TFTP, HTTP services.
                     type: string
                   pxeContainerImage:
                     description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container

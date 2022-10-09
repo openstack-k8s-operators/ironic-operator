@@ -593,7 +593,6 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = authURL
-	templateParameters["ProvisioningInterface"] = instance.Spec.IronicConductor.ProvisioningInterface
 	templateParameters["DHCPRange"] = instance.Spec.IronicConductor.DHCPRange
 	templateParameters["Standalone"] = instance.Spec.Standalone
 

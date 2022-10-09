@@ -16,6 +16,8 @@ limitations under the License.
 package ironicconductor
 
 import (
+	"fmt"
+
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -31,6 +33,21 @@ const (
 	// ServiceCommand -
 	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 )
+
+// getNetworks List -
+func getNetworksList(
+	instance *ironicv1.IronicConductor,
+) string {
+	networks := "["
+	if instance.Spec.ProvisionNetwork != "" {
+		networks += fmt.Sprintf(
+			`{"name": "%s", "namespace": "%s"}`,
+			instance.Spec.ProvisionNetwork, instance.Namespace,
+		)
+	}
+	networks += "]"
+	return networks
+}
 
 // StatefulSet func
 func StatefulSet(
@@ -185,6 +202,9 @@ func StatefulSet(
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
+					Annotations: map[string]string{
+						"k8s.v1.cni.cncf.io/networks": getNetworksList(instance),
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: ironic.ServiceAccount,
