@@ -15,8 +15,9 @@
 # under the License.
 set -ex
 
-# Create HTTP serving directories
-mkdir -p /var/lib/ironic/httpboot/tftpboot/pxelinux.cfg
+# Create TFTP, HTTP serving directories
+mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
+mkdir /var/lib/ironic/httpboot
 
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
@@ -29,10 +30,12 @@ else
 fi
 
 # Copy iPXE and grub files to tftpboot, httpboot
-for dir in httpboot httpboot/tftpboot; do
+for dir in httpboot tftpboot; do
     cp /usr/share/ipxe/ipxe-snponly-x86_64.efi /var/lib/ironic/$dir/snponly.efi
     cp /usr/share/ipxe/undionly.kpxe           /var/lib/ironic/$dir/undionly.kpxe
     cp /usr/share/ipxe/ipxe.lkrn               /var/lib/ironic/$dir/ipxe.lkrn
     cp /boot/efi/EFI/$efi_dir/shimx64.efi      /var/lib/ironic/$dir/bootx64.efi
     cp /boot/efi/EFI/$efi_dir/grubx64.efi      /var/lib/ironic/$dir/grubx64.efi
+    # Ensure all files are readable
+    chmod -R +r /var/lib/ironic/$dir
 done
