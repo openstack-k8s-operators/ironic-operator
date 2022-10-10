@@ -45,7 +45,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -260,13 +259,6 @@ func (r *IronicConductorReconciler) reconcileServices(
 	}
 
 	for _, conductorPod := range podList.Items {
-		externalIPs, hasExternalIP := instance.Spec.NodeProvisioningAddresses[conductorPod.Spec.NodeName]
-		r.Log.Info(fmt.Sprintf("Reconciling Service for conductor pod %s on node %s", conductorPod.Name, conductorPod.Spec.NodeName))
-		if !hasExternalIP {
-			r.Log.Info(fmt.Sprintf("No NodeProvisioningAddresses found for node %s, provisioning services won't be exposed", conductorPod.Spec.NodeName))
-			continue
-		}
-
 		//
 		// Create the conductor pod service if none exists
 		//
@@ -275,7 +267,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 			ironic.ComponentSelector: ironic.ConductorComponent,
 		}
 		svc := service.NewService(
-			ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels, externalIPs),
+			ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels),
 			conductorServiceLabels,
 			5,
 		)
@@ -286,34 +278,6 @@ func (r *IronicConductorReconciler) reconcileServices(
 			return ctrl.Result{}, nil
 		}
 		// create service - end
-
-		// Create the conductor pod routes
-		httpbootRoute := route.NewRoute(
-			ironicconductor.HttpbootRoute(conductorPod.Name, instance, serviceLabels),
-			conductorServiceLabels,
-			5,
-		)
-
-		ctrlResult, err = httpbootRoute.CreateOrPatch(ctx, helper)
-		if err != nil {
-			return ctrl.Result{}, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrl.Result{}, nil
-		}
-		dhcpRoute := route.NewRoute(
-			ironicconductor.DhcpRoute(conductorPod.Name, instance, serviceLabels),
-			conductorServiceLabels,
-			5,
-		)
-
-		ctrlResult, err = dhcpRoute.CreateOrPatch(ctx, helper)
-		if err != nil {
-			return ctrl.Result{}, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrl.Result{}, nil
-		}
-		// create route - end
-
 	}
 
 	//
