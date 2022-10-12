@@ -58,37 +58,31 @@ func StatefulSet(
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
 		PeriodSeconds:       30,
-		InitialDelaySeconds: 3,
+		InitialDelaySeconds: 5,
 	}
 	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
 	dnsmasqLivenessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      10,
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 3,
 	}
 	dnsmasqReadinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      10,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
-	}
-	httpbootLivenessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      10,
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 3,
 	}
+	httpbootLivenessProbe := &corev1.Probe{
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
+	}
 	httpbootReadinessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      10,
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
@@ -104,6 +98,17 @@ func StatefulSet(
 		}
 
 		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+		httpbootLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+
+		httpbootReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
@@ -128,50 +133,37 @@ func StatefulSet(
 		// Make a POST request to the JSON-RPC port
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/usr/bin/curl", "-v", "-X", "POST", "localhost:8089", "-d",
-				"{\"jsonrpc\": \"2.0\", \"method\": \"get_driver_properties\", \"params\": {\"driver_name\": \"redfish\", \"context\": {}}}",
+				"sh", "-c", "ss -ltn | grep :8089",
 			},
 		}
 		// Make a POST request to the JSON-RPC port
 		readinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/usr/bin/curl", "-v", "-X", "POST", "localhost:8089", "-d",
-				"{\"jsonrpc\": \"2.0\", \"method\": \"get_driver_properties\", \"params\": {\"driver_name\": \"redfish\", \"context\": {}}}",
-			},
-		}
-		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-
-		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
+				"sh", "-c", "ss -ltn | grep :8089",
 			},
 		}
 		httpbootLivenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/bin/true",
+				"sh", "-c", "ss -ltn | grep :8088",
 			},
 		}
 
 		httpbootReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
-				"/bin/true",
+				"sh", "-c", "ss -ltn | grep :8088",
 			},
 		}
-		// dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-		// 	Command: []string{
-		// 		"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-		// 	},
-		// }
+		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+			},
+		}
 
-		// dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-		// 	Command: []string{
-		// 		"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-		// 	},
-		// }
+		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+			},
+		}
 	}
 
 	envVars := map[string]env.Setter{}
