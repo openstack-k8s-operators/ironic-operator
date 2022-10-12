@@ -42,16 +42,14 @@ func Deployment(
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
+		PeriodSeconds:       5,
 		InitialDelaySeconds: 3,
 	}
 	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
 		PeriodSeconds:       5,
-		InitialDelaySeconds: 5,
+		InitialDelaySeconds: 3,
 	}
 
 	args := []string{"-c"}
@@ -89,6 +87,9 @@ func Deployment(
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
+	terminationGracePeriod := int64(60)
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ironic.ServiceName,
@@ -123,6 +124,7 @@ func Deployment(
 							LivenessProbe:  livenessProbe,
 						},
 					},
+					TerminationGracePeriodSeconds: &terminationGracePeriod,
 				},
 			},
 		},
