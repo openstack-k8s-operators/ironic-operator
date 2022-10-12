@@ -42,16 +42,14 @@ func Deployment(
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
-		PeriodSeconds:       3,
+		PeriodSeconds:       5,
 		InitialDelaySeconds: 3,
 	}
 	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
 		TimeoutSeconds:      5,
 		PeriodSeconds:       5,
-		InitialDelaySeconds: 5,
+		InitialDelaySeconds: 3,
 	}
 
 	args := []string{"-c"}
