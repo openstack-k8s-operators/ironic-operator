@@ -436,8 +436,7 @@ func (r *IronicReconciler) reconcileInit(
 	dbSyncjob := job.NewJob(
 		jobDef,
 		ironicv1.DbSyncHash,
-		instance.Spec.PreserveJobs,
-		5,
+		time.Duration(5)*time.Second,
 		dbSyncHash,
 	)
 	ctrlResult, err = dbSyncjob.DoJob(
@@ -467,6 +466,12 @@ func (r *IronicReconciler) reconcileInit(
 			return ctrl.Result{}, err
 		}
 		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[ironicv1.DbSyncHash]))
+	}
+	if !instance.Spec.PreserveJobs {
+		err = job.DeleteAllSucceededJobs(ctx, helper, []string{instance.Status.Hash[ironicv1.DbSyncHash]})
+		if err != nil {
+			return ctrlResult, err
+		}
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
