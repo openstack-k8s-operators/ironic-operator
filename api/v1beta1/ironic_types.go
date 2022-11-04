@@ -58,7 +58,8 @@ type IronicSpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// PasswordSelectors - Selectors to identify the DB and AdminUser password from the Secret
+	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -103,7 +104,7 @@ type PasswordSelector struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="IronicPassword"
 	// Database - Selector to get the ironic service password from the Secret
-	Service string `json:"admin,omitempty"`
+	Service string `json:"service,omitempty"`
 }
 
 // DHCPRange to define address range for DHCP requestes

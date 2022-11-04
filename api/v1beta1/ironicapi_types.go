@@ -58,7 +58,8 @@ type IronicAPISpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// PasswordSelectors - Selectors to identify the DB and AdminUser password and TransportURL from the Secret
+	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional

@@ -107,18 +107,21 @@ spec:
                   the Conductor service
                 type: object
               passwordSelectors:
+                default:
+                  database: IronicDatabasePassword
+                  service: IronicPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  AdminUser password and TransportURL from the Secret
+                  ServiceUser password and TransportURL from the Secret
                 properties:
-                  admin:
-                    default: IronicPassword
-                    description: Database - Selector to get the ironic service password
-                      from the Secret
-                    type: string
                   database:
                     default: IronicDatabasePassword
                     description: 'Database - Selector to get the ironic Database user
                       password from the Secret TODO: not used, need change in mariadb-operator'
+                    type: string
+                  service:
+                    default: IronicPassword
+                    description: Database - Selector to get the ironic service password
+                      from the Secret
                     type: string
                 type: object
               provisionNetwork:
