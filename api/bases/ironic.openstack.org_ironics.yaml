@@ -378,8 +378,10 @@ spec:
                 description: Whether to deploy a single node standalone Ironic.
                 type: boolean
             required:
+            - databaseInstance
             - ironicAPI
             - ironicConductor
+            - secret
             type: object
           status:
             description: IronicStatus defines the observed state of Ironic
