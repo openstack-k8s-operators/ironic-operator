@@ -75,3 +75,10 @@ crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
 #crudini --set ${SVC_CFG_MERGED} nova password $NOVAPASSWORD
 # TODO: service token
 #crudini --set ${SVC_CFG_MERGED} service_user password $IronicPassword
+
+export ProvisionNetworkIP=$(/usr/local/bin/container-scripts/provision-network-ip.py)
+if [ -n "$ProvisionNetworkIP" ]; then
+  crudini --set ${SVC_CFG_MERGED} DEFAULT my_ip $ProvisionNetworkIP
+fi
+export DEPLOY_HTTP_URL=$(python3 -c 'import os; print(os.environ["DeployHTTPURL"] % os.environ)')
+crudini --set ${SVC_CFG_MERGED} deploy http_url $DEPLOY_HTTP_URL

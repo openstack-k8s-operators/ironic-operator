@@ -35,6 +35,7 @@ type APIDetails struct {
 	VolumeMounts         []corev1.VolumeMount
 	Privileged           bool
 	PxeInit              bool
+	DeployHTTPURL        string
 }
 
 const (
@@ -62,6 +63,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
 	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
+	envVars["DeployHTTPURL"] = env.SetValue(init.DeployHTTPURL)
 
 	envs := []corev1.EnvVar{
 		{
@@ -83,6 +85,30 @@ func InitContainer(init APIDetails) []corev1.Container {
 						Name: init.OSPSecret,
 					},
 					Key: init.UserPasswordSelector,
+				},
+			},
+		},
+		{
+			Name: "NodeName",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.nodeName",
+				},
+			},
+		},
+		{
+			Name: "PodName",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name: "PodNamespace",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
 				},
 			},
 		},

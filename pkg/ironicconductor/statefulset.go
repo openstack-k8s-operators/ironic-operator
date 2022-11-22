@@ -181,6 +181,78 @@ func StatefulSet(
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	conductorContainer := corev1.Container{
+		Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
+		Command: []string{
+			"/bin/bash",
+		},
+		Args:  args,
+		Image: instance.Spec.ContainerImage,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
+		VolumeMounts:   GetVolumeMounts(),
+		Resources:      instance.Spec.Resources,
+		ReadinessProbe: readinessProbe,
+		LivenessProbe:  livenessProbe,
+		// StartupProbe:   startupProbe,
+	}
+	httpbootContainer := corev1.Container{
+		Name: "httpboot",
+		Command: []string{
+			"/bin/bash",
+		},
+		Args:  args,
+		Image: instance.Spec.PxeContainerImage,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
+		VolumeMounts:   GetVolumeMounts(),
+		Resources:      instance.Spec.Resources,
+		ReadinessProbe: httpbootReadinessProbe,
+		LivenessProbe:  httpbootLivenessProbe,
+		// StartupProbe:   startupProbe,
+	}
+
+	containers := []corev1.Container{
+		conductorContainer,
+		httpbootContainer,
+	}
+
+	if instance.Spec.ProvisionNetwork != "" {
+		// Only include the dnsmasq container if there is a provisioning network to listen on.
+		dnsmasqContainer := corev1.Container{
+			Name: "dnsmasq",
+			Command: []string{
+				"/bin/bash",
+			},
+			Args:  args,
+			Image: instance.Spec.PxeContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: &runAsUser,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+						"NET_RAW",
+					},
+				},
+			},
+			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
+			VolumeMounts:   GetVolumeMounts(),
+			Resources:      instance.Spec.Resources,
+			ReadinessProbe: dnsmasqReadinessProbe,
+			LivenessProbe:  dnsmasqLivenessProbe,
+			// StartupProbe:   startupProbe,
+		}
+		containers = []corev1.Container{
+			conductorContainer,
+			httpbootContainer,
+			dnsmasqContainer,
+		}
+	}
+
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name,
@@ -200,65 +272,7 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: ironic.ServiceAccount,
-					Containers: []corev1.Container{
-						{
-							Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   GetVolumeMounts(),
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
-							// StartupProbe:   startupProbe,
-						},
-						{
-							Name: "dnsmasq",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.PxeContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-								Capabilities: &corev1.Capabilities{
-									Add: []corev1.Capability{
-										"NET_ADMIN",
-										"NET_RAW",
-									},
-								},
-							},
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-							VolumeMounts:   GetVolumeMounts(),
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: dnsmasqReadinessProbe,
-							LivenessProbe:  dnsmasqLivenessProbe,
-							// StartupProbe:   startupProbe,
-						},
-						{
-							Name: "httpboot",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.PxeContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-							VolumeMounts:   GetVolumeMounts(),
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: httpbootReadinessProbe,
-							LivenessProbe:  httpbootLivenessProbe,
-							// StartupProbe:   startupProbe,
-						},
-					},
+					Containers:         containers,
 				},
 			},
 		},
@@ -277,6 +291,12 @@ func StatefulSet(
 	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
 		statefulset.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
+	// init.sh needs to detect and set ProvisionNetworkIP
+	deployHTTPURL := "http://%(ProvisionNetworkIP)s:8088/"
+	if instance.Spec.ProvisionNetwork == "" {
+		// Build what the fully qualified Route hostname will be when the Route exists
+		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(NodeName)s/"
+	}
 
 	initContainerDetails := ironic.APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
@@ -289,6 +309,7 @@ func StatefulSet(
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
 		PxeInit:              true,
+		DeployHTTPURL:        deployHTTPURL,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
