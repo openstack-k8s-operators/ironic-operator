@@ -17,7 +17,9 @@ set -ex
 
 # Create TFTP, HTTP serving directories
 mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
-mkdir /var/lib/ironic/httpboot
+if [ ! -d "/var/lib/ironic/httpboot" ]; then
+    mkdir /var/lib/ironic/httpboot
+fi
 
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then

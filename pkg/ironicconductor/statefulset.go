@@ -309,6 +309,7 @@ func StatefulSet(
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
 		PxeInit:              true,
+		ConductorInit:        true,
 		DeployHTTPURL:        deployHTTPURL,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
