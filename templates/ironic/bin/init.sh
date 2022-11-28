@@ -71,6 +71,12 @@ fi
 #crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TransportURL
 crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} cinder password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} glance password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} neutron password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} nova password $IRONICPASSWORD
+crudini --set ${SVC_CFG_MERGED} swift password $IRONICPASSWORD
 # TODO: nova password
 #crudini --set ${SVC_CFG_MERGED} nova password $NOVAPASSWORD
 # TODO: service token
