@@ -1,0 +1,16 @@
+concurrency: 2
+log_level: INFO
+target: /var/lib/ironic/httpboot
+images:
+
+- url: https://images.rdoproject.org/centos9/master/rdo_trunk/current-tripleo/ironic-python-agent.tar
+  checksum_url: https://images.rdoproject.org/centos9/master/rdo_trunk/current-tripleo/ironic-python-agent.tar.md5
+  checksum_algo: md5
+  download_policy: checksum
+  unpack:
+  - tar
+
+- url: https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-20221123.0.x86_64.qcow2
+  checksum_url: https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-20221123.0.x86_64.qcow2.SHA256SUM
+  checksum_algo: sha256
+  download_policy: missing

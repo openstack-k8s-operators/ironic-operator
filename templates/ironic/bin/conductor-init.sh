@@ -20,8 +20,13 @@ if [ -n "$ProvisionNetworkIP" ]; then
   crudini --set ${SVC_CFG_MERGED} DEFAULT my_ip $ProvisionNetworkIP
 fi
 export DEPLOY_HTTP_URL=$(python3 -c 'import os; print(os.environ["DeployHTTPURL"] % os.environ)')
-crudini --set ${SVC_CFG_MERGED} deploy http_url $DEPLOY_HTTP_URL
-crudini --set ${SVC_CFG_MERGED} conductor bootloader $DEPLOY_HTTP_URL/esp.img
+SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
+crudini --set ${SVC_CFG_MERGED} deploy http_url ${DEPLOY_HTTP_URL}
+crudini --set ${SVC_CFG_MERGED} conductor bootloader ${DEPLOY_HTTP_URL}esp.img
+crudini --set ${SVC_CFG_MERGED} conductor deploy_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+crudini --set ${SVC_CFG_MERGED} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+crudini --set ${SVC_CFG_MERGED} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+crudini --set ${SVC_CFG_MERGED} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
 
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir /var/lib/ironic/httpboot
@@ -42,3 +47,6 @@ if [ ! -a "esp.img" ]; then
     cp /tmp/esp.img ./
 fi
 popd
+
+# Download ironic-python-agent and any other images
+/usr/local/bin/container-scripts/imagetter /usr/local/bin/container-scripts/imagetter.yaml
