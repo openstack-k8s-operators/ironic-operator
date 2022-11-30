@@ -100,6 +100,14 @@ type IronicConductorSpec struct {
 	// Resources - Compute Resources required by this service (Limits/Requests).
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// StorageClass
+	StorageClass string `json:"storageClass,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// StorageRequest
+	StorageRequest string `json:"storageRequest"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor

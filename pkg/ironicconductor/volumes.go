@@ -8,6 +8,7 @@ import (
 // GetVolumes -
 func GetVolumes(parentName string, name string) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
+	pvcName := ironic.ServiceName + "-" + ironic.ConductorComponent
 
 	conductorVolumes := []corev1.Volume{
 		{
@@ -24,7 +25,9 @@ func GetVolumes(parentName string, name string) []corev1.Volume {
 		{
 			Name: "var-lib-ironic",
 			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvcName,
+				},
 			},
 		},
 	}

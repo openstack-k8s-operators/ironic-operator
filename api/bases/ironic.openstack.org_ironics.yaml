@@ -340,6 +340,14 @@ spec:
                     default: false
                     description: Whether to deploy a single node standalone Ironic.
                     type: boolean
+                  storageClass:
+                    description: StorageClass
+                    type: string
+                  storageRequest:
+                    description: StorageRequest
+                    type: string
+                required:
+                - storageRequest
                 type: object
               passwordSelectors:
                 default:
