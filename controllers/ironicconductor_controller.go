@@ -45,6 +45,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -276,6 +277,29 @@ func (r *IronicConductorReconciler) reconcileServices(
 			return ctrl.Result{}, nil
 		}
 		// create service - end
+
+		if instance.Spec.ProvisionNetwork == "" {
+			//
+			// Create the conductor pod route to enable traffic to the
+			// httpboot service, only when there is no provisioning network
+			//
+			conductorRouteLabels := map[string]string{
+				common.AppSelector:       ironic.ServiceName,
+				ironic.ComponentSelector: ironic.HttpbootComponent,
+			}
+			svc := route.NewRoute(
+				ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels),
+				conductorRouteLabels,
+				5,
+			)
+			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrl.Result{}, err
+			} else if (ctrlResult != ctrl.Result{}) {
+				return ctrl.Result{}, nil
+			}
+			// create service - end
+		}
 	}
 
 	//

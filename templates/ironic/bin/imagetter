@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+#
+#   Licensed under the Apache License, Version 2.0 (the "License"); you may
+#   not use this file except in compliance with the License. You may obtain
+#   a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#   License for the specific language governing permissions and limitations
+#   under the License.
+#
+
+import argparse
+from concurrent import futures
+import gzip
+import hashlib
+import io
+import logging
+import os
+import re
+import requests
+import sys
+import tarfile
+import yaml
+
+logging.basicConfig()
+LOG = logging.getLogger()
+
+MD5_MATCH = r"^([a-fA-F\d]{32})\s"  # MD5 at beginning of line
+SHA256_MATCH = r"^([a-fA-F\d]{64})\s"  # SHA256 at beginning of line
+SHA256_MATCH_END = r"\s([a-fA-F\d]{64})$"  # SHA256 at end of line (centos cloud images)
+
+CHECKSUM_MATCHERS = (MD5_MATCH, SHA256_MATCH, SHA256_MATCH_END)
+CHUNK_SIZE = pow(1024, 2)
+
+
+def get_checksum(image):
+    url = image.get("checksum_url")
+    if not url:
+        return
+
+    filename = image["url"].split("/")[-1]
+    LOG.info(filename)
+    resp = requests.get(url, timeout=30, stream=True)
+    for l in resp.iter_lines():
+        line = str(l, "utf-8")
+        if filename not in line:
+            # Ignore checksums for other lines
+            continue
+        if line.startswith("#"):
+            # Ignore comment lines
+            continue
+        for matcher in CHECKSUM_MATCHERS:
+            checksum = re.findall(matcher, line)
+            if checksum:
+                image["checksum"] = checksum[0]
+                break
+        if "checksum" in image:
+            LOG.info("Found checksum for %s: %s " % (filename, image.get("checksum")))
+        else:
+            LOG.error("Could not find checksum for %s", filename)
+
+
+def get_calc_digest(checksum_algo):
+    if checksum_algo == "sha256":
+        return hashlib.sha256()
+    elif checksum_algo == "md5":
+        return hashlib.md5()
+    else:
+        raise Exception("Unsupported checksum_algo: %s", checksum_algo)
+
+
+def prepare_filepath(image, target):
+    checksum = image.get("checksum")
+    checksum_algo = image.get("checksum_algo", "sha256")
+    if "target" in image:
+        target = os.path.join(target, image["target"])
+        if not os.path.exists(target):
+            os.mkdir(target)
+        if not os.path.isdir(target):
+            raise Exception("Target %s needs to be a directory", target)
+
+    policy = image.get("download_policy")
+    url = image["url"]
+    filename = url.split("/")[-1]
+    filepath = os.path.join(target, filename)
+
+    if os.path.exists(filepath):
+        if policy == "missing":
+            LOG.info("Skipping downloaded file %s", filepath)
+            return filepath, False
+        elif policy == "checksum" and checksum:
+            LOG.info("Calculating checksum for %s", filename)
+            file_calc_digest = get_calc_digest(checksum_algo)
+            with open(filepath, "rb") as f:
+                while chunk := f.read(CHUNK_SIZE):
+                    file_calc_digest.update(chunk)
+
+            if file_calc_digest.hexdigest() != checksum:
+                LOG.info("Checksum changed, downloading file %s", filepath)
+                os.remove(filepath)
+            else:
+                LOG.info("Checksum matches, skipping file %s", filepath)
+                return filepath, False
+    return filepath, True
+
+
+def get_image(image, target):
+    checksum = image.get("checksum")
+    checksum_algo = image.get("checksum_algo", "sha256")
+
+    url = image["url"]
+
+    filepath, download = prepare_filepath(image, target)
+
+    if download:
+        LOG.info("Image %s writing to %s", url, filepath)
+        calc_digest = get_calc_digest(checksum_algo)
+
+        with open(filepath, "wb") as f:
+            with requests.get(url, timeout=30, stream=True) as blob_req:
+                for data in blob_req.iter_content(chunk_size=CHUNK_SIZE):
+                    sys.stderr.write(".")
+                    calc_digest.update(data)
+                    f.write(data)
+        sys.stderr.write("\n")
+        LOG.info("Download complete: %s", filepath)
+
+        digest = calc_digest.hexdigest()
+        if checksum and digest != checksum:
+            raise Exception(
+                "Calculated checksum %s does not match %s", digest, checksum
+            )
+
+    for unpack in image.get("unpack", []):
+        if unpack == "gz":
+            filepath = gunzip(filepath)
+        elif unpack == "tar":
+            filepath = untar(filepath)
+        else:
+            raise Exception("Unknown unpack: %s", unpack)
+
+
+def gunzip(filepath):
+    if filepath.endswith(".gz"):
+        extracted = filepath[:-3]
+    elif filepath.endswith(".tgz"):
+        extracted = "%s.tar" % filepath[:-3]
+    else:
+        extracted = "%s.gunzip" % filepath
+    LOG.info("gunzip %s to %s", filepath, extracted)
+    with gzip.open(filepath, "rb") as f:
+        with open(extracted, "wb") as fe:
+            while chunk := f.read(CHUNK_SIZE):
+                fe.write(chunk)
+    return extracted
+
+
+def untar(filepath):
+    cwd = os.getcwd()
+
+    if filepath.endswith(".tar"):
+        extracted = filepath[:-4]
+    else:
+        extracted = "%s.untar" % filepath
+
+    extractdir = os.path.dirname(filepath)
+    LOG.info("untar %s to %s", filepath, extractdir)
+    os.chdir(extractdir)
+    try:
+        with tarfile.open(filepath) as f:
+            f.extractall()
+    finally:
+        os.chdir(cwd)
+
+
+def get_images(workers, images, target):
+    with futures.ThreadPoolExecutor(max_workers=workers) as p:
+        future_image = {p.submit(get_image, image, target): image for image in images}
+        for future in futures.as_completed(future_image):
+            future_image[future]
+            future.result()
+
+
+def get_checksums(workers, images):
+    with futures.ThreadPoolExecutor(max_workers=workers) as p:
+        p.map(get_checksum, images)
+
+
+def main(args):
+    with open(args.tasks, "r") as f:
+        tasks = yaml.safe_load(f)
+    LOG.setLevel(tasks.get("log_level", logging.INFO))
+
+    images = tasks.get("images", [])
+    if len(images) == 0:
+        LOG.info("No image tasks, exiting")
+    target = os.path.abspath(tasks["target"])
+    if not os.path.exists(target) or not os.path.isdir(target):
+        LOG.error("Target %s needs to be a directory which exists", target)
+        return 1
+
+    LOG.info("%s image tasks downloading to %s" % (len(images), target))
+    workers = min(len(images), tasks.get("concurrency", 4))
+    get_checksums(workers, images)
+    get_images(workers, images, target)
+
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        description=("imagetter"),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("tasks", help="Image tasks YAML file")
+
+    args = parser.parse_args(sys.argv[1:])
+    return args
+
+
+if __name__ == "__main__":
+    args = get_args()
+
+    sys.exit(main(args))

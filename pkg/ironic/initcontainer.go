@@ -35,6 +35,8 @@ type APIDetails struct {
 	VolumeMounts         []corev1.VolumeMount
 	Privileged           bool
 	PxeInit              bool
+	ConductorInit        bool
+	DeployHTTPURL        string
 }
 
 const (
@@ -43,6 +45,9 @@ const (
 
 	// PxeInitContainerCommand -
 	PxeInitContainerCommand = "/usr/local/bin/container-scripts/pxe-init.sh"
+
+	// ConductorInitContainerCommand -
+	ConductorInitContainerCommand = "/usr/local/bin/container-scripts/conductor-init.sh"
 )
 
 // InitContainer - init container for Ironic pods
@@ -52,6 +57,11 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	securityContext := &corev1.SecurityContext{
 		RunAsUser: &runAsUser,
+		Capabilities: &corev1.Capabilities{
+			Add: []corev1.Capability{
+				"MKNOD",
+			},
+		},
 	}
 
 	if init.Privileged {
@@ -62,6 +72,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
 	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
+	envVars["DeployHTTPURL"] = env.SetValue(init.DeployHTTPURL)
 
 	envs := []corev1.EnvVar{
 		{
@@ -86,14 +97,40 @@ func InitContainer(init APIDetails) []corev1.Container {
 				},
 			},
 		},
+		{
+			Name: "NodeName",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.nodeName",
+				},
+			},
+		},
+		{
+			Name: "PodName",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name: "PodNamespace",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
 	}
 	envs = env.MergeEnvs(envs, envVars)
 
 	containers := []corev1.Container{
 		{
-			Name:            "init",
-			Image:           init.ContainerImage,
-			SecurityContext: securityContext,
+			Name:  "init",
+			Image: init.ContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: &runAsUser,
+			},
 			Command: []string{
 				"/bin/bash",
 			},
@@ -107,9 +144,11 @@ func InitContainer(init APIDetails) []corev1.Container {
 	}
 	if init.PxeInit {
 		pxeInit := corev1.Container{
-			Name:            "pxe-init",
-			Image:           init.PxeContainerImage,
-			SecurityContext: securityContext,
+			Name:  "pxe-init",
+			Image: init.PxeContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: &runAsUser,
+			},
 			Command: []string{
 				"/bin/bash",
 			},
@@ -121,6 +160,29 @@ func InitContainer(init APIDetails) []corev1.Container {
 			VolumeMounts: init.VolumeMounts,
 		}
 		containers = append(containers, pxeInit)
+	}
+	if init.ConductorInit {
+		priv := true
+		conductorInit := corev1.Container{
+			Name:  "conductor-init",
+			Image: init.ContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser:  &runAsUser,
+				Privileged: &priv, // required for building esp.img (mount)
+				// TODO: try again to get this working with Capability SYS_ADMIN
+				// instead of privileged
+			},
+			Command: []string{
+				"/bin/bash",
+			},
+			Args: []string{
+				"-c",
+				ConductorInitContainerCommand,
+			},
+			Env:          envs,
+			VolumeMounts: init.VolumeMounts,
+		}
+		containers = append(containers, conductorInit)
 	}
 	return containers
 }
