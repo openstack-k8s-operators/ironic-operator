@@ -108,6 +108,18 @@ type IronicConductorSpec struct {
 	// +kubebuilder:validation:Required
 	// StorageRequest
 	StorageRequest string `json:"storageRequest"`
+
+	// +kubebuilder:validation:Optional
+	// TransportURLSecret - Secret containing RabbitMQ transportURL
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=json-rpc
+	// RPC transport type - Which RPC transport implementation to use between
+	// conductor and API services. 'oslo' to use oslo.messaging transport
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+	// requires oslo.messaging transport when not in standalone mode.
+	RPCTransport string `json:"rpcTransport"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor

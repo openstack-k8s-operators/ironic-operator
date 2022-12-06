@@ -21,10 +21,9 @@ export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
 export DBUSER=${DatabaseUser:-"ironic"}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export IRONICPASSWORD=${IronicPassword:?"Please specify a IronicPassword variable."}
+export TRANSPORTURL=${TransportURL:-""}
 # TODO: nova password
 #export NOVAPASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
-# TODO: transportURL
-#export TRANSPORTURL=${TransportURL:?"Please specify a TransportURL variable."}
 
 export CUSTOMCONF=${CustomConf:-""}
 
@@ -67,8 +66,11 @@ if [ -n "$CUSTOMCONF" ]; then
 fi
 
 # set secrets
-# TODO: transportURL
-#crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TransportURL
+# Only set rpc_transport and transport_url if $TRANSPORTURL
+if [ -n "$TRANSPORTURL" ]; then
+  crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
+  crudini --set ${SVC_CFG_MERGED} DEFAULT rpc_transport oslo
+fi
 crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
 crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD

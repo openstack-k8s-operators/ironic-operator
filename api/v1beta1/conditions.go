@@ -28,6 +28,9 @@ const (
 
 	// IronicConductorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
 	IronicConductorReadyCondition condition.Type = "IronicConductorReady"
+
+	// IronicRabbitMqTransportURLReady Status=True condition which indicates if the RabbitMQ TransportURLUrl is ready
+	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
 )
 
 //
@@ -56,4 +59,22 @@ const (
 
 	// IronicConductorReadyErrorMessage
 	IronicConductorReadyErrorMessage = "IronicConductor error occured %s"
+
+	//
+	// IronicRabbitMqTransportURLReady condition messages
+	//
+	// IronicRabbitMqTransportURLReadyInitMessage
+	IronicRabbitMqTransportURLReadyInitMessage = "IronicRabbitMqTransportURL not started"
+
+	// IronicRabbitMqTransportURLReadyRunningMessage
+	IronicRabbitMqTransportURLReadyRunningMessage = "IronicRabbitMqTransportURL creation in progress"
+
+	// IronicRabbitMqTransportURLReadyMessage
+	IronicRabbitMqTransportURLReadyMessage = "IronicRabbitMqTransportURL successfully created"
+
+	// IronicRabbitMqTransportURLDisabledMessage
+	IronicRabbitMqTransportURLDisabledMessage = "IronicRabbitMqTransportURL disabled"
+
+	// CinderRabbitMqTransportURLReadyErrorMessage
+	IronicRabbitMqTransportURLReadyErrorMessage = "IronicRabbitMqTransportURL error occured %s"
 )

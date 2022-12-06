@@ -200,6 +200,9 @@ spec:
                     default: false
                     description: Whether to deploy a single node standalone Ironic.
                     type: boolean
+                  transportURLSecret:
+                    description: Secret containing RabbitMq transport URL
+                    type: string
                 type: object
               ironicConductor:
                 description: IronicAPI - Spec definition for the conductor service
@@ -346,6 +349,16 @@ spec:
                   storageRequest:
                     description: StorageRequest
                     type: string
+                  rpcTransport:
+                    default: json-rpc
+                    description: Which RPC transport implementation to use between
+                      conductor and API services. 'oslo' to use oslo.messaging transport
+                      or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                      requires oslo.messaging transport when not in standalone mode.
+                    type: string
+                  transportURLSecret:
+                    description: Secret containing RabbitMq transport URL
+                    type: string
                 required:
                 - storageRequest
                 type: object
@@ -385,6 +398,11 @@ spec:
                 default: false
                 description: Whether to deploy a single node standalone Ironic.
                 type: boolean
+              rabbitMqClusterName:
+                default: rabbitmq
+                description: RabbitMQ instance name Needed to request a transportURL
+                  that is created and used in Ironic
+                type: string
             required:
             - databaseInstance
             - ironicAPI
@@ -465,6 +483,9 @@ spec:
                   type: string
                 description: ServiceIDs
                 type: object
+              transportURLSecret:
+                description: TransportURLSecret - Secret containing RabbitMQ transportURL
+                type: string
             type: object
         type: object
     served: true

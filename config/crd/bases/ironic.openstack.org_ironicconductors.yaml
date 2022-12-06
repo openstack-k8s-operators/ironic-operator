@@ -183,6 +183,9 @@ spec:
               storageRequest:
                 description: StorageRequest
                 type: string
+              transportURLSecret:
+                description: Secret containing RabbitMq transport URL
+                type: string
             required:
             - storageRequest
             type: object

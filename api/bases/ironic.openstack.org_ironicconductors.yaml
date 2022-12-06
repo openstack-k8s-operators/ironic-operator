@@ -183,6 +183,16 @@ spec:
               storageRequest:
                 description: StorageRequest
                 type: string
+              rpcTransport:
+                default: json-rpc
+                description: Which RPC transport implementation to use between
+                  conductor and API services. 'oslo' to use oslo.messaging transport
+                  or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                  requires oslo.messaging transport when not in standalone mode.
+                type: string
+              transportURLSecret:
+                description: Secret containing RabbitMq transport URL
+                type: string
             required:
             - storageRequest
             type: object
