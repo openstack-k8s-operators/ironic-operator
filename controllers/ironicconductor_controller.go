@@ -45,6 +45,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pvc"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
@@ -87,6 +88,7 @@ type IronicConductorReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete;
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
@@ -172,6 +174,23 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}()
 
+	// Define a new PVC object
+	// TODO: Once conditions added to PVC lib-common logic, handle
+	//       the returned condition here
+	pvc := pvc.NewPvc(
+		ironicconductor.Pvc(instance),
+		5,
+	)
+
+	ctrlResult, err := pvc.CreateOrPatch(ctx, helper)
+
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+	// End PVC creation/patch
+
 	// Handle service delete
 	if !instance.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, instance, helper)
@@ -225,6 +244,7 @@ func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		// watch the config CMs we don't own
 		Watches(&source.Kind{Type: &corev1.ConfigMap{}},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
@@ -250,7 +270,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Conductor init")
+	r.Log.Info("Reconciling Conductor Services")
 
 	podList, err := ironicconductor.ConductorPods(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -287,16 +307,17 @@ func (r *IronicConductorReconciler) reconcileServices(
 				common.AppSelector:       ironic.ServiceName,
 				ironic.ComponentSelector: ironic.HttpbootComponent,
 			}
-			svc := route.NewRoute(
+			route := route.NewRoute(
 				ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels),
 				conductorRouteLabels,
 				5,
 			)
-			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			ctrlResult, err := route.CreateOrPatch(ctx, helper)
 			if err != nil {
 				return ctrl.Result{}, err
 			} else if (ctrlResult != ctrl.Result{}) {
-				return ctrl.Result{}, nil
+				// Requeue to inject IngressDomain into conductor pods
+				return ctrl.Result{Requeue: true}, nil
 			}
 			// create service - end
 		}
@@ -310,7 +331,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 		instance.Status.ServiceIDs = map[string]string{}
 	}
 
-	r.Log.Info("Reconciled Conductor init successfully")
+	r.Log.Info("Reconciled Conductor Services successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -448,9 +469,15 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		ironic.ComponentSelector: ironic.ConductorComponent,
 	}
 
+	conductorRouteLabels := map[string]string{
+		common.AppSelector:       ironic.ServiceName,
+		ironic.ComponentSelector: ironic.HttpbootComponent,
+	}
+	ingressDomain := ironicconductor.IngressDomain(ctx, instance, helper, conductorRouteLabels)
+
 	// Define a new StatefulSet object
 	ss := statefulset.NewStatefulSet(
-		ironicconductor.StatefulSet(instance, inputHash, serviceLabels),
+		ironicconductor.StatefulSet(instance, inputHash, serviceLabels, ingressDomain),
 		5,
 	)
 

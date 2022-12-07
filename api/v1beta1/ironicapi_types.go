@@ -27,7 +27,7 @@ type IronicAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Whether to deploy a single node standalone Ironic.
-	Standalone bool `json:"standalone,omitempty"`
+	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic
@@ -51,7 +51,7 @@ type IronicAPISpec struct {
 	// +kubebuilder:default=ironic
 	// DatabaseUser - optional username used for ironic DB, defaults to ironic
 	// TODO: -> implement needs work in mariadb-operator, right now only ironic
-	DatabaseUser string `json:"databaseUser,omitempty"`
+	DatabaseUser string `json:"databaseUser"`
 
 	// +kubebuilder:validation:Optional
 	// Secret containing OpenStack password information for IronicDatabasePassword, AdminPassword
@@ -60,7 +60,7 @@ type IronicAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes for running the API service
@@ -76,7 +76,7 @@ type IronicAPISpec struct {
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
 	// or overwrite rendered information using raw OpenStack config format. The content gets added to
 	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
-	CustomServiceConfig string `json:"customServiceConfig,omitempty"`
+	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
 	// ConfigOverwrite - interface to overwrite default config files like e.g. policy.json.

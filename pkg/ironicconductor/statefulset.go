@@ -54,6 +54,7 @@ func StatefulSet(
 	instance *ironicv1.IronicConductor,
 	configHash string,
 	labels map[string]string,
+	ingressDomain string,
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
@@ -295,7 +296,7 @@ func StatefulSet(
 	deployHTTPURL := "http://%(ProvisionNetworkIP)s:8088/"
 	if instance.Spec.ProvisionNetwork == "" {
 		// Build what the fully qualified Route hostname will be when the Route exists
-		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(NodeName)s/"
+		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(IngressDomain)s/"
 	}
 
 	initContainerDetails := ironic.APIDetails{
@@ -311,6 +312,7 @@ func StatefulSet(
 		PxeInit:              true,
 		ConductorInit:        true,
 		DeployHTTPURL:        deployHTTPURL,
+		IngressDomain:        ingressDomain,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 

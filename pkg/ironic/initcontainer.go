@@ -37,6 +37,7 @@ type APIDetails struct {
 	PxeInit              bool
 	ConductorInit        bool
 	DeployHTTPURL        string
+	IngressDomain        string
 }
 
 const (
@@ -73,6 +74,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
 	envVars["DeployHTTPURL"] = env.SetValue(init.DeployHTTPURL)
+	envVars["IngressDomain"] = env.SetValue(init.IngressDomain)
 
 	envs := []corev1.EnvVar{
 		{
@@ -94,14 +96,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 						Name: init.OSPSecret,
 					},
 					Key: init.UserPasswordSelector,
-				},
-			},
-		},
-		{
-			Name: "NodeName",
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "spec.nodeName",
 				},
 			},
 		},

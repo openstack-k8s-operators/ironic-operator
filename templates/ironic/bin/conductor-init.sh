@@ -28,6 +28,9 @@ crudini --set ${SVC_CFG_MERGED} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironi
 crudini --set ${SVC_CFG_MERGED} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
 crudini --set ${SVC_CFG_MERGED} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
 
+if [ ! -d "/var/lib/ironic/tmp" ]; then
+    mkdir /var/lib/ironic/tmp
+fi
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir /var/lib/ironic/httpboot
 fi

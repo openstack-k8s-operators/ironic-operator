@@ -34,7 +34,7 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Whether to deploy a single node standalone Ironic.
-	Standalone bool `json:"standalone,omitempty"`
+	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic
@@ -60,7 +60,7 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
@@ -70,14 +70,14 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=true
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
-	PreserveJobs bool `json:"preserveJobs,omitempty"`
+	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="# add your customization here"
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
 	// or overwrite rendered information using raw OpenStack config format. The content gets added to
 	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
-	CustomServiceConfig string `json:"customServiceConfig,omitempty"`
+	CustomServiceConfig string `json:"customServiceConfig"`
 
 	// +kubebuilder:validation:Optional
 	// ConfigOverwrite - interface to overwrite default config files like e.g. policy.json.
@@ -100,11 +100,11 @@ type PasswordSelector struct {
 	// +kubebuilder:default="IronicDatabasePassword"
 	// Database - Selector to get the ironic Database user password from the Secret
 	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database,omitempty"`
+	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="IronicPassword"
 	// Database - Selector to get the ironic service password from the Secret
-	Service string `json:"service,omitempty"`
+	Service string `json:"service"`
 }
 
 // DHCPRange to define address range for DHCP requestes
@@ -122,15 +122,15 @@ type IronicDebug struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// DBSync enable debug
-	DBSync bool `json:"dbSync,omitempty"`
+	DBSync bool `json:"dbSync"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// ReadyCount enable debug
-	Bootstrap bool `json:"bootstrap,omitempty"`
+	Bootstrap bool `json:"bootstrap"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Service enable debug
-	Service bool `json:"service,omitempty"`
+	Service bool `json:"service"`
 }
 
 // IronicStatus defines the observed state of Ironic
