@@ -12,9 +12,9 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221103175706-2c39582ce513
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221103175706-2c39582ce513
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220927092716-25669bcdb523
-	k8s.io/api v0.25.4
-	k8s.io/apimachinery v0.25.4
-	k8s.io/client-go v0.25.4
+	k8s.io/api v0.25.5
+	k8s.io/apimachinery v0.25.5
+	k8s.io/client-go v0.25.5
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
@@ -65,11 +65,11 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
-	golang.org/x/sys v0.2.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
