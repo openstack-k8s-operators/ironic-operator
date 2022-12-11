@@ -514,6 +514,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(instance *ironicv1.
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 		deployment.Spec.Secret = instance.Spec.Secret
+		deployment.Spec.NodeSelector = instance.Spec.NodeSelector
 
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
@@ -555,10 +556,8 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 	return deployment, op, err
 }
 
-//
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
 // TODO add DefaultConfigOverwrite
-//
 func (r *IronicReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	instance *ironicv1.Ironic,
@@ -626,10 +625,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	return nil
 }
 
-//
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
-//
 func (r *IronicReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *ironicv1.Ironic,

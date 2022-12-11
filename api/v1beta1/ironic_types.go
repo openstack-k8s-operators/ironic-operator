@@ -92,6 +92,12 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Required
 	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
 	IronicConductor IronicConductorSpec `json:"ironicConductor"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service. Setting
+	// NodeSelector here acts as a default value and can be overridden by service
+	// specific NodeSelector Settings.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
