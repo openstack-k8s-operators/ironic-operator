@@ -89,6 +89,18 @@ type IronicAPISpec struct {
 	// Resources - Compute Resources required by this service (Limits/Requests).
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Secret containing RabbitMq transport URL
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=json-rpc
+	// RPC transport type - Which RPC transport implementation to use between
+	// conductor and API services. 'oslo' to use oslo.messaging transport
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+	// requires oslo.messaging transport when not in standalone mode.
+	RPCTransport string `json:"rpcTransport"`
 }
 
 // IronicAPIStatus defines the observed state of IronicAPI

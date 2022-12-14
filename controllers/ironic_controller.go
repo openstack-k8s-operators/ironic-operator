@@ -39,6 +39,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,6 +76,7 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
+// +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -114,7 +116,9 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			condition.UnknownCondition(condition.BootstrapReadyCondition, condition.InitReason, condition.BootstrapReadyInitMessage),
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
-			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage))
+			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+			condition.UnknownCondition(ironicv1.IronicRabbitMqTransportURLReadyCondition, condition.InitReason, ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
+		)
 
 		instance.Status.Conditions.Init(&cl)
 
@@ -218,6 +222,46 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
+
+	if instance.Spec.RPCTransport == "oslo" {
+		//
+		// Create RabbitMQ transport URL CR and get the actual URL from the associted secret that is created
+		//
+		transportURL, op, err := r.transportURLCreateOrUpdate(instance)
+
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				ironicv1.IronicRabbitMqTransportURLReadyErrorMessage,
+				err.Error(),
+			))
+			return ctrl.Result{}, err
+		}
+
+		if op != controllerutil.OperationResultNone {
+			r.Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
+		}
+
+		instance.Status.TransportURLSecret = transportURL.Status.SecretName
+
+		if instance.Status.TransportURLSecret == "" {
+			r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				ironicv1.IronicRabbitMqTransportURLReadyRunningMessage))
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		}
+
+		instance.Status.Conditions.MarkTrue(ironicv1.IronicRabbitMqTransportURLReadyCondition, ironicv1.IronicRabbitMqTransportURLReadyMessage)
+	} else {
+		instance.Status.TransportURLSecret = ""
+		instance.Status.Conditions.MarkTrue(ironicv1.IronicRabbitMqTransportURLReadyCondition, ironicv1.IronicRabbitMqTransportURLDisabledMessage)
+	}
+	// end transportURL
 
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
@@ -526,6 +570,8 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(instance *ironicv1.
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 		deployment.Spec.Secret = instance.Spec.Secret
+		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
+
 		if len(deployment.Spec.NodeSelector) == 0 {
 			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
 		}
@@ -557,6 +603,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 		deployment.Spec.Secret = instance.Spec.Secret
+		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
 		if len(deployment.Spec.NodeSelector) == 0 {
 			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
 		}
@@ -661,4 +708,25 @@ func (r *IronicReconciler) createHashOfInputHashes(
 		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, nil
+}
+
+//
+// transportURLCreateOrUpdate - creates or updates rabbitmq transport URL
+//
+func (r *IronicReconciler) transportURLCreateOrUpdate(instance *ironicv1.Ironic) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-transport", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, transportURL, func() error {
+		transportURL.Spec.RabbitmqClusterName = instance.Spec.RabbitMqClusterName
+
+		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
+		return err
+	})
+
+	return transportURL, op, err
 }

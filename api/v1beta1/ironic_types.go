@@ -94,6 +94,20 @@ type IronicSpec struct {
 	IronicConductor IronicConductorSpec `json:"ironicConductor"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Ironic
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=json-rpc
+	// RPC transport type - Which RPC transport implementation to use between
+	// conductor and API services. 'oslo' to use oslo.messaging transport
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+	// requires oslo.messaging transport when not in standalone mode.
+	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.
@@ -161,6 +175,9 @@ type IronicStatus struct {
 
 	// ReadyCount of Ironic Conductor instance
 	IronicConductorReadyCount int32 `json:"ironicConductorReadyCount,omitempty"`
+
+	// TransportURLSecret - Secret containing RabbitMQ transportURL
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 }
 
 //+kubebuilder:object:root=true
