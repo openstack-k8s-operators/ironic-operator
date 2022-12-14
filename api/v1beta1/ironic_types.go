@@ -99,7 +99,6 @@ type IronicSpec struct {
 	// Needed to request a transportURL that is created and used in Ironic
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
-
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
@@ -107,6 +106,12 @@ type IronicSpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// NodeSelector to target subset of worker nodes running this service. Setting
+	// NodeSelector here acts as a default value and can be overridden by service
+	// specific NodeSelector Settings.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
