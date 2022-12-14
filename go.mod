@@ -12,7 +12,8 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221201135101-4ec1006d9216
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221103175706-2c39582ce513
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221122141723-fb7400f56094
-	k8s.io/api v0.25.4
+	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221206145213-d38cc808ae5f
+	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v0.25.4
 	sigs.k8s.io/controller-runtime v0.13.1
@@ -55,7 +56,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20221103175706-2c39582ce513 // indirect
-	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221206145213-d38cc808ae5f // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
