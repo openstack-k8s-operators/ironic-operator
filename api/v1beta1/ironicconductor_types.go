@@ -75,7 +75,8 @@ type IronicConductorSpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes for running the Conductor service
+	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
+	// any global NodeSelector settings within the Ironic CR
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
