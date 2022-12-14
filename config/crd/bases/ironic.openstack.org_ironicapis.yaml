@@ -160,6 +160,9 @@ spec:
                 default: false
                 description: Whether to deploy a single node standalone Ironic.
                 type: boolean
+              transportURLSecret:
+                description: Secret containing RabbitMq transport URL
+                type: string
             type: object
           status:
             description: IronicAPIStatus defines the observed state of IronicAPI

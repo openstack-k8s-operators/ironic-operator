@@ -160,6 +160,16 @@ spec:
                 default: false
                 description: Whether to deploy a single node standalone Ironic.
                 type: boolean
+              rpcTransport:
+                default: json-rpc
+                description: Which RPC transport implementation to use between
+                  conductor and API services. 'oslo' to use oslo.messaging transport
+                  or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                  requires oslo.messaging transport when not in standalone mode.
+                type: string
+              transportURLSecret:
+                description: Secret containing RabbitMq transport URL
+                type: string
             type: object
           status:
             description: IronicAPIStatus defines the observed state of IronicAPI

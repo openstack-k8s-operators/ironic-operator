@@ -38,6 +38,7 @@ import (
 	"github.com/openstack-k8s-operators/ironic-operator/controllers"
 	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1beta1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -51,6 +52,7 @@ func init() {
 
 	utilruntime.Must(ironicv1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1beta1.AddToScheme(scheme))
+	utilruntime.Must(rabbitmqv1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	err := keystonev1beta1.AddToScheme(scheme)
 	if err != nil {
