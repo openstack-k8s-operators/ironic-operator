@@ -7,12 +7,12 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.24.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20221123090515-e2561e258f0a
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221201135101-4ec1006d9216
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221103175706-2c39582ce513
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221122141723-fb7400f56094
-	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221206145213-d38cc808ae5f
+	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-20221214033743-96ff14d8d176
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20221212103704-ebd7d71db30e
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221212162305-ec57ccd85ad5
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221212162305-ec57ccd85ad5
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221128124656-71e59ad7384d
+	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221213114254-e8c2ba0424be
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v0.25.4
