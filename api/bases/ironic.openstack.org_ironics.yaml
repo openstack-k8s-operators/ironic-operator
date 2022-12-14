@@ -165,6 +165,25 @@ spec:
                     description: Resources - Compute Resources required by this service
                       (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: set
                       limits:
                         additionalProperties:
                           anyOf:
@@ -188,6 +207,13 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  rpcTransport:
+                    default: json-rpc
+                    description: RPC transport type - Which RPC transport implementation
+                      to use between conductor and API services. 'oslo' to use oslo.messaging
+                      transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                      requires oslo.messaging transport when not in standalone mode.
+                    type: string
                   secret:
                     description: Secret containing OpenStack password information
                       for IronicDatabasePassword, AdminPassword
@@ -309,6 +335,25 @@ spec:
                     description: Resources - Compute Resources required by this service
                       (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: set
                       limits:
                         additionalProperties:
                           anyOf:
@@ -332,6 +377,13 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  rpcTransport:
+                    default: json-rpc
+                    description: RPC transport type - Which RPC transport implementation
+                      to use between conductor and API services. 'oslo' to use oslo.messaging
+                      transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                      requires oslo.messaging transport when not in standalone mode.
+                    type: string
                   secret:
                     description: Secret containing OpenStack password information
                       for IronicDatabasePassword, AdminPassword
@@ -351,15 +403,8 @@ spec:
                   storageRequest:
                     description: StorageRequest
                     type: string
-                  rpcTransport:
-                    default: json-rpc
-                    description: Which RPC transport implementation to use between
-                      conductor and API services. 'oslo' to use oslo.messaging transport
-                      or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-                      requires oslo.messaging transport when not in standalone mode.
-                    type: string
                   transportURLSecret:
-                    description: Secret containing RabbitMq transport URL
+                    description: TransportURLSecret - Secret containing RabbitMQ transportURL
                     type: string
                 required:
                 - storageRequest
@@ -394,6 +439,18 @@ spec:
                 description: PreserveJobs - do not delete jobs after they finished
                   e.g. to check logs
                 type: boolean
+              rabbitMqClusterName:
+                default: rabbitmq
+                description: RabbitMQ instance name Needed to request a transportURL
+                  that is created and used in Ironic
+                type: string
+              rpcTransport:
+                default: json-rpc
+                description: RPC transport type - Which RPC transport implementation
+                  to use between conductor and API services. 'oslo' to use oslo.messaging
+                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                  requires oslo.messaging transport when not in standalone mode.
+                type: string
               secret:
                 description: Secret containing OpenStack password information for
                   ironic IronicDatabasePassword, AdminPassword
@@ -407,11 +464,6 @@ spec:
                 default: false
                 description: Whether to deploy a single node standalone Ironic.
                 type: boolean
-              rabbitMqClusterName:
-                default: rabbitmq
-                description: RabbitMQ instance name Needed to request a transportURL
-                  that is created and used in Ironic
-                type: string
             required:
             - databaseInstance
             - ironicAPI
