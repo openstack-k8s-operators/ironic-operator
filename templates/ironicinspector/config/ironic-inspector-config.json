@@ -1,0 +1,29 @@
+{
+    "command": "/usr/bin/ironic-inspector --config-file /etc/ironic-inspector/inspector.conf",
+    "config_files": [
+        {
+            "source": "/var/lib/config-data/merged/inspector.conf",
+            "dest": "/etc/ironic-inspector/inspector.conf",
+            "owner": "ironic-inspector",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/config-data/merged/custom.conf",
+            "dest": "/etc/ironic-inspector/inspector.conf.d/custom.conf",
+            "owner": "ironic-inspector",
+            "perm": "0600"
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/ironic-inspector",
+            "owner": "ironic-inspector:ironic-inspector",
+            "recurse": true
+        },
+        {
+            "path": "/var/lib/ironic-inspector",
+            "owner": "ironic-inspector:ironic-inspector",
+            "recurse": true
+        }
+    ]
+}

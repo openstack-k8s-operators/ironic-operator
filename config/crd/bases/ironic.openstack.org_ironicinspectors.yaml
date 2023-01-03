@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: ironicconductors.ironic.openstack.org
+  name: ironicinspectors.ironic.openstack.org
 spec:
   group: ironic.openstack.org
   names:
-    kind: IronicConductor
-    listKind: IronicConductorList
-    plural: ironicconductors
-    singular: ironicconductor
+    kind: IronicInspector
+    listKind: IronicInspectorList
+    plural: ironicinspectors
+    singular: ironicinspector
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -31,7 +31,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: IronicConductor is the Schema for the ironicconductors Conductor
+        description: IronicInspector is the Schema for the IronicInspector
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,10 +46,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: IronicConductorSpec defines the desired state of IronicConductor
+            description: IronicInspectorSpec defines the desired state of IronicInspector
             properties:
               containerImage:
-                description: ContainerImage - Ironic Conductor Container Image URL
+                description: ContainerImage - Ironic Inspector Container Image URL
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -62,8 +62,13 @@ spec:
               databaseHostname:
                 description: DatabaseHostname - Ironic Database Hostname
                 type: string
+              databaseInstance:
+                description: MariaDB instance name. Right now required by the maridb-operator
+                  to get the credentials from the instance to create the DB. Might
+                  not be required in future.
+                type: string
               databaseUser:
-                default: ironic
+                default: ironic_inspector
                 description: 'DatabaseUser - optional username used for ironic DB,
                   defaults to ironic TODO: -> implement needs work in mariadb-operator,
                   right now only ironic'
@@ -129,6 +134,10 @@ spec:
                       type: string
                   type: object
                 type: array
+              inspectionNetwork:
+                description: InspectionNetwork - Additional network to attach to expose
+                  boot DHCP, TFTP, HTTP services.
+                type: string
               networkAttachments:
                 description: NetworkAttachments list of network attachment definitions
                   the pods get attached to.
@@ -144,8 +153,8 @@ spec:
                 type: object
               passwordSelectors:
                 default:
-                  database: IronicDatabasePassword
-                  service: IronicPassword
+                  database: IronicInspectorDatabasePassword
+                  service: IronicInspectorPassword
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser password and TransportURL from the Secret
                 properties:
@@ -160,17 +169,23 @@ spec:
                       from the Secret
                     type: string
                 type: object
-              provisionNetwork:
-                description: ProvisionNetwork - Additional network to attach to expose
-                  boot DHCP, TFTP, HTTP services.
-                type: string
+              preserveJobs:
+                default: true
+                description: PreserveJobs - do not delete jobs after they finished
+                  e.g. to check logs
+                type: boolean
               pxeContainerImage:
-                description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
-                  URL
+                description: PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container
+                  Image URL
+                type: string
+              rabbitMqClusterName:
+                default: rabbitmq
+                description: RabbitMQ instance name Needed to request a transportURL
+                  that is created and used in Ironic
                 type: string
               replicas:
                 default: 1
-                description: Replicas - Ironic Conductor Replicas
+                description: Replicas - Ironic Inspector Replicas
                 format: int32
                 type: integer
               resources:
@@ -209,32 +224,36 @@ spec:
                 type: string
               secret:
                 description: Secret containing OpenStack password information for
-                  IronicDatabasePassword, AdminPassword
+                  IronicInspectorDatabasePassword, AdminPassword
                 type: string
               serviceUser:
-                default: ironic
+                default: ironic-inspector
                 description: ServiceUser - optional username used for this service
-                  to register in ironic
+                  to register in ironic-inspector
                 type: string
               standalone:
                 default: false
-                description: Whether to deploy a single node standalone Ironic.
+                description: Whether to deploy a single node standalone Ironic Inspector.
                 type: boolean
               storageClass:
                 description: StorageClass
-                type: string
-              storageRequest:
-                description: StorageRequest
                 type: string
               transportURLSecret:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             required:
-            - storageRequest
+            - databaseInstance
             type: object
           status:
-            description: IronicConductorStatus defines the observed state of IronicConductor
+            description: IronicInspectorStatus defines the observed state of IronicInspector
             properties:
+              apiEndpoints:
+                additionalProperties:
+                  additionalProperties:
+                    type: string
+                  type: object
+                description: API endpoint
+                type: object
               conditions:
                 description: Conditions
                 items:
@@ -278,6 +297,9 @@ spec:
                   - type
                   type: object
                 type: array
+              databaseHostname:
+                description: IronicInspector Database Hostname
+                type: string
               hash:
                 additionalProperties:
                   type: string
@@ -298,6 +320,9 @@ spec:
                   type: string
                 description: ServiceIDs
                 type: object
+              transportURLSecret:
+                description: TransportURLSecret - Secret containing RabbitMQ transportURL
+                type: string
             type: object
         type: object
     served: true

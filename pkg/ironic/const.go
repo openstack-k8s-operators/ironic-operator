@@ -44,4 +44,6 @@ const (
 	DhcpComponent = "dhcp"
 	// APIComponent -
 	APIComponent = "api"
+	// InspectorComponent -
+	InspectorComponent = "inspector"
 )

@@ -24,6 +24,10 @@ spec:
       jsonPath: .status.conditions[0].message
       name: Message
       type: string
+    - description: Networks
+      jsonPath: .status.networks
+      name: Networks
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -90,16 +94,47 @@ spec:
                   files. Those get added to the service config dir in /etc/<service>
                   . TODO: -> implement'
                 type: object
-              dhcpRange:
-                description: DHCPRange - DHCP range to use for provisioning
-                properties:
-                  end:
-                    description: End - End of DHCP range
-                    type: string
-                  start:
-                    description: Start - Start of DHCP range
-                    type: string
-                type: object
+              dhcpRanges:
+                description: DHCPRanges - List of DHCP ranges to use for provisioning
+                items:
+                  description: DHCPRange to define address range for DHCP requestes
+                  properties:
+                    end:
+                      description: End - End of DHCP range
+                      type: string
+                    gateway:
+                      description: Gateway - IP address for the router
+                      type: string
+                    mtu:
+                      description: MTU -
+                      type: integer
+                    name:
+                      description: Name - Name of the DHCPRange (used for tagging
+                        in dnsmasq)
+                      type: string
+                    netmask:
+                      description: Netmask - IP network netmask (network mask bits)
+                        for IPv4
+                      type: string
+                    podIndex:
+                      description: PodIndex - Maps the DHCPRange to a specific statefulset
+                        pod index
+                      type: integer
+                    prefix:
+                      description: Prefix - IP network prefix (network mask bits)
+                        for IPv6
+                      type: integer
+                    start:
+                      description: Start - Start of DHCP range
+                      type: string
+                  type: object
+                type: array
+              networkAttachments:
+                description: NetworkAttachments list of network attachment definitions
+                  the pods get attached to.
+                items:
+                  type: string
+                type: array
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -248,6 +283,12 @@ spec:
                   type: string
                 description: Map of hashes to track e.g. job status
                 type: object
+              networks:
+                description: Networks in addtion to the cluster network, the service
+                  is attached to
+                items:
+                  type: string
+                type: array
               readyCount:
                 description: ReadyCount of ironic Conductor instances
                 format: int32

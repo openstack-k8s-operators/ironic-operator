@@ -1,0 +1,11 @@
+concurrency: 2
+log_level: INFO
+target: /var/lib/ironic/httpboot
+images:
+
+- url: https://images.rdoproject.org/centos9/zed/rdo_trunk/current-tripleo/ironic-python-agent.tar
+  checksum_url: https://images.rdoproject.org/centos9/zed/rdo_trunk/current-tripleo/ironic-python-agent.tar.md5
+  checksum_algo: md5
+  download_policy: checksum
+  unpack:
+  - tar

@@ -1,6 +1,6 @@
 #!/bin//bash
 #
-# Copyright 2020 Red Hat Inc.
+# Copyright 2023 Red Hat Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -13,22 +13,19 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-set -ex
 
 # Secrets are obtained from ENV variables.
-export DB=${DatabaseName:-"ironic"}
+export DB=${DatabaseName:-"ironic_inspector"}
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DBUSER=${DatabaseUser:-"ironic"}
+export DBUSER=${DatabaseUser:-"ironic_inspector"}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-export IRONICPASSWORD=${IronicPassword:?"Please specify a IronicPassword variable."}
+export INSPECTORPASSWORD=${IronicInspectorPassword:?"Please specify a IronicInspectorPassword variable."}
 export TRANSPORTURL=${TransportURL:-""}
-# TODO: nova password
-#export NOVAPASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
 
 export CUSTOMCONF=${CustomConf:-""}
 
-SVC_CFG=/etc/ironic/ironic.conf
-SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
+SVC_CFG=/etc/ironic-inspector/inspector.conf
+SVC_CFG_MERGED=/var/lib/config-data/merged/inspector.conf
 
 # expect that the common.sh is in the same dir as the calling script
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -43,7 +40,8 @@ cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
 #       to be handled separately below because the "merge_config_dir" function will
 #       not merge custom.conf into ironic.conf (because the files obviously have
 #       different names)
-for dir in /var/lib/config-data/default /var/lib/config-data/custom; do
+for dir in /var/lib/config-data/default /var/lib/config-data/custom
+do
     merge_config_dir ${dir}
 done
 
@@ -60,26 +58,18 @@ crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/default/custom.conf
 # There might be service-specific extra custom conf that needs to be merged
 # with the main ironic.conf for this particular service
 if [ -n "$CUSTOMCONF" ]; then
-    echo merging /var/lib/config-data/custom/${CUSTOMCONF} into ${SVC_CFG_MERGED}
-    crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/custom/${CUSTOMCONF}
+  echo merging /var/lib/config-data/custom/${CUSTOMCONF} into ${SVC_CFG_MERGED}
+  crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/custom/${CUSTOMCONF}
 fi
 
 # set secrets
-# Only set rpc_transport and transport_url if $TRANSPORTURL
+# Only set transport_url if $TRANSPORTURL
 if [ -n "$TRANSPORTURL" ]; then
-    crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
-    crudini --set ${SVC_CFG_MERGED} DEFAULT rpc_transport oslo
+  crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
 fi
 crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
-crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} cinder password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} glance password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} neutron password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} nova password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} swift password $IRONICPASSWORD
-crudini --set ${SVC_CFG_MERGED} inspector password $IRONICPASSWORD
-# TODO: nova password
-#crudini --set ${SVC_CFG_MERGED} nova password $NOVAPASSWORD
-# TODO: service token
-#crudini --set ${SVC_CFG_MERGED} service_user password $IronicPassword
+crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $INSPECTORPASSWORD
+crudini --set ${SVC_CFG_MERGED} service_catalog password $INSPECTORPASSWORD
+crudini --set ${SVC_CFG_MERGED} ironic password $INSPECTORPASSWORD
+# TODO: Condtion swift? Only set if used for inspector store_data?
+crudini --set ${SVC_CFG_MERGED} swift password $INSPECTORPASSWORD

@@ -1,0 +1,29 @@
+{
+    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "config_files": [
+        {
+            "source": "/var/lib/config-data/merged/httpboot-httpd.conf",
+            "dest": "/etc/httpd/conf/httpd.conf",
+            "owner": "root",
+            "perm": "0644"
+        },
+        {
+            "source": "/var/lib/config-data/merged/inspector.ipxe",
+            "dest": "/var/lib/ironic/httpboot/inspector.ipxe",
+            "owner": "ironic",
+            "perm": "0644"
+        }
+    ],
+    "permissions": [
+        {
+            "path": "/var/log/ironic",
+            "owner": "ironic:ironic",
+            "recurse": true
+        },
+        {
+            "path": "/var/lib/ironic",
+            "owner": "ironic:ironic",
+            "recurse": true
+        }
+    ]
+}

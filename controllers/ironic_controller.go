@@ -70,6 +70,8 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete;
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch;delete;watch
@@ -178,6 +180,7 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&ironicv1.Ironic{}).
 		Owns(&ironicv1.IronicConductor{}).
 		Owns(&ironicv1.IronicAPI{}).
+		Owns(&ironicv1.IronicInspector{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Secret{}).
@@ -407,6 +410,27 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	if c != nil {
 		instance.Status.Conditions.Set(c)
 	}
+
+	// deploy ironic-inspector
+	ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
+	if err != nil {
+		instance.Status.Conditions.Set(
+			condition.FalseCondition(
+				ironicv1.IronicInspectorReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				ironicv1.IronicInspectorReadyErrorMessage,
+				err.Error()))
+		return ctrl.Result{}, err
+	}
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+	}
+
+	// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
+	instance.Status.InspectorAPIEndpoints = ironicInspector.Status.APIEndpoints
+	instance.Status.InspectorServiceIDs = ironicInspector.Status.ServiceIDs
+	instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
 	r.Log.Info("Reconciled Ironic successfully")
 	return ctrl.Result{}, nil
@@ -653,7 +677,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
-	templateParameters["DHCPRange"] = instance.Spec.IronicConductor.DHCPRange
+	templateParameters["DHCPRanges"] = instance.Spec.IronicConductor.DHCPRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
 	cms := []util.Template{
@@ -666,6 +690,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"common.sh":  "/common/common.sh",
 				"get_net_ip": "/common/get_net_ip",
+				"imagetter":  "/common/imagetter",
 			},
 			Labels: cmLabels,
 		},
@@ -682,6 +707,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
+		r.Log.Error(err, "Unable to create Config Maps %v")
 		return nil
 	}
 
@@ -728,4 +754,38 @@ func (r *IronicReconciler) transportURLCreateOrUpdate(instance *ironicv1.Ironic)
 	})
 
 	return transportURL, op, err
+}
+
+func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
+	instance *ironicv1.Ironic,
+) (*ironicv1.IronicInspector, controllerutil.OperationResult, error) {
+	deployment := &ironicv1.IronicInspector{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-inspector", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(
+		context.TODO(), r.Client, deployment, func() error {
+			deployment.Spec = instance.Spec.IronicInspector
+			// Add in transfers from umbrella Ironic (this instance) spec
+			// TODO: Add logic to determine when to set/overwrite, etc
+			deployment.Spec.Secret = instance.Spec.Secret
+			deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
+			deployment.Spec.RPCTransport = instance.Spec.RPCTransport
+
+			if len(deployment.Spec.NodeSelector) == 0 {
+				deployment.Spec.NodeSelector = instance.Spec.NodeSelector
+			}
+			err := controllerutil.SetControllerReference(
+				instance, deployment, r.Scheme)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+	return deployment, op, err
 }
