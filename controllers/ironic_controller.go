@@ -649,13 +649,18 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
-	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	keystoneInternalURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+	if err != nil {
+		return err
+	}
+	keystonePublicURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
 	if err != nil {
 		return err
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystoneInternalURL"] = authURL
+	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
+	templateParameters["KeystonePublicURL"] = keystonePublicURL
 	templateParameters["DHCPRange"] = instance.Spec.IronicConductor.DHCPRange
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
