@@ -37,17 +37,14 @@ fi
 # Build an ESP image
 pushd /var/lib/ironic/httpboot
 if [ ! -a "esp.img" ]; then
-    dd if=/dev/zero of=/tmp/esp.img bs=4096 count=1024
-    mkfs.fat -s 4 -r 512 -S 4096 /tmp/esp.img
+    dd if=/dev/zero of=esp.img bs=4096 count=1024
+    mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
 
-    ESP_IMAGE_DIR=$(mktemp -t -d esp.XXXXXXXX)
-    mount /tmp/esp.img $ESP_IMAGE_DIR
-    mkdir -p $ESP_IMAGE_DIR/EFI/BOOT
-    cp bootx64.efi $ESP_IMAGE_DIR/EFI/BOOT/BOOTX64.efi
-    cp grubx64.efi $ESP_IMAGE_DIR/EFI/BOOT/GRUBX64.efi
-    umount $ESP_IMAGE_DIR
-
-    cp /tmp/esp.img ./
+    mmd -i esp.img EFI
+    mmd -i esp.img EFI/BOOT
+    mcopy -i esp.img -v bootx64.efi ::EFI/BOOT
+    mcopy -i esp.img -v grubx64.efi ::EFI/BOOT
+    mdir -i esp.img ::EFI/BOOT;
 fi
 popd
 

@@ -54,20 +54,6 @@ const (
 // InitContainer - init container for Ironic pods
 func InitContainer(init APIDetails) []corev1.Container {
 	runAsUser := int64(0)
-	trueVar := true
-
-	securityContext := &corev1.SecurityContext{
-		RunAsUser: &runAsUser,
-		Capabilities: &corev1.Capabilities{
-			Add: []corev1.Capability{
-				"MKNOD",
-			},
-		},
-	}
-
-	if init.Privileged {
-		securityContext.Privileged = &trueVar
-	}
 
 	envVars := map[string]env.Setter{}
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
@@ -170,15 +156,11 @@ func InitContainer(init APIDetails) []corev1.Container {
 		containers = append(containers, pxeInit)
 	}
 	if init.ConductorInit {
-		priv := true
 		conductorInit := corev1.Container{
 			Name:  "conductor-init",
 			Image: init.ContainerImage,
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser:  &runAsUser,
-				Privileged: &priv, // required for building esp.img (mount)
-				// TODO: try again to get this working with Capability SYS_ADMIN
-				// instead of privileged
+				RunAsUser: &runAsUser,
 			},
 			Command: []string{
 				"/bin/bash",
