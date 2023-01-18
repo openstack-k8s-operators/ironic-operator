@@ -562,6 +562,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(instance *ironicv1.
 		deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 		deployment.Spec.Secret = instance.Spec.Secret
 		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
+		deployment.Spec.RPCTransport = instance.Spec.RPCTransport
 
 		if len(deployment.Spec.NodeSelector) == 0 {
 			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
@@ -684,12 +685,10 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	return nil
 }
 
-//
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
 //
 // returns the hash, whether the hash changed (as a bool) and any error
-//
 func (r *IronicReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *ironicv1.Ironic,
@@ -709,9 +708,7 @@ func (r *IronicReconciler) createHashOfInputHashes(
 	return hash, changed, nil
 }
 
-//
 // transportURLCreateOrUpdate - creates or updates rabbitmq transport URL
-//
 func (r *IronicReconciler) transportURLCreateOrUpdate(instance *ironicv1.Ironic) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{

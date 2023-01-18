@@ -131,17 +131,33 @@ func StatefulSet(
 		//
 		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 		//
-		// Make a POST request to the JSON-RPC port
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8089",
-			},
-		}
-		// Make a POST request to the JSON-RPC port
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8089",
-			},
+
+		if instance.Spec.RPCTransport == "json-rpc" {
+			// Make a POST request to the JSON-RPC port
+			livenessProbe.Exec = &corev1.ExecAction{
+				Command: []string{
+					"sh", "-c", "ss -ltn | grep :8089",
+				},
+			}
+			// Make a POST request to the JSON-RPC port
+			readinessProbe.Exec = &corev1.ExecAction{
+				Command: []string{
+					"sh", "-c", "ss -ltn | grep :8089",
+				},
+			}
+		} else {
+			// TODO
+			livenessProbe.Exec = &corev1.ExecAction{
+				Command: []string{
+					"/bin/true",
+				},
+			}
+			// TODO
+			readinessProbe.Exec = &corev1.ExecAction{
+				Command: []string{
+					"/bin/true",
+				},
+			}
 		}
 		httpbootLivenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
