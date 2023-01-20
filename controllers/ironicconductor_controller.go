@@ -279,16 +279,15 @@ func (r *IronicConductorReconciler) reconcileServices(
 			common.AppSelector:       ironic.ServiceName,
 			ironic.ComponentSelector: ironic.ConductorComponent,
 		}
-		svc := service.NewService(
-			ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels),
-			conductorServiceLabels,
-			5,
-		)
-		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
-		if err != nil {
-			return ctrl.Result{}, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrl.Result{}, nil
+		conductorService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
+		if conductorService != nil {
+			svc := service.NewService(conductorService, conductorServiceLabels, 5)
+			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrl.Result{}, err
+			} else if (ctrlResult != ctrl.Result{}) {
+				return ctrl.Result{}, nil
+			}
 		}
 		// create service - end
 
@@ -554,10 +553,8 @@ func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instan
 	return ctrl.Result{}, nil
 }
 
-//
 // generateServiceConfigMaps - create custom configmap to hold service-specific config
 // TODO add DefaultConfigOverwrite
-//
 func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
@@ -602,12 +599,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	return nil
 }
 
-//
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
 //
 // returns the hash, whether the hash changed (as a bool) and any error
-//
 func (r *IronicConductorReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *ironicv1.IronicConductor,

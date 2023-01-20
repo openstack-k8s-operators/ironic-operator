@@ -22,28 +22,30 @@ func Service(
 ) *corev1.Service {
 
 	var ports []corev1.ServicePort
-	jsonRPCPort := corev1.ServicePort{
-		Name:     ironic.JSONRPCComponent,
-		Port:     8089,
-		Protocol: corev1.ProtocolTCP,
+
+	// RPC Transport is json-rpc so expose the service
+	if instance.Spec.RPCTransport == "json-rpc" {
+		jsonRPCPort := corev1.ServicePort{
+			Name:     ironic.JSONRPCComponent,
+			Port:     8089,
+			Protocol: corev1.ProtocolTCP,
+		}
+		ports = append(ports, jsonRPCPort)
 	}
 
+	// There is no provision network so expose the deploy HTTP interface
+	// as a service to enable virtual media boot
 	if instance.Spec.ProvisionNetwork == "" {
-		// There is no provision network so expose the deploy HTTP interface
-		// as a service to enable virtual media boot
 		httpbootPort := corev1.ServicePort{
 			Name:     ironic.HttpbootComponent,
 			Port:     8088,
 			Protocol: corev1.ProtocolTCP,
 		}
-		ports = []corev1.ServicePort{
-			jsonRPCPort,
-			httpbootPort,
-		}
-	} else {
-		ports = []corev1.ServicePort{
-			jsonRPCPort,
-		}
+		ports = append(ports, httpbootPort)
+	}
+
+	if len(ports) == 0 {
+		return nil
 	}
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
