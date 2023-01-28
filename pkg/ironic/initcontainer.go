@@ -38,6 +38,7 @@ type APIDetails struct {
 	ConductorInit        bool
 	DeployHTTPURL        string
 	IngressDomain        string
+	ProvisionNetwork     string
 }
 
 const (
@@ -98,6 +99,18 @@ func InitContainer(init APIDetails) []corev1.Container {
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+		{
+			Name:  "ProvisionNetwork",
+			Value: init.ProvisionNetwork,
+		},
+		{
+			Name: "PodNetworksStatus",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.annotations['k8s.v1.cni.cncf.io/networks-status']",
 				},
 			},
 		},
