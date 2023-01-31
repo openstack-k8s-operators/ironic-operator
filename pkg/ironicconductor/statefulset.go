@@ -330,6 +330,7 @@ func StatefulSet(
 		ConductorInit:        true,
 		DeployHTTPURL:        deployHTTPURL,
 		IngressDomain:        ingressDomain,
+		ProvisionNetwork:     instance.Spec.ProvisionNetwork,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
