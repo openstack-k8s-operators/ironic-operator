@@ -19,9 +19,7 @@ import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 )
 
-//
 // Ironic Condition Types used by API objects.
-//
 const (
 	// IronicAPIReadyCondition Status=True condition which indicates if the IronicAPI is configured and operational
 	IronicAPIReadyCondition condition.Type = "IronicAPIReady"
@@ -33,14 +31,10 @@ const (
 	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
 )
 
-//
 // Ironic Reasons used by API objects.
-//
 const ()
 
-//
 // Common Messages used by API objects.
-//
 const (
 	//
 	// IronicAPIReady condition messages
