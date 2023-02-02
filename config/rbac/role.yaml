@@ -176,6 +176,32 @@ rules:
 - apiGroups:
   - ironic.openstack.org
   resources:
+  - ironicneutronagents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicneutronagents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicneutronagents/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
   - ironics
   verbs:
   - create

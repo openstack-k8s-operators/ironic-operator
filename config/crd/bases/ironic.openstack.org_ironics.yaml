@@ -275,7 +275,7 @@ spec:
                           description: Gateway - IP address for the router
                           type: string
                         mtu:
-                          description: MTU -
+                          description: MTU - Maximum Transmission Unit
                           type: integer
                         name:
                           description: Name - Name of the DHCPRange (used for tagging
@@ -470,7 +470,7 @@ spec:
                           description: Gateway - IP address for the router
                           type: string
                         mtu:
-                          description: MTU -
+                          description: MTU - Maximum Transmission Unit
                           type: integer
                         name:
                           description: Name - Name of the DHCPRange (used for tagging

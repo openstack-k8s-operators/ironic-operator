@@ -149,6 +149,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "IronicInspector")
 		os.Exit(1)
 	}
+	if err = (&controllers.IronicNeutronAgentReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Kclient: kclient,
+		Log:     ctrl.Log.WithName("controllers").WithName("IronicNeutronAgent"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "IronicNeutronAgent")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
