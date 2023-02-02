@@ -26,6 +26,15 @@ spec:
       kind: IronicConductor
       name: ironicconductors.ironic.openstack.org
       version: v1beta1
+    - description: IronicInspector is the Schema for the ironicinspectors
+      displayName: Ironic Inspector
+      kind: IronicInspector
+      name: ironicinspectors.ironic.openstack.org
+    - description: IronicNeutronAgent is the Schema for the ML2 networking-baremetal's agent
+      displayName: Ironic Neutron Agent
+      kind: IronicNeutronAgent
+      name: ironicneutronagents.ironic.openstack.org
+      version: v1beta1
     - description: Ironic is the Schema for the ironics API
       displayName: Ironic
       kind: Ironic
