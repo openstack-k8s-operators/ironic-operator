@@ -93,6 +93,10 @@ type IronicSpec struct {
 	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
 	IronicConductor IronicConductorSpec `json:"ironicConductor"`
 
+	// +kubebuilder:validation:Required
+	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
+	IronicInspector IronicInspectorSpec `json:"ironicInspector"`
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
@@ -130,11 +134,29 @@ type PasswordSelector struct {
 // DHCPRange to define address range for DHCP requestes
 type DHCPRange struct {
 	// +kubebuilder:validation:Optional
+	// Name - Name of the DHCPRange (used for tagging in dnsmasq)
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
 	// Start - Start of DHCP range
 	Start string `json:"start,omitempty"`
 	// +kubebuilder:validation:Optional
 	// End - End of DHCP range
 	End string `json:"end,omitempty"`
+	// +kubebuilder:validation:Optional
+	// Gateway - IP address for the router
+	Gateway string `json:"gateway,omitempty"`
+	// +kubebuilder:validation:Optional
+	// Prefix - IP network prefix (network mask bits) for IPv6
+	Prefix int `json:"prefix,omitempty"`
+	// +kubebuilder:validation:Optional
+	// Netmask - IP network netmask (network mask bits) for IPv4
+	Netmask string `json:"netmask,omitempty"`
+	// +kubebuilder:validation:Optional
+	// MTU - Maximum Transmission Unit
+	MTU int `json:"mtu,omitempty"`
+	// +kubebuilder:validation:Optional
+	// PodIndex - Maps the DHCPRange to a specific statefulset pod index
+	PodIndex int `json:"podIndex,omitempty"`
 }
 
 // IronicDebug defines the observed state of Ironic
@@ -175,6 +197,15 @@ type IronicStatus struct {
 
 	// ReadyCount of Ironic Conductor instance
 	IronicConductorReadyCount int32 `json:"ironicConductorReadyCount,omitempty"`
+
+	// IronicInspectorServiceIDs
+	InspectorServiceIDs map[string]string `json:"inspectorServiceIDs,omitempty"`
+
+	// InspectorApiEndpoints
+	InspectorAPIEndpoints map[string]map[string]string `json:"inspectorAPIEndpoints,omitempty"`
+
+	// ReadyCount of Ironic Inspector instance
+	InspectorReadyCount int32 `json:"ironicInspectorReadyCount,omitempty"`
 
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
@@ -218,6 +249,8 @@ func (instance Ironic) IsReady() bool {
 	ready := instance.Status.IronicAPIReadyCount > 0
 
 	ready = ready && instance.Status.IronicConductorReadyCount > 0
+
+	// ready = ready && instance.Status.IronicInspectorReadyCount > 0
 
 	return ready
 }

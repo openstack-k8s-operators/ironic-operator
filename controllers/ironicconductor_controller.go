@@ -492,10 +492,11 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	ingressDomain := ironicconductor.IngressDomain(ctx, instance, helper, conductorRouteLabels)
 
 	// Define a new StatefulSet object
-	ss := statefulset.NewStatefulSet(
-		ironicconductor.StatefulSet(instance, inputHash, serviceLabels, ingressDomain),
-		5,
-	)
+	ssDef, err := ironicconductor.StatefulSet(instance, inputHash, serviceLabels, ingressDomain)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	ss := statefulset.NewStatefulSet(ssDef, 5)
 
 	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
 	if err != nil {
@@ -528,6 +529,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
+	instance.Status.Networks = instance.Spec.NetworkAttachments
 
 	r.Log.Info("Reconciled Conductor successfully")
 	return ctrl.Result{}, nil

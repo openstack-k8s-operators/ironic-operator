@@ -1,6 +1,6 @@
-#!/bin//bash
+#!/bin/bash
 #
-# Copyright 2020 Red Hat Inc.
+# Copyright 2023 Red Hat Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -24,6 +24,23 @@ if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir /var/lib/ironic/httpboot
 fi
 
+# DHCP server configuration
+export InspectorNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${InspectionNetwork})
+export INSPECTOR_HTTP_URL=$(python3 -c 'import os; print(os.environ["InspectorHTTPURL"] % os.environ)')
+
+export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
+export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
+sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
+    -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
+    -i ${DNSMASQ_CFG}
+sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/d" \
+    -e "/BLOCK_PODINDEX_${PODINDEX}_END/d" \
+    -i ${DNSMASQ_CFG}
+envsubst < ${DNSMASQ_CFG} | tee ${DNSMASQ_CFG}
+
+export INSPECTOR_IPXE=/var/lib/config-data/merged/inspector.ipxe
+envsubst < ${INSPECTOR_IPXE} | tee ${INSPECTOR_IPXE}
+
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos
@@ -45,11 +62,5 @@ for dir in httpboot tftpboot; do
     chmod -R +r /var/lib/ironic/$dir
 done
 
-
-export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
-sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
-    -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
-    -i ${DNSMASQ_CFG}
-sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/d" \
-    -e "/BLOCK_PODINDEX_${PODINDEX}_END/d" \
-    -i ${DNSMASQ_CFG}
+# Download ironic-python-agent and any other images
+/usr/local/bin/container-scripts/imagetter /usr/local/bin/container-scripts/imagetter.yaml

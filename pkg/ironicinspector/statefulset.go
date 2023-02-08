@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ironicconductor
+package ironicinspector
 
 import (
 	"fmt"
@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 
 // StatefulSet func
 func StatefulSet(
-	instance *ironicv1.IronicConductor,
+	instance *ironicv1.IronicInspector,
 	configHash string,
 	labels map[string]string,
 	ingressDomain string,
@@ -47,13 +48,13 @@ func StatefulSet(
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		InitialDelaySeconds: 3,
 	}
 	readinessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		InitialDelaySeconds: 3,
 	}
 	dnsmasqLivenessProbe := &corev1.Probe{
 		TimeoutSeconds:      10,
@@ -84,19 +85,7 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
-
 		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
@@ -106,8 +95,17 @@ func StatefulSet(
 				"/bin/true",
 			},
 		}
-
 		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+		httpbootLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+		httpbootReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
@@ -118,97 +116,69 @@ func StatefulSet(
 		//
 		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 		//
-
-		if instance.Spec.RPCTransport == "json-rpc" {
-			// Make a POST request to the JSON-RPC port
-			livenessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"sh", "-c", "ss -ltn | grep :8089",
-				},
-			}
-			// Make a POST request to the JSON-RPC port
-			readinessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"sh", "-c", "ss -ltn | grep :8089",
-				},
-			}
-		} else {
-			// TODO
-			livenessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"/bin/true",
-				},
-			}
-			// TODO
-			readinessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"/bin/true",
-				},
-			}
+		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Path: "/v1",
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
 		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
-			},
-		}
-
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
-			},
+		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+			Path: "/v1",
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
 		}
 		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
 			},
 		}
-
 		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
 			},
 		}
+		httpbootLivenessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"sh", "-c", "ss -ltn | grep :8088",
+			},
+		}
+		httpbootReadinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"sh", "-c", "ss -ltn | grep :8088",
+			},
+		}
 	}
 
-	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["CONFIG_HASH"] = env.SetValue(configHash)
+	containers := []corev1.Container{}
 
-	dnsmasqEnvVars := map[string]env.Setter{}
-	dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
-	dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+	inspectorEnvVars := map[string]env.Setter{}
+	inspectorEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
+	inspectorEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	inspectorEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+	inspectorContainer := corev1.Container{
+		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent,
+		Image: instance.Spec.ContainerImage,
+		Command: []string{
+			"/bin/bash",
+		},
+		Args:            args,
+		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
+		VolumeMounts:    GetVolumeMounts(),
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  readinessProbe,
+		LivenessProbe:   livenessProbe,
+	}
+	containers = append(containers, inspectorContainer)
 
 	httpbootEnvVars := map[string]env.Setter{}
 	httpbootEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(HttpbootKollaConfig)
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
-
-	conductorContainer := corev1.Container{
-		Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
-		Command: []string{
-			"/bin/bash",
-		},
-		Args:  args,
-		Image: instance.Spec.ContainerImage,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		VolumeMounts:   GetVolumeMounts(),
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: readinessProbe,
-		LivenessProbe:  livenessProbe,
-		// StartupProbe:   startupProbe,
-	}
 	httpbootContainer := corev1.Container{
-		Name: "httpboot",
+		Name:  ironic.InspectorComponent + "-" + "httpboot",
+		Image: instance.Spec.PxeContainerImage,
 		Command: []string{
 			"/bin/bash",
 		},
-		Args:  args,
-		Image: instance.Spec.PxeContainerImage,
+		Args: args,
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser: &runAsUser,
 		},
@@ -219,27 +189,26 @@ func StatefulSet(
 		LivenessProbe:  httpbootLivenessProbe,
 		// StartupProbe:   startupProbe,
 	}
+	containers = append(containers, httpbootContainer)
 
-	containers := []corev1.Container{
-		conductorContainer,
-		httpbootContainer,
-	}
-
-	if instance.Spec.ProvisionNetwork != "" {
-		// Only include the dnsmasq container if there is a provisioning network to listen on.
+	if instance.Spec.InspectionNetwork != "" {
+		// Only include dnsmasq container if there is an inspection network
+		dnsmasqEnvVars := map[string]env.Setter{}
+		dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
+		dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+		dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 		dnsmasqContainer := corev1.Container{
-			Name: "dnsmasq",
+			Name:  ironic.InspectorComponent + "-" + "dnsmasq",
+			Image: instance.Spec.ContainerImage,
 			Command: []string{
 				"/bin/bash",
 			},
-			Args:  args,
-			Image: instance.Spec.PxeContainerImage,
+			Args: args,
 			SecurityContext: &corev1.SecurityContext{
 				RunAsUser: &runAsUser,
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{
-						"NET_ADMIN",
-						"NET_RAW",
+						"NET_ADMIN", "NET_RAW",
 					},
 				},
 			},
@@ -250,16 +219,12 @@ func StatefulSet(
 			LivenessProbe:  dnsmasqLivenessProbe,
 			// StartupProbe:   startupProbe,
 		}
-		containers = []corev1.Container{
-			conductorContainer,
-			httpbootContainer,
-			dnsmasqContainer,
-		}
+		containers = append(containers, dnsmasqContainer)
 	}
 
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
+			Name:      ironic.ServiceName + "-" + ironic.InspectorComponent,
 			Namespace: instance.Namespace,
 		},
 		Spec: appsv1.StatefulSetSpec{
@@ -272,26 +237,13 @@ func StatefulSet(
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: ironic.ServiceAccount,
+					ServiceAccountName: ServiceAccount,
 					Containers:         containers,
 				},
 			},
 		},
 	}
-	statefulset.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName, instance.Name)
-	// If possible two pods of the same service should not
-	// run on the same worker node. If this is not possible
-	// the get still created on the same worker node.
-	statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
-		common.AppSelector,
-		[]string{
-			ironic.ServiceName,
-		},
-		corev1.LabelHostname,
-	)
-	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
-		statefulset.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
-	}
+	statefulset.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
 
 	// networks to attach to
 	nwAnnotation, err := annotations.GetNADAnnotation(instance.Namespace, instance.Spec.NetworkAttachments)
@@ -301,31 +253,42 @@ func StatefulSet(
 	}
 	statefulset.Spec.Template.Annotations = util.MergeStringMaps(statefulset.Spec.Template.Annotations, nwAnnotation)
 
-	// init.sh needs to detect and set ProvisionNetworkIP
-	deployHTTPURL := "http://%(ProvisionNetworkIP)s:8088/"
-	if instance.Spec.ProvisionNetwork == "" {
-		// Build what the fully qualified Route hostname will be when the Route exists
-		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(IngressDomain)s/"
+	// If possible two pods of the same service should not
+	// run on the same worker node. If this is not possible
+	// the get still created on the same worker node.
+	statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
+		common.AppSelector,
+		[]string{ironic.ServiceName},
+		corev1.LabelHostname,
+	)
+	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
+		statefulset.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
-	initContainerDetails := ironic.APIDetails{
+	// init.sh needs to detect and set InspectionNetworkIP
+	inspectorHTTPURL := "http://%(InspectorNetworkIP)s:8088/"
+	if instance.Spec.InspectionNetwork == "" {
+		// Build what the fully qualified Route hostname will be when the Route exists
+		inspectorHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(IngressDomain)s/"
+	}
+
+	initContainerDetails := APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
 		PxeContainerImage:    instance.Spec.PxeContainerImage,
 		DatabaseHost:         instance.Spec.DatabaseHostname,
 		DatabaseUser:         instance.Spec.DatabaseUser,
-		DatabaseName:         ironic.DatabaseName,
+		DatabaseName:         DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
-		TransportURLSecret:   instance.Spec.TransportURLSecret,
+		TransportURLSecret:   instance.Status.TransportURLSecret,
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         GetInitVolumeMounts(),
 		PxeInit:              true,
-		ConductorInit:        true,
-		DeployHTTPURL:        deployHTTPURL,
+		InspectorHTTPURL:     inspectorHTTPURL,
 		IngressDomain:        ingressDomain,
-		ProvisionNetwork:     instance.Spec.ProvisionNetwork,
+		InspectionNetwork:    instance.Spec.InspectionNetwork,
 	}
-	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
+	statefulset.Spec.Template.Spec.InitContainers = InitContainer(initContainerDetails)
 
-	return statefulset, nil
+	return statefulset, err
 }

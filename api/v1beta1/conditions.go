@@ -29,6 +29,9 @@ const (
 
 	// IronicRabbitMqTransportURLReady Status=True condition which indicates if the RabbitMQ TransportURLUrl is ready
 	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
+
+	// IronicInspectorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
+	IronicInspectorReadyCondition condition.Type = "IronicInspectorReadyCondition"
 )
 
 // Ironic Reasons used by API objects.
@@ -69,6 +72,9 @@ const (
 	// IronicRabbitMqTransportURLDisabledMessage
 	IronicRabbitMqTransportURLDisabledMessage = "IronicRabbitMqTransportURL disabled"
 
-	// CinderRabbitMqTransportURLReadyErrorMessage
+	// IronicRabbitMqTransportURLReadyErrorMessage
 	IronicRabbitMqTransportURLReadyErrorMessage = "IronicRabbitMqTransportURL error occured %s"
+
+	// IronicInspectorReadyErrorMessage
+	IronicInspectorReadyErrorMessage = "IronicInspector error occured %s"
 )

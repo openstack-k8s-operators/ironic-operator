@@ -25,8 +25,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/gomega v1.24.1 h1:KORJXNNTzJXzu4ScJWssJfJMnJ+2QJqhoQSRwNlze9E=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230110110231-28368fe6a6a9 h1:Z8+r/5O5AfTOzbdrUxSbGxdiSbhluFwDMU/5c9jMkFA=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230110110231-28368fe6a6a9/go.mod h1:qV9OlokZRpqbHI3lmeN5EOmIKynWphw6GPl3zP9KOGM=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230130113944-08eaed348cec h1:97n+9M5HQt+RxnA/DOAtAgcVnqpA3TaT9w3QgtbHp4g=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230130113944-08eaed348cec/go.mod h1:qV9OlokZRpqbHI3lmeN5EOmIKynWphw6GPl3zP9KOGM=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

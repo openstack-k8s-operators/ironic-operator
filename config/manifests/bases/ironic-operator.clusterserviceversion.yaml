@@ -21,6 +21,11 @@ spec:
       kind: IronicConductor
       name: ironicconductors.ironic.openstack.org
       version: v1beta1
+    - description: IronicInspector is the Schema for the ironicinspectors
+      displayName: Ironic Inspector
+      kind: IronicInspector
+      name: ironicinspectors.ironic.openstack.org
+      version: v1beta1
     - description: Ironic is the Schema for the ironics API
       displayName: Ironic
       kind: Ironic

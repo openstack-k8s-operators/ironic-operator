@@ -22,59 +22,53 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IronicConductorSpec defines the desired state of IronicConductor
-type IronicConductorSpec struct {
+// IronicInspectorSpec defines the desired state of IronicInspector
+type IronicInspectorSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// Whether to deploy a single node standalone Ironic.
+	// Whether to deploy a single node standalone Ironic Inspector.
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=ironic
-	// ServiceUser - optional username used for this service to register in ironic
-	ServiceUser string `json:"serviceUser"`
-
-	// +kubebuilder:validation:Optional
-	// ContainerImage - Ironic Conductor Container Image URL
+	// ContainerImage - Ironic Inspector Container Image URL
 	ContainerImage string `json:"containerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image URL
+	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image URL
 	PxeContainerImage string `json:"pxeContainerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// NetworkAttachments list of network attachment definitions the pods get attached to.
-	NetworkAttachments []string `json:"networkAttachments"`
-
-	// +kubebuilder:validation:Optional
-	// ProvisionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
-	ProvisionNetwork string `json:"provisionNetwork,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// DHCPRanges - List of DHCP ranges to use for provisioning
-	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
+	// +kubebuilder:default=ironic-inspector
+	// ServiceUser - optional username used for this service to register in ironic-inspector
+	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
-	// Replicas - Ironic Conductor Replicas
+	// Replicas - Ironic Inspector Replicas
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
 	// DatabaseHostname - Ironic Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
 
+	// +kubebuilder:validation:Required
+	// MariaDB instance name.
+	// Right now required by the maridb-operator to get the credentials from the instance to create the DB.
+	// Might not be required in future.
+	DatabaseInstance string `json:"databaseInstance"`
+
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=ironic
+	// +kubebuilder:default=ironic_inspector
 	// DatabaseUser - optional username used for ironic DB, defaults to ironic
 	// TODO: -> implement needs work in mariadb-operator, right now only ironic
 	DatabaseUser string `json:"databaseUser"`
 
 	// +kubebuilder:validation:Optional
-	// Secret containing OpenStack password information for IronicDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for IronicInspectorDatabasePassword, AdminPassword
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
+	// +kubebuilder:default={database: IronicInspectorDatabasePassword, service: IronicInspectorPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
@@ -87,6 +81,11 @@ type IronicConductorSpec struct {
 	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
 	// actual action pod gets started with sleep infinity
 	Debug IronicDebug `json:"debug,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
+	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="# add your customization here"
@@ -110,9 +109,11 @@ type IronicConductorSpec struct {
 	// StorageClass
 	StorageClass string `json:"storageClass,omitempty"`
 
-	// +kubebuilder:validation:Required
-	// StorageRequest
-	StorageRequest string `json:"storageRequest"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Ironic
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
 	// +kubebuilder:validation:Optional
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
@@ -125,21 +126,42 @@ type IronicConductorSpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments list of network attachment definitions the pods get attached to.
+	NetworkAttachments []string `json:"networkAttachments"`
+
+	// +kubebuilder:validation:Optional
+	// InspectionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
+	InspectionNetwork string `json:"inspectionNetwork,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// DHCPRanges - List of DHCP ranges to use for provisioning
+	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
 }
 
-// IronicConductorStatus defines the observed state of IronicConductor
-type IronicConductorStatus struct {
+// IronicInspectorStatus defines the observed state of IronicInspector
+type IronicInspectorStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
 
+	// API endpoint
+	APIEndpoints map[string]map[string]string `json:"apiEndpoints,omitempty"`
+
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
+
+	// IronicInspector Database Hostname
+	DatabaseHostname string `json:"databaseHostname,omitempty"`
 
 	// ReadyCount of ironic Conductor instances
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// ServiceIDs
 	ServiceIDs map[string]string `json:"serviceIDs,omitempty"`
+
+	// TransportURLSecret - Secret containing RabbitMQ transportURL
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
 	// Networks in addtion to the cluster network, the service is attached to
 	Networks []string `json:"networks,omitempty"`
@@ -151,29 +173,29 @@ type IronicConductorStatus struct {
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 //+kubebuilder:printcolumn:name="Networks",type="string",JSONPath=".status.networks",description="Networks"
 
-// IronicConductor is the Schema for the ironicconductors Conductor
-type IronicConductor struct {
+// IronicInspector is the Schema for the IronicInspector
+type IronicInspector struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   IronicConductorSpec   `json:"spec,omitempty"`
-	Status IronicConductorStatus `json:"status,omitempty"`
+	Spec   IronicInspectorSpec   `json:"spec,omitempty"`
+	Status IronicInspectorStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// IronicConductorList contains a list of IronicConductor
-type IronicConductorList struct {
+// IronicInspectorList contains a list of IronicInspector
+type IronicInspectorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []IronicConductor `json:"items"`
+	Items           []IronicInspector `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&IronicConductor{}, &IronicConductorList{})
+	SchemeBuilder.Register(&IronicInspector{}, &IronicInspectorList{})
 }
 
 // IsReady - returns true if service is ready to server requests
-func (instance IronicConductor) IsReady() bool {
+func (instance IronicInspector) IsReady() bool {
 	return instance.Status.ReadyCount >= 1
 }

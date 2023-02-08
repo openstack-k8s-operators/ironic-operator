@@ -150,6 +150,32 @@ rules:
 - apiGroups:
   - ironic.openstack.org
   resources:
+  - ironicinspectors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicinspectors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicinspectors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
   - ironics
   verbs:
   - create
