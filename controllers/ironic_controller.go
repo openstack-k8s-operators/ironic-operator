@@ -661,22 +661,25 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		customData[key] = data
 	}
 
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
-	if err != nil {
-		return err
-	}
-	keystoneInternalURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
-	if err != nil {
-		return err
-	}
-	keystonePublicURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
-	if err != nil {
-		return err
-	}
 	templateParameters := make(map[string]interface{})
-	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
-	templateParameters["KeystonePublicURL"] = keystonePublicURL
+	if !instance.Spec.Standalone {
+
+		keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+		if err != nil {
+			return err
+		}
+		keystoneInternalURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+		if err != nil {
+			return err
+		}
+		keystonePublicURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
+		if err != nil {
+			return err
+		}
+		templateParameters["KeystoneInternalURL"] = keystoneInternalURL
+		templateParameters["KeystonePublicURL"] = keystonePublicURL
+		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	}
 	templateParameters["DHCPRanges"] = instance.Spec.IronicConductor.DHCPRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
@@ -705,7 +708,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		r.Log.Error(err, "Unable to create Config Maps %v")
 		return nil

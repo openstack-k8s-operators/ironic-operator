@@ -890,20 +890,22 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
-
-	keystoneAPI, err := keystonev1.GetKeystoneAPI(
-		ctx, h, instance.Namespace, map[string]string{})
-	if err != nil {
-		return err
-	}
-	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
-	if err != nil {
-		return err
-	}
-
 	templateParameters := make(map[string]interface{})
-	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-	templateParameters["KeystoneInternalURL"] = authURL
+	if !instance.Spec.Standalone {
+
+		keystoneAPI, err := keystonev1.GetKeystoneAPI(
+			ctx, h, instance.Namespace, map[string]string{})
+		if err != nil {
+			return err
+		}
+		authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+		if err != nil {
+			return err
+		}
+
+		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+		templateParameters["KeystoneInternalURL"] = authURL
+	}
 	templateParameters["DHCPRanges"] = instance.Spec.DHCPRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
@@ -932,7 +934,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		r.Log.Error(err, "Unable to create Config Maps %v")
 		return nil
