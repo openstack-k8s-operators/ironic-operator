@@ -1,0 +1,6 @@
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicInspector
+metadata:
+  name: ironicinspector-sample
+spec:
+  # TODO(user): Add fields here
