@@ -774,8 +774,12 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 			deployment.Spec = instance.Spec.IronicInspector
 			// Add in transfers from umbrella Ironic (this instance) spec
 			// TODO: Add logic to determine when to set/overwrite, etc
-			deployment.Spec.Secret = instance.Spec.Secret
+			deployment.Spec.Standalone = instance.Spec.Standalone
+			deployment.Spec.ServiceUser = instance.Spec.ServiceUser
 			deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
+			deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
+			deployment.Spec.DatabaseInstance = instance.Spec.DatabaseInstance
+			deployment.Spec.Secret = instance.Spec.Secret
 			deployment.Spec.RPCTransport = instance.Spec.RPCTransport
 
 			if len(deployment.Spec.NodeSelector) == 0 {
