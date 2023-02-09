@@ -776,7 +776,11 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 			// TODO: Add logic to determine when to set/overwrite, etc
 			deployment.Spec.Standalone = instance.Spec.Standalone
 			deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
-			deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
+			// TODO: Revist DatabaseUser - It is currently implemented in lib-common,
+			//       but not in mariadb-operator. mariadb-operator always creates
+			//       database user with name == .DatabaseName
+			//       See: https://raw.githubusercontent.com/openstack-k8s-operators/mariadb-operator/master/templates/database.sh
+			// deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 			deployment.Spec.DatabaseInstance = instance.Spec.DatabaseInstance
 			deployment.Spec.Secret = instance.Spec.Secret
 			deployment.Spec.RPCTransport = instance.Spec.RPCTransport
