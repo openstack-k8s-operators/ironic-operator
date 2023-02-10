@@ -934,13 +934,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	err := configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
-	if err != nil {
-		r.Log.Error(err, "Unable to create Config Maps %v")
-		return nil
-	}
-
-	return nil
+	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the
