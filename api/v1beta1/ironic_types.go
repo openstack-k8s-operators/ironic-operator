@@ -27,6 +27,9 @@ const (
 
 	// DeploymentHash hash used to detect changes
 	DeploymentHash = "deployment"
+	
+	// ConductorGroupNull - Used in IronicConductorReadyCount map and resource labels when ConductorGroup is not set
+	ConductorGroupNull = "null_conductor_group_null"
 )
 
 // IronicSpec defines the desired state of Ironic
@@ -90,11 +93,11 @@ type IronicSpec struct {
 	IronicAPI IronicAPISpec `json:"ironicAPI"`
 
 	// +kubebuilder:validation:Required
-	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
-	IronicConductor IronicConductorSpec `json:"ironicConductor"`
+	// IronicConductors - Spec definitions for the conductor service of this Ironic deployment
+	IronicConductors []IronicConductorSpec `json:"ironicConductors"`
 
 	// +kubebuilder:validation:Required
-	// IronicAPI - Spec definition for the conductor service of this Ironic deployment
+	// IronicInspector - Spec definition for the conductor service of this Ironic deployment
 	IronicInspector IronicInspectorSpec `json:"ironicInspector"`
 
 	// +kubebuilder:validation:Optional
@@ -196,7 +199,7 @@ type IronicStatus struct {
 	IronicAPIReadyCount int32 `json:"ironicAPIReadyCount,omitempty"`
 
 	// ReadyCount of Ironic Conductor instance
-	IronicConductorReadyCount int32 `json:"ironicConductorReadyCount,omitempty"`
+	IronicConductorReadyCount map[string]int32 `json:"ironicConductorReadyCount,omitempty"`
 
 	// ReadyCount of Ironic Inspector instance
 	InspectorReadyCount int32 `json:"ironicInspectorReadyCount,omitempty"`
@@ -242,7 +245,13 @@ func init() {
 func (instance Ironic) IsReady() bool {
 	ready := instance.Status.IronicAPIReadyCount > 0
 
-	ready = ready && instance.Status.IronicConductorReadyCount > 0
+	for _, conductorSpec := range instance.Spec.IronicConductors {
+		condGrp := conductorSpec.ConductorGroup
+		if conductorSpec.ConductorGroup == "" {
+			condGrp = ConductorGroupNull
+		}
+		ready = ready && instance.Status.IronicConductorReadyCount[condGrp] > 0
+	}
 
 	// ready = ready && instance.Status.IronicInspectorReadyCount > 0
 

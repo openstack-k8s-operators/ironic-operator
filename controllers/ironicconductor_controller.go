@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -278,8 +279,12 @@ func (r *IronicConductorReconciler) reconcileServices(
 		// Create the conductor pod service if none exists
 		//
 		conductorServiceLabels := map[string]string{
-			common.AppSelector:       ironic.ServiceName,
-			ironic.ComponentSelector: ironic.ConductorComponent,
+			common.AppSelector:            ironic.ServiceName,
+			ironic.ComponentSelector:      ironic.ConductorComponent,
+			ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+		}
+		if instance.Spec.ConductorGroup != "" {
+			conductorServiceLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 		}
 		conductorService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
 		if conductorService != nil {
@@ -299,8 +304,12 @@ func (r *IronicConductorReconciler) reconcileServices(
 			// httpboot service, only when there is no provisioning network
 			//
 			conductorRouteLabels := map[string]string{
-				common.AppSelector:       ironic.ServiceName,
-				ironic.ComponentSelector: ironic.HttpbootComponent,
+				common.AppSelector:            ironic.ServiceName,
+				ironic.ComponentSelector:      ironic.HttpbootComponent,
+				ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+			}
+			if instance.Spec.ConductorGroup != "" {
+				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 			}
 			route := route.NewRoute(
 				ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels),
@@ -477,8 +486,12 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	//
 
 	serviceLabels := map[string]string{
-		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.ConductorComponent,
+		common.AppSelector:            ironic.ServiceName,
+		ironic.ComponentSelector:      ironic.ConductorComponent,
+		ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+	}
+	if instance.Spec.ConductorGroup != "" {
+		serviceLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 	}
 
 	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
@@ -576,15 +589,30 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 
 	customData[common.CustomServiceConfigFileName] = instance.Spec.CustomServiceConfig
 
+	templateParameters := make(map[string]interface{})
+	if !instance.Spec.Standalone {
+		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneVars["keystoneInternalURL"]
+		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneVars["keystonePublicURL"]
+		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	}
+	templateParameters["DHCPRanges"] = instance.Spec.DHCPRanges
+	templateParameters["Standalone"] = instance.Spec.Standalone
+	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
+
 	cms := []util.Template{
 		// Custom ConfigMap
 		{
-			Name:         fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeConfig,
-			InstanceType: instance.Kind,
-			CustomData:   customData,
-			Labels:       cmLabels,
+			Name:          fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:     instance.Namespace,
+			Type:          util.TemplateTypeConfig,
+			InstanceType:  instance.Kind,
+			CustomData:    customData,
+			ConfigOptions: templateParameters,
+			AdditionalTemplate: map[string]string{
+				"ironic.conf":  "/common/config/ironic.conf",
+				"dnsmasq.conf": "/common/config/dnsmasq.conf",
+			},
+			Labels: cmLabels,
 		},
 	}
 

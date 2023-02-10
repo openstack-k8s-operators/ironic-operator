@@ -25,6 +25,10 @@ import (
 // IronicConductorSpec defines the desired state of IronicConductor
 type IronicConductorSpec struct {
 	// +kubebuilder:validation:Optional
+	// ConductorGroup - Ironic Conductor conductor group.
+	ConductorGroup string `json:"conductorGroup"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Whether to deploy a standalone Ironic.
 	Standalone bool `json:"standalone"`
@@ -125,6 +129,10 @@ type IronicConductorSpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// keystoneVars - (Hidden) Internally used map of Keystone API endpoints
+	KeystoneVars map[string]string `json:"-"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor
