@@ -656,8 +656,8 @@ spec:
                     type: string
                   standalone:
                     default: false
-                    description: Whether to deploy a single node standalone Ironic
-                      Inspector.
+                    description: Standalone - Whether to deploy a single node standalone
+                      Ironic Inspector.
                     type: boolean
                   storageClass:
                     description: StorageClass
@@ -788,18 +788,6 @@ spec:
                 additionalProperties:
                   type: string
                 description: Map of hashes to track e.g. job status
-                type: object
-              inspectorAPIEndpoints:
-                additionalProperties:
-                  additionalProperties:
-                    type: string
-                  type: object
-                description: InspectorApiEndpoints
-                type: object
-              inspectorServiceIDs:
-                additionalProperties:
-                  type: string
-                description: IronicInspectorServiceIDs
                 type: object
               ironicAPIReadyCount:
                 description: ReadyCount of Ironic API instance

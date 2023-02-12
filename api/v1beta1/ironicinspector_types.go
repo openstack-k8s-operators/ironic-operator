@@ -26,7 +26,7 @@ import (
 type IronicInspectorSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// Whether to deploy a single node standalone Ironic Inspector.
+	// Standalone - Whether to deploy a single node standalone Ironic Inspector.
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional

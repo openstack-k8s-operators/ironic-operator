@@ -17,7 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -151,4 +154,14 @@ func init() {
 // IsReady - returns true if service is ready to server requests
 func (instance IronicAPI) IsReady() bool {
 	return instance.Status.ReadyCount >= 1
+}
+
+// GetEndpoint - returns the Ironic endpoint url for type
+func (instance IronicAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, error) {
+	if endpoints, found := instance.Status.APIEndpoints["ironic"]; found {
+		if url, found := endpoints[string(endpointType)]; found {
+			return url, nil
+		}
+	}
+	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
 }
