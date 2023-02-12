@@ -25,7 +25,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -92,6 +94,7 @@ type IronicConductorReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
+// +kubebuilder:rbac:groups=operator.openshift.io,resources=ingresscontrollers,verbs=get;list
 
 // Reconcile -
 func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
@@ -305,12 +308,9 @@ func (r *IronicConductorReconciler) reconcileServices(
 				conductorRouteLabels,
 				5,
 			)
-			ctrlResult, err := route.CreateOrPatch(ctx, helper)
+			_, err := route.CreateOrPatch(ctx, helper)
 			if err != nil {
 				return ctrl.Result{}, err
-			} else if (ctrlResult != ctrl.Result{}) {
-				// Requeue to inject IngressDomain into conductor pods
-				return ctrl.Result{Requeue: true}, nil
 			}
 			// create service - end
 		}
@@ -485,12 +485,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		ironic.ComponentSelector: ironic.ConductorComponent,
 	}
 
-	conductorRouteLabels := map[string]string{
-		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.HttpbootComponent,
-	}
-	ingressDomain := ironicconductor.IngressDomain(ctx, instance, helper, conductorRouteLabels)
-
+	ingressDomain := r.GetIngressDomain(ctx, helper)
 	// Define a new StatefulSet object
 	ssDef, err := ironicconductor.StatefulSet(instance, inputHash, serviceLabels, ingressDomain)
 	if err != nil {
@@ -617,4 +612,52 @@ func (r *IronicConductorReconciler) createHashOfInputHashes(
 		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
+}
+
+// GetIngressDomain - Get the Ingress Domain of cluster
+func (r *IronicConductorReconciler) GetIngressDomain(
+	ctx context.Context,
+	helper *helper.Helper,
+) string {
+	ingress := &unstructured.Unstructured{}
+	ingress.SetGroupVersionKind(
+		schema.GroupVersionKind{
+			Group:   "operator.openshift.io",
+			Version: "v1",
+			Kind:    "IngressController",
+		},
+	)
+	err := helper.GetClient().Get(
+		context.Background(),
+		client.ObjectKey{
+			Namespace: "openshift-ingress-operator",
+			Name:      "default",
+		},
+		ingress,
+	)
+	if err != nil {
+		r.Log.Error(err, "Unable to retrieve Ingress Domain %v")
+		return ""
+	}
+	ingressDomain := ""
+
+	ingressStatus := ingress.UnstructuredContent()["status"]
+	ingressStatusMap, ok := ingressStatus.(map[string]interface{})
+	if !ok {
+		r.Log.Info(fmt.Sprintf("Wanted type map[string]interface{}; got %T", ingressStatus))
+	}
+	for k, v := range ingressStatusMap {
+		if k == "domain" {
+			ingressDomain = v.(string)
+			// Break out of the loop, we got what we need
+			break
+		}
+	}
+	if ingressDomain != "" {
+		r.Log.Info(fmt.Sprintf("Found ingress domain: %s", ingressDomain))
+	} else {
+		r.Log.Info("Unable to get the ingress domain.")
+	}
+
+	return ingressDomain
 }

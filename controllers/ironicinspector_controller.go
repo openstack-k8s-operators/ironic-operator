@@ -53,7 +53,9 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -427,11 +429,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		ironic.ComponentSelector: ironic.InspectorComponent,
 	}
 
-	inspectorRouteLabels := map[string]string{
-		common.AppSelector:       ironic.ServiceName + "-" + ironic.InspectorComponent,
-		ironic.ComponentSelector: ironic.HttpbootComponent,
-	}
-	ingressDomain := ironicinspector.IngressDomain(ctx, instance, helper, inspectorRouteLabels)
+	ingressDomain := r.GetIngressDomain(ctx, helper)
 
 	// Handle service init
 	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
@@ -959,4 +957,52 @@ func (r *IronicInspectorReconciler) createHashOfInputHashes(
 		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
+}
+
+// GetIngressDomain - Get the Ingress Domain of cluster
+func (r *IronicInspectorReconciler) GetIngressDomain(
+	ctx context.Context,
+	helper *helper.Helper,
+) string {
+	ingress := &unstructured.Unstructured{}
+	ingress.SetGroupVersionKind(
+		schema.GroupVersionKind{
+			Group:   "operator.openshift.io",
+			Version: "v1",
+			Kind:    "IngressController",
+		},
+	)
+	err := helper.GetClient().Get(
+		context.Background(),
+		client.ObjectKey{
+			Namespace: "openshift-ingress-operator",
+			Name:      "default",
+		},
+		ingress,
+	)
+	if err != nil {
+		r.Log.Error(err, "Unable to retrieve Ingress Domain %v")
+		return ""
+	}
+	ingressDomain := ""
+
+	ingressStatus := ingress.UnstructuredContent()["status"]
+	ingressStatusMap, ok := ingressStatus.(map[string]interface{})
+	if !ok {
+		r.Log.Info(fmt.Sprintf("Wanted type map[string]interface{}; got %T", ingressStatus))
+	}
+	for k, v := range ingressStatusMap {
+		if k == "domain" {
+			ingressDomain = v.(string)
+			// Break out of the loop, we got what we need
+			break
+		}
+	}
+	if ingressDomain != "" {
+		r.Log.Info(fmt.Sprintf("Found ingress domain: %s", ingressDomain))
+	} else {
+		r.Log.Info("Unable to get the ingress domain.")
+	}
+
+	return ingressDomain
 }
