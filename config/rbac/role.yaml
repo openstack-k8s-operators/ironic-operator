@@ -244,6 +244,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - operator.openshift.io
+  resources:
+  - ingresscontrollers
+  verbs:
+  - get
+  - list
+- apiGroups:
   - rabbitmq.openstack.org
   resources:
   - transporturls
