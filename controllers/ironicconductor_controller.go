@@ -489,6 +489,10 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		common.AppSelector:       ironic.ServiceName,
 		ironic.ComponentSelector: ironic.HttpbootComponent,
 	}
+	// TODO: Ideally we would be able to get the ingress domain from the kubernetes API
+	//       and avoid the "Requeue to inject IngressDomain into conductor pods" in reconcileServices()
+	//   `$ oc -n openshift-ingress-operator get ingresscontrollers.operator.openshift.io/default -o json | jq .status.domain
+	//   "apps.shiftstack.ocp.lab.example.com"`
 	ingressDomain := ironicconductor.IngressDomain(ctx, instance, helper, conductorRouteLabels)
 
 	// Define a new StatefulSet object

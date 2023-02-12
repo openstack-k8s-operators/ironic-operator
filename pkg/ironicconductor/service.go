@@ -108,5 +108,5 @@ func IngressDomain(
 		return ""
 	}
 	hostname := routeList.Items[0].Spec.Host
-	return strings.Split(hostname, ".apps.")[1]
+	return strings.SplitN(hostname, ".", 2)[1]
 }

@@ -269,7 +269,7 @@ func StatefulSet(
 	inspectorHTTPURL := "http://%(InspectorNetworkIP)s:8088/"
 	if instance.Spec.InspectionNetwork == "" {
 		// Build what the fully qualified Route hostname will be when the Route exists
-		inspectorHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(IngressDomain)s/"
+		inspectorHTTPURL = "http://%(PodName)s-%(PodNamespace)s.%(IngressDomain)s/"
 	}
 
 	initContainerDetails := APIDetails{
