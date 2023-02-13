@@ -11,6 +11,11 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: IronicInspector is the Schema for the ironicinspectors
+      displayName: Ironic Inspector
+      kind: IronicInspector
+      name: ironicinspectors.ironic.openstack.org
+      version: v1beta1
     - description: IronicAPI is the Schema for the ironicapis API
       displayName: Ironic API
       kind: IronicAPI
@@ -20,11 +25,6 @@ spec:
       displayName: Ironic Conductor
       kind: IronicConductor
       name: ironicconductors.ironic.openstack.org
-      version: v1beta1
-    - description: IronicInspector is the Schema for the ironicinspectors
-      displayName: Ironic Inspector
-      kind: IronicInspector
-      name: ironicinspectors.ironic.openstack.org
       version: v1beta1
     - description: Ironic is the Schema for the ironics API
       displayName: Ironic
