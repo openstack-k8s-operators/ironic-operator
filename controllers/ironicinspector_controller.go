@@ -52,6 +52,8 @@ import (
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -482,6 +484,14 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
+		return ctrlResult, nil
+	}
+
+	// Handle service init
+	ctrlResult, err = r.reconcileServices(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
 	}
 
@@ -1005,4 +1015,74 @@ func (r *IronicInspectorReconciler) GetIngressDomain(
 	}
 
 	return ingressDomain
+}
+
+func (r *IronicInspectorReconciler) reconcileServices(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Inspector Services")
+
+	podList, err := ironicinspector.InspectorPods(
+		ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	for _, inspectorPod := range podList.Items {
+		// Create the inspector pod service if none exists
+		inspectorServiceLabels := map[string]string{
+			common.AppSelector:       ironic.ServiceName,
+			ironic.ComponentSelector: ironic.InspectorComponent,
+		}
+		inspectorService := ironicinspector.Service(
+			inspectorPod.Name,
+			instance,
+			inspectorServiceLabels)
+		if inspectorService != nil {
+			svc := service.NewService(inspectorService, inspectorServiceLabels, 5)
+			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrl.Result{}, err
+			} else if (ctrlResult != ctrl.Result{}) {
+				return ctrl.Result{}, nil
+			}
+		}
+		// create service - end
+
+		if instance.Spec.InspectionNetwork == "" {
+			// Create the inspector pod route to enable traffic to the
+			// httpboot service, only when there is no inspection network
+			inspectorRouteLabels := map[string]string{
+				common.AppSelector:       ironic.ServiceName,
+				ironic.ComponentSelector: ironic.InspectorComponent + "-" + ironic.HttpbootComponent,
+			}
+			route := route.NewRoute(
+				ironicinspector.Route(
+					inspectorPod.Name,
+					instance,
+					inspectorRouteLabels),
+				inspectorRouteLabels,
+				5,
+			)
+			_, err := route.CreateOrPatch(ctx, helper)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			// create service - end
+		}
+	}
+
+	//
+	// create users and endpoints
+	// TODO: rework this
+	//
+	if instance.Status.ServiceIDs == nil {
+		instance.Status.ServiceIDs = map[string]string{}
+	}
+
+	r.Log.Info("Reconciled Inspector Services successfully")
+	return ctrl.Result{}, nil
 }
