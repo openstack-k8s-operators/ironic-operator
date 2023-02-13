@@ -154,7 +154,7 @@ type IronicInspectorStatus struct {
 	// IronicInspector Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
 
-	// ReadyCount of ironic Conductor instances
+	// ReadyCount of Ironic Inspector instances
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
 	// ServiceIDs

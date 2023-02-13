@@ -176,13 +176,13 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = make(map[string]string)
 	}
 	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
+		instance.Status.APIEndpoints = make(map[string]map[string]string)
 	}
 	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
+		instance.Status.ServiceIDs = make(map[string]string)
 	}
 
 	// Handle service delete
@@ -339,9 +339,6 @@ func (r *IronicAPIReconciler) reconcileInit(
 	// Update instance status with service endpoint url from route host information for v2
 	//
 	// TODO: need to support https default here
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
-	}
 	instance.Status.APIEndpoints[ironic.ServiceName] = apiEndpoints
 	// V1 - end
 
@@ -353,10 +350,6 @@ func (r *IronicAPIReconciler) reconcileInit(
 	// create users and endpoints
 	// TODO: rework this
 	//
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
-	}
-
 	if !instance.Spec.Standalone {
 
 		for _, ksSvc := range keystoneServices {
