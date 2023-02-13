@@ -238,7 +238,7 @@ spec:
                 type: string
               standalone:
                 default: false
-                description: Whether to deploy a single node standalone Ironic.
+                description: Whether to deploy a standalone Ironic.
                 type: boolean
               storageClass:
                 description: StorageClass

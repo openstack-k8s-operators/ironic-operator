@@ -33,7 +33,7 @@ const (
 type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// Whether to deploy a single node standalone Ironic.
+	// Whether to deploy a standalone Ironic.
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
