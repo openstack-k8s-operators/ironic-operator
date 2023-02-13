@@ -16,7 +16,7 @@ require (
 	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221220203956-9ab46ac0b1e4
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.0
+	k8s.io/client-go v0.26.1
 	sigs.k8s.io/controller-runtime v0.14.1
 )
 
