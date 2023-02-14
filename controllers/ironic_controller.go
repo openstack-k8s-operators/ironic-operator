@@ -428,8 +428,13 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-	instance.Status.InspectorAPIEndpoints = ironicInspector.Status.APIEndpoints
-	instance.Status.InspectorServiceIDs = ironicInspector.Status.ServiceIDs
+	inspectorServiceName := ironic.ServiceName + "-" + ironic.InspectorComponent
+	if inspectorEndpoint, found := ironicInspector.Status.APIEndpoints[inspectorServiceName]; found {
+		instance.Status.APIEndpoints[inspectorServiceName] = inspectorEndpoint
+	}
+	for k, v := range ironicInspector.Status.ServiceIDs {
+		instance.Status.ServiceIDs[k] = v
+	}
 	instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
 	r.Log.Info("Reconciled Ironic successfully")

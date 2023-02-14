@@ -33,7 +33,7 @@ const (
 type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// Whether to deploy a single node standalone Ironic.
+	// Whether to deploy a standalone Ironic.
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
@@ -197,12 +197,6 @@ type IronicStatus struct {
 
 	// ReadyCount of Ironic Conductor instance
 	IronicConductorReadyCount int32 `json:"ironicConductorReadyCount,omitempty"`
-
-	// IronicInspectorServiceIDs
-	InspectorServiceIDs map[string]string `json:"inspectorServiceIDs,omitempty"`
-
-	// InspectorApiEndpoints
-	InspectorAPIEndpoints map[string]map[string]string `json:"inspectorAPIEndpoints,omitempty"`
 
 	// ReadyCount of Ironic Inspector instance
 	InspectorReadyCount int32 `json:"ironicInspectorReadyCount,omitempty"`

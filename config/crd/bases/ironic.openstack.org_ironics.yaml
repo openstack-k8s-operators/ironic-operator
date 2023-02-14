@@ -227,7 +227,7 @@ spec:
                     type: string
                   standalone:
                     default: false
-                    description: Whether to deploy a single node standalone Ironic.
+                    description: Whether to deploy a standalone Ironic.
                     type: boolean
                   transportURLSecret:
                     description: Secret containing RabbitMq transport URL
@@ -430,7 +430,7 @@ spec:
                     type: string
                   standalone:
                     default: false
-                    description: Whether to deploy a single node standalone Ironic.
+                    description: Whether to deploy a standalone Ironic.
                     type: boolean
                   storageClass:
                     description: StorageClass
@@ -656,7 +656,7 @@ spec:
                     type: string
                   standalone:
                     default: false
-                    description: Whether to deploy a single node standalone Ironic
+                    description: Standalone - Whether to deploy a standalone Ironic
                       Inspector.
                     type: boolean
                   storageClass:
@@ -719,7 +719,7 @@ spec:
                 type: string
               standalone:
                 default: false
-                description: Whether to deploy a single node standalone Ironic.
+                description: Whether to deploy a standalone Ironic.
                 type: boolean
             required:
             - databaseInstance
@@ -788,18 +788,6 @@ spec:
                 additionalProperties:
                   type: string
                 description: Map of hashes to track e.g. job status
-                type: object
-              inspectorAPIEndpoints:
-                additionalProperties:
-                  additionalProperties:
-                    type: string
-                  type: object
-                description: InspectorApiEndpoints
-                type: object
-              inspectorServiceIDs:
-                additionalProperties:
-                  type: string
-                description: IronicInspectorServiceIDs
                 type: object
               ironicAPIReadyCount:
                 description: ReadyCount of Ironic API instance

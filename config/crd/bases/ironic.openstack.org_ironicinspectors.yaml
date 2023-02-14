@@ -253,7 +253,7 @@ spec:
                 type: string
               standalone:
                 default: false
-                description: Whether to deploy a single node standalone Ironic Inspector.
+                description: Standalone - Whether to deploy a standalone Ironic Inspector.
                 type: boolean
               storageClass:
                 description: StorageClass

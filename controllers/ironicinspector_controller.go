@@ -913,6 +913,17 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["KeystoneInternalURL"] = authURL
+	} else {
+		ironicAPI, err := ironicv1.GetIronicAPI(
+			ctx, h, instance.Namespace, map[string]string{})
+		if err != nil {
+			return err
+		}
+		ironicInternalURL, err := ironicAPI.GetEndpoint(endpoint.EndpointInternal)
+		if err != nil {
+			return err
+		}
+		templateParameters["IronicInternalURL"] = ironicInternalURL
 	}
 	templateParameters["DHCPRanges"] = instance.Spec.DHCPRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
