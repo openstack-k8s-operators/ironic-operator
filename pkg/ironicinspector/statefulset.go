@@ -222,6 +222,9 @@ func StatefulSet(
 		containers = append(containers, dnsmasqContainer)
 	}
 
+	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
+	terminationGracePeriod := int64(60)
+
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ironic.ServiceName + "-" + ironic.InspectorComponent,
@@ -237,8 +240,9 @@ func StatefulSet(
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: ServiceAccount,
-					Containers:         containers,
+					ServiceAccountName:            ServiceAccount,
+					Containers:                    containers,
+					TerminationGracePeriodSeconds: &terminationGracePeriod,
 				},
 			},
 		},
