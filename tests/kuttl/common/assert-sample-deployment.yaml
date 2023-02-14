@@ -1,0 +1,217 @@
+#
+# Check for:
+#
+# ironicAPIReadyCount
+# ironicConductorReadyCount
+# apiEndpoints
+# 
+# DBReady
+# DBSyncReady
+# BootstrapReady
+# DeploymentReady
+# ExposeServiceReady
+# InputReady
+# IronicAPIReady
+# IronicConductorReady
+# IronicRabbitMqTransportURLReady
+# ServiceConfigReady
+# 
+# reason: Ready
+# status: "True"
+
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  finalizers:
+  - Ironic
+  generation: 1
+  name: ironic
+  namespace: openstack
+spec:
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: ironic
+  ironicAPI:
+    containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
+    databaseUser: ironic
+    passwordSelectors:
+      database: IronicDatabasePassword
+      service: IronicPassword
+    replicas: 1
+    rpcTransport: json-rpc
+    serviceUser: ironic
+    standalone: false
+  ironicConductors:
+  - containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
+    databaseUser: ironic
+    passwordSelectors:
+      database: IronicDatabasePassword
+      service: IronicPassword
+    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    replicas: 1
+    rpcTransport: json-rpc
+    serviceUser: ironic
+    standalone: false
+    storageRequest: 10G
+  ironicInspector:
+    containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
+    customServiceConfig: '# add your customization here'
+    databaseUser: ironic_inspector
+    passwordSelectors:
+      database: IronicInspectorDatabasePassword
+      service: IronicInspectorPassword
+    preserveJobs: true
+    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    rabbitMqClusterName: rabbitmq
+    replicas: 1
+    rpcTransport: json-rpc
+    serviceUser: ironic-inspector
+    standalone: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  preserveJobs: true
+  rabbitMqClusterName: rabbitmq
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: false
+status:
+  apiEndpoints:
+    ironic:
+      admin: http://ironic-admin-openstack.apps-crc.testing
+      internal: http://ironic-internal-openstack.apps-crc.testing
+      public: http://ironic-public-openstack.apps-crc.testing
+    ironic-inspector:
+      admin: http://ironic-inspector-admin-openstack.apps-crc.testing
+      internal: http://ironic-inspector-internal-openstack.apps-crc.testing
+      public: http://ironic-inspector-public-openstack.apps-crc.testing
+  databaseHostname: openstack
+  ironicAPIReadyCount: 1
+  ironicConductorReadyCount:
+    null_conductor_group_null: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicAPI
+metadata:
+  finalizers:
+  - IronicAPI
+  generation: 1
+  name: ironic-api
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
+  customServiceConfig: '# add your customization here'
+  databaseHostname: openstack
+  databaseUser: ironic
+  debug:
+    bootstrap: false
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: false
+status:
+  apiEndpoints:
+    ironic:
+      admin: http://ironic-admin-openstack.apps-crc.testing
+      internal: http://ironic-internal-openstack.apps-crc.testing
+      public: http://ironic-public-openstack.apps-crc.testing
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicConductor
+metadata:
+  finalizers:
+  - IronicConductor
+  generation: 1
+  name: ironic-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  conductorGroup: ""
+  containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
+  customServiceConfig: '# add your customization here'
+  databaseHostname: openstack
+  databaseUser: ironic
+  debug:
+    bootstrap: false
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: false
+  storageRequest: 10G
+status:
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicInspector
+metadata:
+  finalizers:
+  - IronicInspector
+  generation: 1
+  name: ironic-inspector
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
+  customServiceConfig: '# add your customization here'
+  databaseHostname: openstack
+  databaseInstance: openstack
+  databaseUser: ironic_inspector
+  debug:
+    bootstrap: false
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: IronicInspectorDatabasePassword
+    service: IronicInspectorPassword
+  preserveJobs: true
+  pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+  rabbitMqClusterName: rabbitmq
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic-inspector
+  standalone: false
+status:
+  apiEndpoints:
+    ironic-inspector:
+      admin: http://ironic-inspector-admin-openstack.apps-crc.testing
+      internal: http://ironic-inspector-internal-openstack.apps-crc.testing
+      public: http://ironic-inspector-public-openstack.apps-crc.testing
+  databaseHostname: openstack
+  readyCount: 1
