@@ -330,7 +330,7 @@ spec:
                   type: string
                 type: array
               readyCount:
-                description: ReadyCount of ironic Conductor instances
+                description: ReadyCount of Ironic Inspector instances
                 format: int32
                 type: integer
               serviceIDs:

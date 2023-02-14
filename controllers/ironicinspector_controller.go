@@ -195,10 +195,13 @@ func (r *IronicInspectorReconciler) Reconcile(
 		return ctrl.Result{}, err
 	}
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = make(map[string]string)
+	}
+	if instance.Status.APIEndpoints == nil {
+		instance.Status.APIEndpoints = make(map[string]map[string]string)
 	}
 	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
+		instance.Status.ServiceIDs = make(map[string]string)
 	}
 
 	// Handle service delete
@@ -465,9 +468,9 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	ssDef, err := ironicinspector.StatefulSet(
 		instance, inputHash, serviceLabels, ingressDomain)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
-	ss := statefulset.NewStatefulSet(ssDef, 5)
+	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
 
 	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
 	if err != nil {
@@ -500,6 +503,8 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		instance.Status.Conditions.MarkTrue(
 			condition.DeploymentReadyCondition,
 			condition.DeploymentReadyMessage)
+	} else {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 	// create Statefulset - end
 	instance.Status.Networks = instance.Spec.NetworkAttachments
@@ -645,7 +650,7 @@ func (r *IronicInspectorReconciler) reconcileInit(
 		jobDef,
 		ironicv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		5,
+		time.Second*20,
 		dbSyncHash,
 	)
 	ctrlResult, err = dbSyncjob.DoJob(
@@ -728,9 +733,6 @@ func (r *IronicInspectorReconciler) reconcileInit(
 	// Update instance status with service endpoint url from route host information for v2
 	//
 	// TODO: need to support https default here
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
-	}
 	instance.Status.APIEndpoints[inspectorServiceName] = apiEndpoints
 	// V1 - end
 
@@ -742,10 +744,6 @@ func (r *IronicInspectorReconciler) reconcileInit(
 	// create users and endpoints
 	// TODO: rework this
 	//
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
-	}
-
 	if !instance.Spec.Standalone {
 
 		r.Log.Info("Create Inspector Keystone Service and Endpoints")
@@ -1090,9 +1088,6 @@ func (r *IronicInspectorReconciler) reconcileServices(
 	// create users and endpoints
 	// TODO: rework this
 	//
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
-	}
 
 	r.Log.Info("Reconciled Inspector Services successfully")
 	return ctrl.Result{}, nil

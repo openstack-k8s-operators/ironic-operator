@@ -159,10 +159,13 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, nil
 	}
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = make(map[string]string)
 	}
 	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]map[string]string{}
+		instance.Status.APIEndpoints = make(map[string]map[string]string)
+	}
+	if instance.Status.ServiceIDs == nil {
+		instance.Status.ServiceIDs = make(map[string]string)
 	}
 
 	// Handle service delete
@@ -401,8 +404,12 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
-	instance.Status.APIEndpoints = ironicAPI.Status.APIEndpoints
-	instance.Status.ServiceIDs = ironicAPI.Status.ServiceIDs
+	for k, v := range ironicAPI.Status.APIEndpoints {
+		instance.Status.APIEndpoints[k] = v
+	}
+	for k, v := range ironicAPI.Status.ServiceIDs {
+		instance.Status.ServiceIDs[k] = v
+	}
 	instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
 
 	// Mirror IronicAPI's condition status
@@ -428,14 +435,19 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-	inspectorServiceName := ironic.ServiceName + "-" + ironic.InspectorComponent
-	if inspectorEndpoint, found := ironicInspector.Status.APIEndpoints[inspectorServiceName]; found {
-		instance.Status.APIEndpoints[inspectorServiceName] = inspectorEndpoint
+	for k, v := range ironicInspector.Status.APIEndpoints {
+		instance.Status.APIEndpoints[k] = v
 	}
 	for k, v := range ironicInspector.Status.ServiceIDs {
 		instance.Status.ServiceIDs[k] = v
 	}
 	instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
+
+	// Mirror IronicInspector's condition status
+	c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
 
 	r.Log.Info("Reconciled Ironic successfully")
 	return ctrl.Result{}, nil

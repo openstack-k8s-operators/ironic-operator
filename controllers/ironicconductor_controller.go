@@ -168,10 +168,11 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 	if instance.Status.Hash == nil {
-		instance.Status.Hash = map[string]string{}
+		instance.Status.Hash = make(map[string]string)
 	}
+	// TODO: We don't use ServiceIDs in conductor controller
 	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
+		instance.Status.ServiceIDs = make(map[string]string)
 	}
 
 	// Define a new PVC object
@@ -320,9 +321,6 @@ func (r *IronicConductorReconciler) reconcileServices(
 	// create users and endpoints
 	// TODO: rework this
 	//
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = map[string]string{}
-	}
 
 	r.Log.Info("Reconciled Conductor Services successfully")
 	return ctrl.Result{}, nil
