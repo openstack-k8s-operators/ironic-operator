@@ -518,13 +518,11 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicInspectorReconciler) reconcileDelete(
+func (r *IronicInspectorReconciler) reconcileDeleteKeystoneServices(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector delete")
-
 	for _, ksSvc := range inspectorKeystoneServices {
 		// Remove the finalizer from our KeystoneEndpoint CR
 		keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, ksSvc["name"], instance.Namespace)
@@ -554,17 +552,47 @@ func (r *IronicInspectorReconciler) reconcileDelete(
 			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 		}
 	}
+	return ctrl.Result{}, nil
+}
 
+func (r *IronicInspectorReconciler) reconcileDeleteDatabase(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
 	// remove db finalizer first
 	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
-
 	if !k8s_errors.IsNotFound(err) {
 		if err := db.DeleteFinalizer(ctx, helper); err != nil {
 			return ctrl.Result{}, err
 		}
+		util.LogForObject(helper, "Removed finalizer from our Database", instance)
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileDelete(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic Inspector delete")
+
+	ctrlResult, err := r.reconcileDeleteKeystoneServices(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, err = r.reconcileDeleteDatabase(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
 	}
 
 	// Service is deleted so remove the finalizer.
