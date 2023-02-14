@@ -39,7 +39,6 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
-	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -223,7 +222,13 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		//
 		// Create RabbitMQ transport URL CR and get the actual URL from the associted secret that is created
 		//
-		transportURL, op, err := r.transportURLCreateOrUpdate(instance)
+		transportURL, op, err := ironic.TransportURLCreateOrUpdate(
+			instance.Name,
+			instance.Namespace,
+			instance.Spec.RabbitMqClusterName,
+			instance,
+			helper,
+		)
 
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -750,25 +755,6 @@ func (r *IronicReconciler) createHashOfInputHashes(
 		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
-}
-
-// transportURLCreateOrUpdate - creates or updates rabbitmq transport URL
-func (r *IronicReconciler) transportURLCreateOrUpdate(instance *ironicv1.Ironic) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
-	transportURL := &rabbitmqv1.TransportURL{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-transport", instance.Name),
-			Namespace: instance.Namespace,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, transportURL, func() error {
-		transportURL.Spec.RabbitmqClusterName = instance.Spec.RabbitMqClusterName
-
-		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
-		return err
-	})
-
-	return transportURL, op, err
 }
 
 func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
