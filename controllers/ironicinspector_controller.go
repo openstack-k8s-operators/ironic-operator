@@ -271,17 +271,11 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Complete(r)
 }
 
-func (r *IronicInspectorReconciler) reconcileNormal(
+func (r *IronicInspectorReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector")
-
-	// ConfigMap
-	configMapVars := make(map[string]env.Setter)
-
-	// transportURL
 	if instance.Spec.RPCTransport == "oslo" {
 		//
 		// Create RabbitMQ transport URL CR and get the actual URL from the
@@ -337,6 +331,17 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	}
 	// transportURL - end
 
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, string, error) {
+	// ConfigMap
+	configMapVars := make(map[string]env.Setter)
+
 	//
 	// check for required OpenStack secret holding passwords for
 	// service/admin user and add hash to the vars map
@@ -354,7 +359,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 					condition.RequestedReason,
 					condition.SeverityInfo,
 					condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10},
+			return ctrl.Result{RequeueAfter: time.Second * 10}, "",
 				fmt.Errorf("OpenStack secret %s not found",
 					instance.Spec.Secret)
 		}
@@ -365,7 +370,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 				condition.SeverityWarning,
 				condition.InputReadyErrorMessage,
 				err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 
@@ -399,7 +404,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 			condition.SeverityWarning,
 			condition.ServiceConfigReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	}
 
 	//
@@ -414,11 +419,11 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 			condition.SeverityWarning,
 			condition.ServiceConfigReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	} else if hashChanged {
 		// Hash changed and instance status should be updated (which will be done by main defer func),
 		// so we need to return and reconcile again
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, "", nil
 	}
 
 	instance.Status.Conditions.MarkTrue(
@@ -426,6 +431,83 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		condition.ServiceConfigReadyMessage)
 
 	// Create ConfigMaps and Secrets - end
+
+	return ctrl.Result{}, inputHash, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileStatefulSet(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	inputHash string,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+
+	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Define a new StatefulSet object
+	ssDef, err := ironicinspector.StatefulSet(
+		instance, inputHash, serviceLabels, ingressDomain)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+	}
+	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
+
+	ctrlResult, err := ss.CreateOrPatch(ctx, helper)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		return ctrlResult, nil
+	}
+
+	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+	if instance.Status.ReadyCount > 0 {
+		instance.Status.Conditions.MarkTrue(
+			condition.DeploymentReadyCondition,
+			condition.DeploymentReadyMessage)
+	} else {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+	// create Statefulset - end
+	instance.Status.Networks = instance.Spec.NetworkAttachments
+
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileNormal(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic Inspector")
+
+	ctrlResult, err := r.reconcileTransportURL(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, inputHash, err := r.reconcileConfigMapsAndSecrets(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
 
 	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
@@ -437,7 +519,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	}
 
 	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
+	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -463,38 +545,12 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	//
 	// normal reconcile tasks
 	//
-
-	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
+	ctrlResult, err = r.reconcileStatefulSet(ctx, instance, helper, inputHash, serviceLabels)
 	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Define a new StatefulSet object
-	ssDef, err := ironicinspector.StatefulSet(
-		instance, inputHash, serviceLabels, ingressDomain)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-	}
-	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
-
-	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DeploymentReadyErrorMessage,
-			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
-
 	// Handle service init
 	ctrlResult, err = r.reconcileServices(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -502,17 +558,6 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	} else if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
 	}
-
-	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
-	if instance.Status.ReadyCount > 0 {
-		instance.Status.Conditions.MarkTrue(
-			condition.DeploymentReadyCondition,
-			condition.DeploymentReadyMessage)
-	} else {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
-	}
-	// create Statefulset - end
-	instance.Status.Networks = instance.Spec.NetworkAttachments
 
 	r.Log.Info("Reconciled Ironic Inspector successfully")
 	return ctrl.Result{}, nil
