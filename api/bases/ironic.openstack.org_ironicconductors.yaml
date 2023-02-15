@@ -48,6 +48,9 @@ spec:
           spec:
             description: IronicConductorSpec defines the desired state of IronicConductor
             properties:
+              conductorGroup:
+                description: ConductorGroup - Ironic Conductor conductor group.
+                type: string
               containerImage:
                 description: ContainerImage - Ironic Conductor Container Image URL
                 type: string

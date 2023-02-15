@@ -935,9 +935,9 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
 			AdditionalTemplate: map[string]string{
-				"common.sh":  "/common/common.sh",
-				"imagetter":  "/common/imagetter",
-				"get_net_ip": "/common/get_net_ip",
+				"common.sh":  "/common/bin/common.sh",
+				"imagetter":  "/common/bin/imagetter",
+				"get_net_ip": "/common/bin/get_net_ip",
 			},
 			Labels: cmLabels,
 		},

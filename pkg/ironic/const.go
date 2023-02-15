@@ -46,4 +46,6 @@ const (
 	APIComponent = "api"
 	// InspectorComponent -
 	InspectorComponent = "inspector"
+	// ConductorGroupSelector -
+	ConductorGroupSelector = "conductorGroup"
 )

@@ -1,15 +1,21 @@
 package ironicconductor
 
 import (
+	"fmt"
+	"strings"
+
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
-func GetVolumes(parentName string, name string) []corev1.Volume {
+func GetVolumes(parentName string, instance *ironicv1.IronicConductor) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
-	pvcName := ironic.ServiceName + "-" + ironic.ConductorComponent
-
+	pvcName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
+	if instance.Spec.ConductorGroup != "" {
+		pvcName = strings.ToLower(fmt.Sprintf("%s-%s", pvcName, instance.Spec.ConductorGroup))
+	}
 	conductorVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
@@ -17,7 +23,7 @@ func GetVolumes(parentName string, name string) []corev1.Volume {
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &config0640AccessMode,
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name + "-config-data",
+						Name: fmt.Sprintf("%s-config-data", instance.Name),
 					},
 				},
 			},
