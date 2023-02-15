@@ -5,9 +5,14 @@ import (
 	"fmt"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetOwningIronicName - Given a IronicAPI, IronicConductor
@@ -69,4 +74,34 @@ func GetIngressDomain(
 	}
 
 	return ingressDomain, nil
+}
+
+// TransportURLCreateOrUpdate - creates or updates rabbitmq transport URL
+func TransportURLCreateOrUpdate(
+	Name string,
+	Namespace string,
+	RabbitMqClusterName string,
+	instance metav1.Object,
+	helper *helper.Helper,
+) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-transport", Name),
+			Namespace: Namespace,
+		},
+	}
+	op, err := controllerutil.CreateOrUpdate(
+		context.TODO(),
+		helper.GetClient(),
+		transportURL,
+		func() error {
+
+			transportURL.Spec.RabbitmqClusterName = RabbitMqClusterName
+
+			err := controllerutil.SetControllerReference(
+				instance, transportURL, helper.GetScheme())
+			return err
+		})
+
+	return transportURL, op, err
 }
