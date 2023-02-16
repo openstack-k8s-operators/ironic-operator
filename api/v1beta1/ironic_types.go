@@ -27,7 +27,7 @@ const (
 
 	// DeploymentHash hash used to detect changes
 	DeploymentHash = "deployment"
-	
+
 	// ConductorGroupNull - Used in IronicConductorReadyCount map and resource labels when ConductorGroup is not set
 	ConductorGroupNull = "null_conductor_group_null"
 )

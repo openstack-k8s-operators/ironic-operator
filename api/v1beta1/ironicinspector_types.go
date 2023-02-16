@@ -24,7 +24,7 @@ import (
 
 // IronicInspectorSpec defines the desired state of IronicInspector
 type IronicInspectorSpec struct {
-	
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Standalone - Whether to deploy a standalone Ironic Inspector.
