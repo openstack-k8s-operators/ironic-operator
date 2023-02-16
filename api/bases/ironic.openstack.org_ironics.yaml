@@ -294,6 +294,10 @@ spec:
                       items:
                         description: DHCPRange to define address range for DHCP requestes
                         properties:
+                          cidr:
+                            description: Cidr - IP address prefix (CIDR) representing
+                              an IP network.
+                            type: string
                           end:
                             description: End - End of DHCP range
                             type: string
@@ -307,21 +311,17 @@ spec:
                             description: Name - Name of the DHCPRange (used for tagging
                               in dnsmasq)
                             type: string
-                          netmask:
-                            description: Netmask - IP network netmask (network mask
-                              bits) for IPv4
-                            type: string
                           podIndex:
                             description: PodIndex - Maps the DHCPRange to a specific
                               statefulset pod index
                             type: integer
-                          prefix:
-                            description: Prefix - IP network prefix (network mask
-                              bits) for IPv6
-                            type: integer
                           start:
                             description: Start - Start of DHCP range
                             type: string
+                        required:
+                        - cidr
+                        - end
+                        - start
                         type: object
                       type: array
                     networkAttachments:
@@ -516,6 +516,10 @@ spec:
                     items:
                       description: DHCPRange to define address range for DHCP requestes
                       properties:
+                        cidr:
+                          description: Cidr - IP address prefix (CIDR) representing
+                            an IP network.
+                          type: string
                         end:
                           description: End - End of DHCP range
                           type: string
@@ -529,21 +533,17 @@ spec:
                           description: Name - Name of the DHCPRange (used for tagging
                             in dnsmasq)
                           type: string
-                        netmask:
-                          description: Netmask - IP network netmask (network mask
-                            bits) for IPv4
-                          type: string
                         podIndex:
                           description: PodIndex - Maps the DHCPRange to a specific
                             statefulset pod index
                           type: integer
-                        prefix:
-                          description: Prefix - IP network prefix (network mask bits)
-                            for IPv6
-                          type: integer
                         start:
                           description: Start - Start of DHCP range
                           type: string
+                      required:
+                      - cidr
+                      - end
+                      - start
                       type: object
                     type: array
                   inspectionNetwork:

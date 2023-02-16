@@ -1024,7 +1024,11 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		}
 		templateParameters["IronicInternalURL"] = ironicInternalURL
 	}
-	templateParameters["DHCPRanges"] = instance.Spec.DHCPRanges
+	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
+	if err != nil {
+		r.Log.Error(err, "unable to get Prefix or Netmask from IP network Prefix (CIDR)")
+	}
+	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
 	cms := []util.Template{
