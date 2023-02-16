@@ -271,17 +271,11 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Complete(r)
 }
 
-func (r *IronicInspectorReconciler) reconcileNormal(
+func (r *IronicInspectorReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector")
-
-	// ConfigMap
-	configMapVars := make(map[string]env.Setter)
-
-	// transportURL
 	if instance.Spec.RPCTransport == "oslo" {
 		//
 		// Create RabbitMQ transport URL CR and get the actual URL from the
@@ -337,6 +331,17 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	}
 	// transportURL - end
 
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, string, error) {
+	// ConfigMap
+	configMapVars := make(map[string]env.Setter)
+
 	//
 	// check for required OpenStack secret holding passwords for
 	// service/admin user and add hash to the vars map
@@ -354,7 +359,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 					condition.RequestedReason,
 					condition.SeverityInfo,
 					condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10},
+			return ctrl.Result{RequeueAfter: time.Second * 10}, "",
 				fmt.Errorf("OpenStack secret %s not found",
 					instance.Spec.Secret)
 		}
@@ -365,7 +370,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 				condition.SeverityWarning,
 				condition.InputReadyErrorMessage,
 				err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 
@@ -399,7 +404,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 			condition.SeverityWarning,
 			condition.ServiceConfigReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	}
 
 	//
@@ -414,11 +419,11 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 			condition.SeverityWarning,
 			condition.ServiceConfigReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrl.Result{}, "", err
 	} else if hashChanged {
 		// Hash changed and instance status should be updated (which will be done by main defer func),
 		// so we need to return and reconcile again
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, "", nil
 	}
 
 	instance.Status.Conditions.MarkTrue(
@@ -426,6 +431,83 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		condition.ServiceConfigReadyMessage)
 
 	// Create ConfigMaps and Secrets - end
+
+	return ctrl.Result{}, inputHash, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileStatefulSet(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	inputHash string,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+
+	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Define a new StatefulSet object
+	ssDef, err := ironicinspector.StatefulSet(
+		instance, inputHash, serviceLabels, ingressDomain)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+	}
+	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
+
+	ctrlResult, err := ss.CreateOrPatch(ctx, helper)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
+		return ctrlResult, nil
+	}
+
+	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+	if instance.Status.ReadyCount > 0 {
+		instance.Status.Conditions.MarkTrue(
+			condition.DeploymentReadyCondition,
+			condition.DeploymentReadyMessage)
+	} else {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+	// create Statefulset - end
+	instance.Status.Networks = instance.Spec.NetworkAttachments
+
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileNormal(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic Inspector")
+
+	ctrlResult, err := r.reconcileTransportURL(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, inputHash, err := r.reconcileConfigMapsAndSecrets(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
 
 	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
@@ -436,13 +518,8 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		ironic.ComponentSelector: ironic.InspectorComponent,
 	}
 
-	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
+	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -468,33 +545,12 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	//
 	// normal reconcile tasks
 	//
-
-	// Define a new StatefulSet object
-	ssDef, err := ironicinspector.StatefulSet(
-		instance, inputHash, serviceLabels, ingressDomain)
+	ctrlResult, err = r.reconcileStatefulSet(ctx, instance, helper, inputHash, serviceLabels)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-	}
-	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
-
-	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DeploymentReadyErrorMessage,
-			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DeploymentReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
-
 	// Handle service init
 	ctrlResult, err = r.reconcileServices(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -503,28 +559,15 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
-	if instance.Status.ReadyCount > 0 {
-		instance.Status.Conditions.MarkTrue(
-			condition.DeploymentReadyCondition,
-			condition.DeploymentReadyMessage)
-	} else {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
-	}
-	// create Statefulset - end
-	instance.Status.Networks = instance.Spec.NetworkAttachments
-
 	r.Log.Info("Reconciled Ironic Inspector successfully")
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicInspectorReconciler) reconcileDelete(
+func (r *IronicInspectorReconciler) reconcileDeleteKeystoneServices(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector delete")
-
 	for _, ksSvc := range inspectorKeystoneServices {
 		// Remove the finalizer from our KeystoneEndpoint CR
 		keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, ksSvc["name"], instance.Namespace)
@@ -554,17 +597,47 @@ func (r *IronicInspectorReconciler) reconcileDelete(
 			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 		}
 	}
+	return ctrl.Result{}, nil
+}
 
+func (r *IronicInspectorReconciler) reconcileDeleteDatabase(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
 	// remove db finalizer first
 	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
-
 	if !k8s_errors.IsNotFound(err) {
 		if err := db.DeleteFinalizer(ctx, helper); err != nil {
 			return ctrl.Result{}, err
 		}
+		util.LogForObject(helper, "Removed finalizer from our Database", instance)
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileDelete(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic Inspector delete")
+
+	ctrlResult, err := r.reconcileDeleteKeystoneServices(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, err = r.reconcileDeleteDatabase(ctx, instance, helper)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
 	}
 
 	// Service is deleted so remove the finalizer.
@@ -574,17 +647,12 @@ func (r *IronicInspectorReconciler) reconcileDelete(
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicInspectorReconciler) reconcileInit(
+func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector init")
-
-	//
-	// create service DB instance
-	//
 	databaseName := strings.Replace(instance.Name, "-", "_", -1)
 	db := database.NewDatabase(
 		databaseName,
@@ -644,11 +712,15 @@ func (r *IronicInspectorReconciler) reconcileInit(
 		condition.DBReadyCondition,
 		condition.DBReadyMessage)
 
-	// create service DB - end
+	return ctrl.Result{}, nil
+}
 
-	//
-	// run ironic-inspector db sync
-	//
+func (r *IronicInspectorReconciler) reconcileServiceDBsync(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
 	dbSyncHash := instance.Status.Hash[ironicv1.DbSyncHash]
 	jobDef := ironicinspector.DbSyncJob(instance, serviceLabels)
 	dbSyncjob := job.NewJob(
@@ -658,7 +730,7 @@ func (r *IronicInspectorReconciler) reconcileInit(
 		time.Second*20,
 		dbSyncHash,
 	)
-	ctrlResult, err = dbSyncjob.DoJob(
+	ctrlResult, err := dbSyncjob.DoJob(
 		ctx,
 		helper,
 	)
@@ -690,8 +762,15 @@ func (r *IronicInspectorReconciler) reconcileInit(
 		condition.DBSyncReadyCondition,
 		condition.DBSyncReadyMessage)
 
-	// run ironic-inspector db sync - end
+	return ctrl.Result{}, nil
+}
 
+func (r *IronicInspectorReconciler) reconcileExposeService(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
@@ -743,15 +822,20 @@ func (r *IronicInspectorReconciler) reconcileInit(
 
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
-	// expose service - end
+	return ctrl.Result{}, nil
+}
 
+func (r *IronicInspectorReconciler) reconcileUsersAndEndpoints(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
 	//
 	// create users and endpoints
 	// TODO: rework this
 	//
 	if !instance.Spec.Standalone {
-
-		r.Log.Info("Create Inspector Keystone Service and Endpoints")
 		for _, ksSvc := range inspectorKeystoneServices {
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{
 				ServiceType:        ksSvc["type"],
@@ -764,7 +848,7 @@ func (r *IronicInspectorReconciler) reconcileInit(
 			}
 
 			ksSvcObj := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
-			ctrlResult, err = ksSvcObj.CreateOrPatch(ctx, helper)
+			ctrlResult, err := ksSvcObj.CreateOrPatch(ctx, helper)
 			if err != nil {
 				return ctrlResult, err
 			}
@@ -810,6 +894,45 @@ func (r *IronicInspectorReconciler) reconcileInit(
 				return ctrlResult, nil
 			}
 		}
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicInspectorReconciler) reconcileInit(
+	ctx context.Context,
+	instance *ironicv1.IronicInspector,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic Inspector init")
+
+	ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, err = r.reconcileServiceDBsync(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, err = r.reconcileExposeService(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, err = r.reconcileUsersAndEndpoints(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
 	}
 
 	r.Log.Info("Reconciled Ironic Inspector init successfully")
