@@ -10,7 +10,6 @@ on:
       - changelog.txt
       - kuttl-test.yaml
       - LICENSE
-      - Makefile
       - OWNERS
       - PROJECT
       - README.md
