@@ -16,6 +16,9 @@ resources:
   kind: Ironic
   path: github.com/openstack-k8s-operators/ironic-operator/api/v1beta1
   version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true

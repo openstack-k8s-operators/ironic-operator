@@ -1,0 +1,27 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-ironic-openstack-org-v1beta1-ironic
+  failurePolicy: Fail
+  name: vironic.kb.io
+  rules:
+  - apiGroups:
+    - ironic.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ironics
+  sideEffects: None
