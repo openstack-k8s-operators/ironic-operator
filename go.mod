@@ -13,7 +13,6 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230207162833-94c25ed85b4c
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221212162305-ec57ccd85ad5
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221128124656-71e59ad7384d
-	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221220203956-9ab46ac0b1e4
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
@@ -42,6 +41,7 @@ require (
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kr/pretty v0.2.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
