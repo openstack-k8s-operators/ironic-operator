@@ -440,6 +440,7 @@ spec:
                       description: Whether to deploy a standalone Ironic.
                       type: boolean
                     storageClass:
+                      default: ""
                       description: StorageClass
                       type: string
                     storageRequest:
@@ -450,6 +451,7 @@ spec:
                         transportURL
                       type: string
                   required:
+                  - storageClass
                   - storageRequest
                   type: object
                 type: array
@@ -730,12 +732,17 @@ spec:
                 default: false
                 description: Whether to deploy a standalone Ironic.
                 type: boolean
+              storageClass:
+                description: Storage class to host data. This is passed to IronicConductors
+                  unless storageClass is explicitly set for the conductor.
+                type: string
             required:
             - databaseInstance
             - ironicAPI
             - ironicConductors
             - ironicInspector
             - secret
+            - storageClass
             type: object
           status:
             description: IronicStatus defines the observed state of Ironic

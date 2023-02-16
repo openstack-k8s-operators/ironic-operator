@@ -651,8 +651,12 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
 		deployment.Spec.RPCTransport = instance.Spec.RPCTransport
 		deployment.Spec.KeystoneVars = keystoneVars
+		if deployment.Spec.StorageClass == "" {
+			deployment.Spec.StorageClass = instance.Spec.StorageClass
+		}
 
 		if len(deployment.Spec.NodeSelector) == 0 {
+			// TODO(hjensas) - Use a webhook to set instance.Spec.IronicConductors[x].StorageClass instead.
 			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
 		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)

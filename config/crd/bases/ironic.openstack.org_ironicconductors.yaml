@@ -244,6 +244,7 @@ spec:
                 description: Whether to deploy a standalone Ironic.
                 type: boolean
               storageClass:
+                default: ""
                 description: StorageClass
                 type: string
               storageRequest:
@@ -253,6 +254,7 @@ spec:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             required:
+            - storageClass
             - storageRequest
             type: object
           status:

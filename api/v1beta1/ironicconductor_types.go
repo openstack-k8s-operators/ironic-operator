@@ -110,9 +110,10 @@ type IronicConductorSpec struct {
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=""
 	// StorageClass
-	StorageClass string `json:"storageClass,omitempty"`
+	StorageClass string `json:"storageClass"`
 
 	// +kubebuilder:validation:Required
 	// StorageRequest

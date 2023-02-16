@@ -119,6 +119,12 @@ type IronicSpec struct {
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Storage class to host data. This is passed to IronicConductors unless
+	// storageClass is explicitly set for the conductor.
+	// +kubebuilder:validation:Required
+	StorageClass string `json:"storageClass"`
+
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
