@@ -733,6 +733,7 @@ spec:
                 description: Whether to deploy a standalone Ironic.
                 type: boolean
               storageClass:
+                default: ""
                 description: Storage class to host data. This is passed to IronicConductors
                   unless storageClass is explicitly set for the conductor.
                 type: string
