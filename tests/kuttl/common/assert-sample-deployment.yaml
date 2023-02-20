@@ -1,23 +1,13 @@
 #
 # Check for:
 #
-# ironicAPIReadyCount
-# ironicConductorReadyCount
+# Ironic
+# IronicAPI
+# IronicConductor
+# IronicInspector
 # apiEndpoints
-#
-# DBReady
-# DBSyncReady
-# BootstrapReady
-# DeploymentReady
-# ExposeServiceReady
-# InputReady
-# IronicAPIReady
-# IronicConductorReady
-# IronicRabbitMqTransportURLReady
-# ServiceConfigReady
-#
-# reason: Ready
-# status: "True"
+# service port connectivity
+# 
 
 apiVersion: ironic.openstack.org/v1beta1
 kind: Ironic
@@ -188,7 +178,6 @@ metadata:
 spec:
   containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
   customServiceConfig: '# add your customization here'
-  databaseHostname: openstack
   databaseInstance: openstack
   databaseUser: ironic_inspector
   debug:
@@ -215,3 +204,30 @@ status:
       public: http://ironic-inspector-public-openstack.apps-crc.testing
   databaseHostname: openstack
   readyCount: 1
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      set -x
+      RETURN_CODE=0
+      PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
+      ADMIN_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.admin}')
+      INTERNAL_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.internal}')
+      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+      if test $STATUSCODE -ne 200; then
+          RETURN_CODE=1
+          echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+      fi
+      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $ADMIN_URL)
+      if test $STATUSCODE -ne 200; then
+          RETURN_CODE=1
+          echo "${ADMIN_URL} status code expected is 200 but was ${STATUSCODE}"
+      fi
+      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $INTERNAL_URL)
+      if test $STATUSCODE -ne 200; then
+          RETURN_CODE=1
+          echo "${INTERNAL_URL} status code expected is 200 but was ${STATUSCODE}"
+      fi
+      exit $RETURN_CODE
