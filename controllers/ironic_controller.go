@@ -457,34 +457,36 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-inspector
-	ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
-	if err != nil {
-		instance.Status.Conditions.Set(
-			condition.FalseCondition(
-				ironicv1.IronicInspectorReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				ironicv1.IronicInspectorReadyErrorMessage,
-				err.Error()))
-		return ctrl.Result{}, err
-	}
-	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
-	}
+	if instance.Spec.IronicInspector.Replicas != 0 {
+		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicInspectorReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicInspectorReadyErrorMessage,
+					err.Error()))
+			return ctrl.Result{}, err
+		}
+		if op != controllerutil.OperationResultNone {
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		}
 
-	// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-	for k, v := range ironicInspector.Status.APIEndpoints {
-		instance.Status.APIEndpoints[k] = v
-	}
-	for k, v := range ironicInspector.Status.ServiceIDs {
-		instance.Status.ServiceIDs[k] = v
-	}
-	instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
+		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
+		for k, v := range ironicInspector.Status.APIEndpoints {
+			instance.Status.APIEndpoints[k] = v
+		}
+		for k, v := range ironicInspector.Status.ServiceIDs {
+			instance.Status.ServiceIDs[k] = v
+		}
+		instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
-	// Mirror IronicInspector's condition status
-	c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+		// Mirror IronicInspector's condition status
+		c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
 	}
 
 	r.Log.Info("Reconciled Ironic successfully")
