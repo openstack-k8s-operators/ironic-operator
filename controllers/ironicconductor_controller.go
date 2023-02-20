@@ -595,7 +595,11 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneVars["keystonePublicURL"]
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	}
-	templateParameters["DHCPRanges"] = instance.Spec.DHCPRanges
+	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
+	if err != nil {
+		r.Log.Error(err, "Failed to get Prefix or Netmask from IP network Prefix (CIDR)")
+	}
+	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 

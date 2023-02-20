@@ -145,27 +145,29 @@ type DHCPRange struct {
 	// +kubebuilder:validation:Optional
 	// Name - Name of the DHCPRange (used for tagging in dnsmasq)
 	Name string `json:"name,omitempty"`
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
+	// Cidr - IP address prefix (CIDR) representing an IP network.
+	Cidr string `json:"cidr"`
+	// +kubebuilder:validation:Required
 	// Start - Start of DHCP range
-	Start string `json:"start,omitempty"`
-	// +kubebuilder:validation:Optional
+	Start string `json:"start"`
+	// +kubebuilder:validation:Required
 	// End - End of DHCP range
-	End string `json:"end,omitempty"`
+	End string `json:"end"`
 	// +kubebuilder:validation:Optional
 	// Gateway - IP address for the router
 	Gateway string `json:"gateway,omitempty"`
 	// +kubebuilder:validation:Optional
-	// Prefix - IP network prefix (network mask bits) for IPv6
-	Prefix int `json:"prefix,omitempty"`
-	// +kubebuilder:validation:Optional
-	// Netmask - IP network netmask (network mask bits) for IPv4
-	Netmask string `json:"netmask,omitempty"`
-	// +kubebuilder:validation:Optional
 	// MTU - Maximum Transmission Unit
 	MTU int `json:"mtu,omitempty"`
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:
 	// PodIndex - Maps the DHCPRange to a specific statefulset pod index
 	PodIndex int `json:"podIndex,omitempty"`
+	// Prefix - (Hidden) Internal use only, prefix (mask bits) for IPv6 is autopopulated from Cidr
+	Prefix int `json:"-"`
+	// Netmask - (Hidden) Inernal use only, netmask for IPv4 is autopopulated from Cidr
+	Netmask string `json:"-"`
 }
 
 // IronicDebug defines the observed state of Ironic
