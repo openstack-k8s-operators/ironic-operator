@@ -123,8 +123,8 @@ type IronicSpec struct {
 	// Storage class to host data. This is passed to IronicConductors unless
 	// storageClass is explicitly set for the conductor.
 	// +kubebuilder:validation:Required
+	// +kubebuilder:default=""
 	StorageClass string `json:"storageClass"`
-
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
