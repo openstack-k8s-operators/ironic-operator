@@ -487,6 +487,11 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
+	} else {
+		err := r.inspectorDeploymentDelete(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	r.Log.Info("Reconciled Ironic successfully")
@@ -834,4 +839,38 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		})
 
 	return deployment, op, err
+}
+
+func (r *IronicReconciler) inspectorDeploymentDelete(
+	ctx context.Context,
+	instance *ironicv1.Ironic,
+) error {
+	deployment := &ironicv1.IronicInspector{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-inspector", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+	err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+	if err != nil {
+		return err
+	}
+	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
+	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
+		if k8s_errors.IsNotFound(err) {
+			return nil
+		} 
+		return err
+	}
+	if err := r.Client.Delete(ctx, deployment); err != nil {
+		return err
+	}
+	// Remove inspector APIEndpoints, Services and set ReadyCount 0
+	delete(instance.Status.APIEndpoints, "ironic-inspector")
+	delete(instance.Status.ServiceIDs, "ironic-inspector")
+	instance.Status.InspectorReadyCount = 0
+	// Remove IronicInspectorReadyCondition
+	instance.Status.Conditions.Remove(ironicv1.IronicInspectorReadyCondition)
+
+	return nil
 }
