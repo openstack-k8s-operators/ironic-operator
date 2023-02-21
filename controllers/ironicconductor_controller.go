@@ -295,7 +295,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 			err = r.Get(
 				ctx,
 				k8s_types.NamespacedName{
-					Name: conductorService.Name,
+					Name:      conductorService.Name,
 					Namespace: conductorService.Namespace,
 				},
 				conductorService,
@@ -338,7 +338,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 			err = r.Get(
 				ctx,
 				k8s_types.NamespacedName{
-					Name: conductorRoute.Name,
+					Name:      conductorRoute.Name,
 					Namespace: conductorRoute.Namespace,
 				},
 				conductorRoute,
