@@ -393,6 +393,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// TODO: Should validate and refuse to continue if instance.Spec.IronicConductors
 	//       container multiple elements with the same ConductorGroup defined.
 	// deploy ironic-conductors
+	ironicConductorsDeploymentReadyMap := make(map[string]bool)
 	for _, conductorSpec := range instance.Spec.IronicConductors {
 
 		ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(
@@ -423,6 +424,12 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		c := ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
 		if c != nil {
 			instance.Status.Conditions.Set(c)
+		}
+		// Update Deployent Ready Map
+		if ironicConductor.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+			ironicConductorsDeploymentReadyMap[condGrp] = true
+		} else {
+			ironicConductorsDeploymentReadyMap[condGrp] = false
 		}
 	}
 
@@ -488,7 +495,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Set ExposeServiceReadyCondition True if both IronicAPI and IronicInspector is ready
-	inspectorServiceReady := false
+	var inspectorServiceReady bool
 	if instance.Spec.IronicInspector.Replicas > 0 {
 		inspectorServiceReady = ironicInspector.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
 	} else {
@@ -499,6 +506,34 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.MarkTrue(
 			condition.ExposeServiceReadyCondition,
 			condition.ExposeServiceReadyMessage,
+		)
+	}
+
+	// Set DeploymentReadyCondition True if both IronicConductors and IronicInspector is ready
+	var inspectorDeploymentReady bool
+	var conductorDeployemntsReady bool
+	if instance.Spec.IronicInspector.Replicas > 0 {
+		inspectorDeploymentReady = ironicInspector.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
+	} else {
+		inspectorDeploymentReady = true
+	}
+	for _, conductorSpec := range instance.Spec.IronicConductors {
+		condGrp := conductorSpec.ConductorGroup
+		if conductorSpec.ConductorGroup == "" {
+			condGrp = ironicv1.ConductorGroupNull
+		}
+		if ironicConductorsDeploymentReadyMap[condGrp] {
+			conductorDeployemntsReady = true
+		} else {
+			conductorDeployemntsReady = false
+			// No reason to continue, if one conductor group is not Ready
+			break
+		}
+	}
+	if inspectorDeploymentReady && conductorDeployemntsReady {
+		instance.Status.Conditions.MarkTrue(
+			condition.DeploymentReadyCondition,
+			condition.DeploymentReadyMessage,
 		)
 	}
 
