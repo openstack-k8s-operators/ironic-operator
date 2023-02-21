@@ -487,6 +487,21 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.Set(c)
 	}
 
+	// Set ExposeServiceReadyCondition True if both IronicAPI and IronicInspector is ready
+	inspectorServiceReady := false
+	if instance.Spec.IronicInspector.Replicas > 0 {
+		inspectorServiceReady = ironicInspector.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
+	} else {
+		inspectorServiceReady = true
+	}
+	ironicAPIServiceReady := ironicAPI.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
+	if inspectorServiceReady && ironicAPIServiceReady {
+		instance.Status.Conditions.MarkTrue(
+			condition.ExposeServiceReadyCondition,
+			condition.ExposeServiceReadyMessage,
+		)
+	}
+
 	r.Log.Info("Reconciled Ironic successfully")
 	return ctrl.Result{}, nil
 }
