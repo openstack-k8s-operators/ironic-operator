@@ -31,7 +31,7 @@ const (
 	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
 
 	// IronicInspectorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
-	IronicInspectorReadyCondition condition.Type = "IronicInspectorReadyCondition"
+	IronicInspectorReadyCondition condition.Type = "IronicInspectorReady"
 )
 
 // Ironic Reasons used by API objects.
