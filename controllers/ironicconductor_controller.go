@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	k8s_types "k8s.io/apimachinery/pkg/types"
+
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,9 +49,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/pvc"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
@@ -288,12 +288,30 @@ func (r *IronicConductorReconciler) reconcileServices(
 		}
 		conductorService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
 		if conductorService != nil {
-			svc := service.NewService(conductorService, conductorServiceLabels, 5)
-			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			err = controllerutil.SetOwnerReference(&conductorPod, conductorService, helper.GetScheme())
 			if err != nil {
 				return ctrl.Result{}, err
-			} else if (ctrlResult != ctrl.Result{}) {
-				return ctrl.Result{}, nil
+			}
+			err = r.Get(
+				ctx,
+				k8s_types.NamespacedName{
+					Name: conductorService.Name,
+					Namespace: conductorService.Namespace,
+				},
+				conductorService,
+			)
+			if err != nil && k8s_errors.IsNotFound(err) {
+				r.Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", conductorService.Name))
+				err = r.Create(ctx, conductorService)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				r.Log.Info(fmt.Sprintf("Service port %s exists, updating it", conductorService.Name))
+				err = r.Update(ctx, conductorService)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 		}
 		// create service - end
@@ -311,16 +329,33 @@ func (r *IronicConductorReconciler) reconcileServices(
 			if instance.Spec.ConductorGroup != "" {
 				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 			}
-			route := route.NewRoute(
-				ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels),
-				conductorRouteLabels,
-				5,
-			)
-			_, err := route.CreateOrPatch(ctx, helper)
+
+			conductorRoute := ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels)
+			err = controllerutil.SetOwnerReference(&conductorPod, conductorRoute, helper.GetScheme())
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			// create service - end
+			err = r.Get(
+				ctx,
+				k8s_types.NamespacedName{
+					Name: conductorRoute.Name,
+					Namespace: conductorRoute.Namespace,
+				},
+				conductorRoute,
+			)
+			if err != nil && k8s_errors.IsNotFound(err) {
+				r.Log.Info(fmt.Sprintf("Route %s does not exist, creating it", conductorRoute.Name))
+				err = r.Create(ctx, conductorRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				r.Log.Info(fmt.Sprintf("Route %s exists, updating it", conductorRoute.Name))
+				err = r.Update(ctx, conductorRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
 		}
 	}
 
