@@ -156,11 +156,6 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
 		)
 
-		if !instance.Spec.Standalone {
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
-			cl = append(cl, *condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""))
-		}
-
 		instance.Status.Conditions.Init(&cl)
 
 		// Register overall status immediately to have an early feedback e.g. in the cli
