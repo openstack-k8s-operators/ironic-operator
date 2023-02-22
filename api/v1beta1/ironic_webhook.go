@@ -68,20 +68,8 @@ var _ webhook.Validator = &Ironic{}
 func (r *Ironic) ValidateCreate() error {
 	ironiclog.Info("validate create", "name", r.Name)
 	var allErrs field.ErrorList
-
-	if err := r.validateConductoGroupsUnique(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := r.validateConductorSpec(); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := r.validateInspectorSpec(); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := r.validateDHCPRangesOverlap(); err != nil {
+	basePath := field.NewPath("spec")
+	if err := r.Spec.ValidateCreate(basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -94,24 +82,38 @@ func (r *Ironic) ValidateCreate() error {
 	return nil
 }
 
+// ValidateCreate - Exported function wrapping non-exported validate functions,
+// this function can be called externally to validate an ironic spec.
+func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	
+	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if err := validateConductorSpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	
+	if err := validateInspectorSpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	if err := validateDHCPRangesOverlap(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	return allErrs
+}
+
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 	ironiclog.Info("validate update", "name", r.Name)
 	var allErrs field.ErrorList
+	basePath := field.NewPath("spec")
 
-	if err := r.validateConductoGroupsUnique(); err != nil {
-		allErrs = append(allErrs, err)
-	}
-
-	if err := r.validateConductorSpec(); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := r.validateInspectorSpec(); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := r.validateDHCPRangesOverlap(); err != nil {
+	if err := r.Spec.ValidateUpdate(basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -122,6 +124,30 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 	}
 
 	return nil
+}
+
+// ValidateUpdate - Exported function wrapping non-exported validate functions,
+// this function can be called externally to validate an ironic spec.
+func (spec *IronicSpec) ValidateUpdate(basePath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if err := validateConductorSpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	if err := validateInspectorSpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	if err := validateDHCPRangesOverlap(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	return allErrs
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -132,13 +158,13 @@ func (r *Ironic) ValidateDelete() error {
 	return nil
 }
 
-func (r *Ironic) validateInspectorSpec() field.ErrorList {
+func validateInspectorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
-	basePath := field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges")
+	fieldPath := basePath.Child("ironicInspector").Child("dhcpRanges")
 
 	// Validate DHCP ranges
-	for idx, dhcpRange := range r.Spec.IronicInspector.DHCPRanges {
-		if err := r.validateDHCPRange(dhcpRange, basePath.Index(idx)); err != nil {
+	for idx, dhcpRange := range spec.IronicInspector.DHCPRanges {
+		if err := validateDHCPRange(dhcpRange, fieldPath.Index(idx)); err != nil {
 			allErrs = append(allErrs, err...)
 		}
 	}
@@ -147,19 +173,19 @@ func (r *Ironic) validateInspectorSpec() field.ErrorList {
 }
 
 // validateConductorSpec
-func (r *Ironic) validateConductorSpec() field.ErrorList {
+func validateConductorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
 	// validateConductoGroupsUnique
-	if err := r.validateConductoGroupsUnique(); err != nil {
+	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
 	// Validate DHCP ranges - Ironic Conductor
-	for condIdx, conductor := range r.Spec.IronicConductors {
+	for condIdx, conductor := range spec.IronicConductors {
 		for idx, dhcpRange := range conductor.DHCPRanges {
-			path := field.NewPath("spec").Child("ironicConductors").Index(condIdx).Child("dhcpRanges").Index(idx)
-			if err := r.validateDHCPRange(dhcpRange, path); err != nil {
+			path := basePath.Child("ironicConductors").Index(condIdx).Child("dhcpRanges").Index(idx)
+			if err := validateDHCPRange(dhcpRange, path); err != nil {
 				allErrs = append(allErrs, err...)
 			}
 		}
@@ -170,13 +196,13 @@ func (r *Ironic) validateConductorSpec() field.ErrorList {
 
 
 // validateConductoGroupsUnique implements validation of IronicConductor ConductorGroup
-func (r *Ironic) validateConductoGroupsUnique() *field.Error {
-	fieldPath := field.NewPath("spec").Child("ironicConductors")
+func validateConductoGroupsUnique(spec *IronicSpec, basePath *field.Path) *field.Error {
+	fieldPath := basePath.Child("ironicConductors")
 	var groupName string
 	seenGrps := make(map[string]int)
 	dupes := make(map[int]string)
 
-	for groupIdx, c := range r.Spec.IronicConductors {
+	for groupIdx, c := range spec.IronicConductors {
 		if c.ConductorGroup == "" {
 			groupName = "null_conductor_group_null"
 		} else {
@@ -201,13 +227,13 @@ func (r *Ironic) validateConductoGroupsUnique() *field.Error {
 		err := fmt.Sprintf(
 			"ConductorGroup must be unique: %s", strings.Join(eStrings, ", "))
 
-		return field.Invalid(fieldPath, r.Spec.IronicConductors, err)
+		return field.Invalid(fieldPath, spec.IronicConductors, err)
 	}
 
 	return nil
 }
 
-func (r *Ironic) validateDHCPRange(
+func validateDHCPRange(
 	dhcpRange DHCPRange,
 	path *field.Path,
 ) field.ErrorList {
@@ -290,13 +316,13 @@ func (r *Ironic) validateDHCPRange(
 
 // validateDHCPRangesOverlap
 // Check for overlapping start->end in all DHCP ranges. (Conductor and Inspector)
-func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
+func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 	var netIPStartEnds []netIPStartEnd
-	conductorPath := field.NewPath("spec").Child("ironicConductors")
-	inspectorPath := field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges")
+	conductorPath := basePath.Child("ironicConductors")
+	inspectorPath := basePath.Child("ironicInspector").Child("dhcpRanges")
 
-	for idx, dhcpRange := range r.Spec.IronicInspector.DHCPRanges {
+	for idx, dhcpRange := range spec.IronicInspector.DHCPRanges {
 		start := net.ParseIP(dhcpRange.Start)
 		end := net.ParseIP(dhcpRange.End)
 		if start == nil || end == nil {
@@ -315,7 +341,7 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 		)
 	}
 	
-	for condIdx, conductor := range r.Spec.IronicConductors {
+	for condIdx, conductor := range spec.IronicConductors {
 		for idx, dhcpRange := range conductor.DHCPRanges {
 			start := net.ParseIP(dhcpRange.Start)
 			end := net.ParseIP(dhcpRange.End)
@@ -341,7 +367,7 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 			if bx == ax {
 				continue
 			}
-			allErrs = r.validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])	
+			allErrs = validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])	
 		}
 	}
 
@@ -351,7 +377,7 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 
 // validateStartEndOverlap -
 // Check that start->end does not overlap
-func (r *Ironic) validateStartEndOverlap(
+func validateStartEndOverlap(
 	a netIPStartEnd,
 	b netIPStartEnd,
 ) field.ErrorList {
