@@ -279,7 +279,7 @@ func StatefulSet(
 	initContainerDetails := APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
 		PxeContainerImage:    instance.Spec.PxeContainerImage,
-		DatabaseHost:         instance.Spec.DatabaseHostname,
+		DatabaseHost:         instance.Status.DatabaseHostname,
 		DatabaseUser:         instance.Spec.DatabaseUser,
 		DatabaseName:         DatabaseName,
 		OSPSecret:            instance.Spec.Secret,

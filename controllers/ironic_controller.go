@@ -809,7 +809,6 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 			// Add in transfers from umbrella Ironic (this instance) spec
 			// TODO: Add logic to determine when to set/overwrite, etc
 			deployment.Spec.Standalone = instance.Spec.Standalone
-			deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 			// TODO: Revist DatabaseUser - It is currently implemented in lib-common,
 			//       but not in mariadb-operator. mariadb-operator always creates
 			//       database user with name == .DatabaseName
