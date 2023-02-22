@@ -49,10 +49,6 @@ type IronicInspectorSpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
-	// DatabaseHostname - Ironic Database Hostname
-	DatabaseHostname string `json:"databaseHostname,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// MariaDB instance name.
 	// Right now required by the maridb-operator to get the credentials from the instance to create the DB.
 	// Might not be required in future.

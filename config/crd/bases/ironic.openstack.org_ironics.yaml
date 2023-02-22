@@ -471,9 +471,6 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  databaseHostname:
-                    description: DatabaseHostname - Ironic Database Hostname
-                    type: string
                   databaseInstance:
                     description: MariaDB instance name. Right now required by the
                       maridb-operator to get the credentials from the instance to
