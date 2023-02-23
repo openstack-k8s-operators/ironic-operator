@@ -410,7 +410,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+			r.Log.Info(fmt.Sprintf("Conductor deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
 		}
 		// Mirror IronicConductor status' ReadyCount to this parent CR
 		// instance.Status.ServiceIDs = ironicConductor.Status.ServiceIDs
