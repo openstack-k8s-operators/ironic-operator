@@ -105,11 +105,14 @@ vet: gowork ## Run go vet against code.
 	go vet ./api/...
 
 .PHONY: tidy
-	go mod tidy
+	go mod tidy; \
+	pushd "$(LOCALBIN)/../api/"; \
+	go mod tidy; \
+	popd
 
 .PHONY: golangci-lint
 golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.51.2
+	test -s $(LOCALBIN)/tolangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.51.2
 	$(LOCALBIN)/golangci-lint run --fix
 
 .PHONY: test
