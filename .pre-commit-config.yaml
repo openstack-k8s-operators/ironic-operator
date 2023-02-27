@@ -1,17 +1,4 @@
 repos:
-- repo: https://github.com/dnephin/pre-commit-golang
-  rev: v0.5.1
-  hooks:
-    - id: go-fmt
-      exclude: ^vendor
-    - id: go-vet
-    - id: go-mod-tidy
-
-- repo: https://github.com/golangci/golangci-lint
-  rev: v1.50.1
-  hooks:
-    - id: golangci-lint
-
 - repo: local
   hooks:
     - id: golangci-lint
