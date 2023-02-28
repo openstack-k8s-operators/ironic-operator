@@ -38,6 +38,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	k8s_types "k8s.io/apimachinery/pkg/types"
 
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -51,8 +52,6 @@ import (
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/route"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -1108,12 +1107,30 @@ func (r *IronicInspectorReconciler) reconcileServices(
 			instance,
 			inspectorServiceLabels)
 		if inspectorService != nil {
-			svc := service.NewService(inspectorService, inspectorServiceLabels, 5)
-			ctrlResult, err := svc.CreateOrPatch(ctx, helper)
+			err = controllerutil.SetOwnerReference(&inspectorPod, inspectorService, helper.GetScheme())
 			if err != nil {
 				return ctrl.Result{}, err
-			} else if (ctrlResult != ctrl.Result{}) {
-				return ctrl.Result{}, nil
+			}
+			err = r.Get(
+				ctx,
+				k8s_types.NamespacedName{
+					Name:      inspectorService.Name,
+					Namespace: inspectorService.Namespace,
+				},
+				inspectorService,
+			)
+			if err != nil && k8s_errors.IsNotFound(err) {
+				r.Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", inspectorService.Name))
+				err = r.Create(ctx, inspectorService)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				r.Log.Info(fmt.Sprintf("Service port %s exists, updating it", inspectorService.Name))
+				err = r.Update(ctx, inspectorService)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 		}
 		// create service - end
@@ -1125,19 +1142,32 @@ func (r *IronicInspectorReconciler) reconcileServices(
 				common.AppSelector:       ironic.ServiceName,
 				ironic.ComponentSelector: ironic.InspectorComponent + "-" + ironic.HttpbootComponent,
 			}
-			route := route.NewRoute(
-				ironicinspector.Route(
-					inspectorPod.Name,
-					instance,
-					inspectorRouteLabels),
-				inspectorRouteLabels,
-				5,
-			)
-			_, err := route.CreateOrPatch(ctx, helper)
+			inspectorRoute := ironicinspector.Route(inspectorPod.Name, instance, inspectorRouteLabels)
+			err = controllerutil.SetOwnerReference(&inspectorPod, inspectorRoute, helper.GetScheme())
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			// create service - end
+			err = r.Get(
+				ctx,
+				k8s_types.NamespacedName{
+					Name:      inspectorRoute.Name,
+					Namespace: inspectorRoute.Namespace,
+				},
+				inspectorRoute,
+			)
+			if err != nil && k8s_errors.IsNotFound(err) {
+				r.Log.Info(fmt.Sprintf("Route %s does not exist, creating it", inspectorRoute.Name))
+				err = r.Create(ctx, inspectorRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				r.Log.Info(fmt.Sprintf("Route %s exists, updating it", inspectorRoute.Name))
+				err = r.Update(ctx, inspectorRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
 		}
 	}
 
