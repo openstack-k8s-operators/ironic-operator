@@ -332,7 +332,7 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			continue
 		}
 		netIPStartEnds = append(
-			netIPStartEnds, 
+			netIPStartEnds,
 			netIPStartEnd{
 				start: start,
 				end: end,
@@ -347,12 +347,12 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			end := net.ParseIP(dhcpRange.End)
 			if start == nil || end == nil {
 				// If net.ParseIP returns 'nil' the address is not valid, the issue
-			    // has already been detected by previous validation ... 
+			    // has already been detected by previous validation ...
 				// can safely skip here.
 				continue
 			}
 			netIPStartEnds = append(
-				netIPStartEnds, 
+				netIPStartEnds,
 				netIPStartEnd{
 					start: start,
 					end: end,
