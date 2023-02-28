@@ -161,7 +161,6 @@ type DHCPRange struct {
 	// MTU - Maximum Transmission Unit
 	MTU int `json:"mtu,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:
 	// PodIndex - Maps the DHCPRange to a specific statefulset pod index
 	PodIndex int `json:"podIndex,omitempty"`
 	// Prefix - (Hidden) Internal use only, prefix (mask bits) for IPv6 is autopopulated from Cidr

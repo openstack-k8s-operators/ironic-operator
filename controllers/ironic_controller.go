@@ -457,34 +457,41 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-inspector
-	ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
-	if err != nil {
-		instance.Status.Conditions.Set(
-			condition.FalseCondition(
-				ironicv1.IronicInspectorReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				ironicv1.IronicInspectorReadyErrorMessage,
-				err.Error()))
-		return ctrl.Result{}, err
-	}
-	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
-	}
+	if instance.Spec.IronicInspector.Replicas != 0 {
+		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicInspectorReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicInspectorReadyErrorMessage,
+					err.Error()))
+			return ctrl.Result{}, err
+		}
+		if op != controllerutil.OperationResultNone {
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		}
 
-	// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-	for k, v := range ironicInspector.Status.APIEndpoints {
-		instance.Status.APIEndpoints[k] = v
-	}
-	for k, v := range ironicInspector.Status.ServiceIDs {
-		instance.Status.ServiceIDs[k] = v
-	}
-	instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
+		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
+		for k, v := range ironicInspector.Status.APIEndpoints {
+			instance.Status.APIEndpoints[k] = v
+		}
+		for k, v := range ironicInspector.Status.ServiceIDs {
+			instance.Status.ServiceIDs[k] = v
+		}
+		instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
-	// Mirror IronicInspector's condition status
-	c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+		// Mirror IronicInspector's condition status
+		c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+	} else {
+		err := r.inspectorDeploymentDelete(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	r.Log.Info("Reconciled Ironic successfully")
@@ -831,4 +838,38 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		})
 
 	return deployment, op, err
+}
+
+func (r *IronicReconciler) inspectorDeploymentDelete(
+	ctx context.Context,
+	instance *ironicv1.Ironic,
+) error {
+	deployment := &ironicv1.IronicInspector{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-inspector", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+	err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+	if err != nil {
+		return err
+	}
+	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
+	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
+		if k8s_errors.IsNotFound(err) {
+			return nil
+		} 
+		return err
+	}
+	if err := r.Client.Delete(ctx, deployment); err != nil {
+		return err
+	}
+	// Remove inspector APIEndpoints, Services and set ReadyCount 0
+	delete(instance.Status.APIEndpoints, "ironic-inspector")
+	delete(instance.Status.ServiceIDs, "ironic-inspector")
+	instance.Status.InspectorReadyCount = 0
+	// Remove IronicInspectorReadyCondition
+	instance.Status.Conditions.Remove(ironicv1.IronicInspectorReadyCondition)
+
+	return nil
 }

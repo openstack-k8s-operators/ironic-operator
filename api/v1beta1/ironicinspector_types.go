@@ -44,6 +44,7 @@ type IronicInspectorSpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Maximum=1
 	// +kubebuilder:default=1
 	// Replicas - Ironic Inspector Replicas
 	Replicas int32 `json:"replicas"`
