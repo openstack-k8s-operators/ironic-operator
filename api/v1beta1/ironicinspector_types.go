@@ -127,7 +127,7 @@ type IronicInspectorSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// NetworkAttachments list of network attachment definitions the pods get attached to.
-	NetworkAttachments []string `json:"networkAttachments"`
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// InspectionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.

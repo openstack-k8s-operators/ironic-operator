@@ -61,8 +61,10 @@ func (r *Ironic) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-ironic-openstack-org-v1beta1-ironic,mutating=false,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=vironic.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-ironic-openstack-org-v1beta1-ironic,mutating=true,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=mironic.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Ironic{}
+var _ webhook.Defaulter = &Ironic{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Ironic) ValidateCreate() error {
@@ -405,4 +407,112 @@ func (r *Ironic) validateStartEndOverlap(
 	}
 
 	return allErrs
+}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *Ironic) Default() {
+	ironiclog.Info("webhook - calling defaulter")
+
+	// All defaulter functions called in Spec's Default method,
+	// so that the defaulter can be triggered externally.
+	r.Spec.Default()
+
+	ironiclog.Info("webhook - defaulter called")
+}
+
+// Default - Exported function wrapping non-exported defaulter functions,
+// this function can be called externally to default an ironic spec.
+func (spec *IronicSpec) Default() {
+	defaultIronicAPI(spec)
+	defaultIronicConductors(spec)
+	defaultIronicInspector(spec)
+}
+
+// defaultIronicAPI - implements defaulter for IronicAPI spec
+func defaultIronicAPI(spec *IronicSpec) {
+	ironiclog.Info("webhook - calling IronicAPI defaulter")
+	// Standalone
+	if spec.Standalone {
+		spec.IronicAPI.Standalone = true
+	}
+	// ServiceUser
+	if spec.IronicAPI.ServiceUser == "" {
+		spec.IronicAPI.ServiceUser = spec.ServiceUser
+	}
+	// DatabaseUser
+	if spec.IronicAPI.DatabaseUser == "" {
+		spec.IronicAPI.DatabaseUser = spec.DatabaseUser
+	}
+	// Secret
+	if spec.IronicAPI.Secret == "" {
+		spec.IronicAPI.Secret = spec.Secret
+	}
+	// NodeSelector
+	if len(spec.IronicAPI.NodeSelector) == 0 {
+		spec.IronicAPI.NodeSelector = spec.NodeSelector
+	}
+
+	ironiclog.Info("webhook - IronicAPI defaulter called")
+}
+
+// defaultIronicConductors - implements defaulter for IronicConductor Specs
+func defaultIronicConductors(spec *IronicSpec) {
+	ironiclog.Info("webhook - calling IronicConductors defaulter")
+	for idx, c := range spec.IronicConductors {
+		// StorageClass
+		if c.StorageClass == "" {
+			spec.IronicConductors[idx].StorageClass = spec.StorageClass
+		}
+		// Standalone
+		if spec.Standalone {
+			spec.IronicConductors[idx].Standalone = true
+		}
+		// ServiceUser
+		if c.ServiceUser == "" {
+			spec.IronicConductors[idx].ServiceUser = spec.ServiceUser
+		}
+		// DatabaseUser
+		if c.DatabaseUser == "" {
+			spec.IronicConductors[idx].DatabaseUser = spec.DatabaseUser
+		}
+		// RPCTransport
+		if c.RPCTransport == "" {
+			spec.IronicConductors[idx].RPCTransport = spec.RPCTransport
+		}
+		// Secret
+		if c.Secret == "" {
+			spec.IronicConductors[idx].Secret = spec.Secret
+		}
+		// NodeSelector
+		if len(c.NodeSelector) == 0 {
+			spec.IronicConductors[idx].NodeSelector = spec.NodeSelector
+		}
+	}
+	ironiclog.Info("webhook - IronicConductors defaulter called")
+}
+
+// defaultIronicInspector - implements defaulter for IronicInspector Spec
+func defaultIronicInspector(spec *IronicSpec) {
+	ironiclog.Info("webhook - calling IronicInspector defaulter")
+	// Standalone
+	if spec.Standalone {
+		spec.IronicInspector.Standalone = true
+	}
+	// DatabaseInstance
+	if spec.IronicInspector.DatabaseInstance == "" {
+		spec.IronicInspector.DatabaseInstance = spec.DatabaseInstance
+	}
+	// RPCTransport
+	if spec.IronicInspector.RPCTransport == "" {
+		spec.IronicInspector.RPCTransport = spec.RPCTransport
+	}
+	// Secret
+	if spec.IronicInspector.Secret == "" {
+		spec.IronicInspector.Secret = spec.Secret
+	}
+	// NodeSelector
+	if len(spec.IronicInspector.NodeSelector) == 0 {
+		spec.IronicInspector.NodeSelector = spec.NodeSelector
+	}
+	ironiclog.Info("webhook - IronicInspector defaulter called")
 }
