@@ -4,7 +4,7 @@
 # ironicAPIReadyCount
 # ironicConductorReadyCount
 # apiEndpoints
-# 
+#
 # DBReady
 # DBSyncReady
 # BootstrapReady
@@ -15,7 +15,7 @@
 # IronicConductorReady
 # IronicRabbitMqTransportURLReady
 # ServiceConfigReady
-# 
+#
 # reason: Ready
 # status: "True"
 

@@ -308,7 +308,7 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 			continue
 		}
 		netIPStartEnds = append(
-			netIPStartEnds, 
+			netIPStartEnds,
 			netIPStartEnd{
 				start: start,
 				end: end,
@@ -316,19 +316,19 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 			},
 		)
 	}
-	
+
 	for condIdx, conductor := range r.Spec.IronicConductors {
 		for idx, dhcpRange := range conductor.DHCPRanges {
 			start := net.ParseIP(dhcpRange.Start)
 			end := net.ParseIP(dhcpRange.End)
 			if start == nil || end == nil {
 				// If net.ParseIP returns 'nil' the address is not valid, the issue
-			    // has already been detected by previous validation ... 
+			    // has already been detected by previous validation ...
 				// can safely skip here.
 				continue
 			}
 			netIPStartEnds = append(
-				netIPStartEnds, 
+				netIPStartEnds,
 				netIPStartEnd{
 					start: start,
 					end: end,
@@ -343,7 +343,7 @@ func (r *Ironic) validateDHCPRangesOverlap() field.ErrorList {
 			if bx == ax {
 				continue
 			}
-			allErrs = r.validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])	
+			allErrs = r.validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])
 		}
 	}
 
