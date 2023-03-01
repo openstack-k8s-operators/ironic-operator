@@ -462,6 +462,9 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.Set(c)
 	}
 
+	inspectorServiceReady := true
+	inspectorDeploymentReady := true
+
 	// deploy ironic-inspector
 	if instance.Spec.IronicInspector.Replicas != 0 {
 		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
@@ -493,6 +496,8 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
+		inspectorServiceReady = ironicInspector.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
+		inspectorDeploymentReady = ironicInspector.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
 	} else {
 		err := r.inspectorDeploymentDelete(ctx, instance)
 		if err != nil {
@@ -501,12 +506,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Set ExposeServiceReadyCondition True if both IronicAPI and IronicInspector is ready
-	var inspectorServiceReady bool
-	if instance.Spec.IronicInspector.Replicas > 0 {
-		inspectorServiceReady = ironicInspector.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
-	} else {
-		inspectorServiceReady = true
-	}
 	ironicAPIServiceReady := ironicAPI.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
 	if inspectorServiceReady && ironicAPIServiceReady {
 		instance.Status.Conditions.MarkTrue(
@@ -515,27 +514,19 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		)
 	}
 
-	// Set DeploymentReadyCondition True if both IronicConductors and IronicInspector is ready
-	var inspectorDeploymentReady bool
-	var conductorDeployemntsReady bool
-	if instance.Spec.IronicInspector.Replicas > 0 {
-		inspectorDeploymentReady = ironicInspector.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
-	} else {
-		inspectorDeploymentReady = true
-	}
+	conductorDeployemntsReady := true
 	for _, conductorSpec := range instance.Spec.IronicConductors {
 		condGrp := conductorSpec.ConductorGroup
 		if conductorSpec.ConductorGroup == "" {
 			condGrp = ironicv1.ConductorGroupNull
 		}
-		if ironicConductorsDeploymentReadyMap[condGrp] {
-			conductorDeployemntsReady = true
-		} else {
+		if !ironicConductorsDeploymentReadyMap[condGrp] {
 			conductorDeployemntsReady = false
 			// No reason to continue, if one conductor group is not Ready
 			break
 		}
 	}
+	// Set DeploymentReadyCondition True if both IronicConductors and IronicInspector is ready
 	if inspectorDeploymentReady && conductorDeployemntsReady {
 		instance.Status.Conditions.MarkTrue(
 			condition.DeploymentReadyCondition,
@@ -880,7 +871,7 @@ func (r *IronicReconciler) inspectorDeploymentDelete(
 	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return nil
-		} 
+		}
 		return err
 	}
 	if err := r.Client.Delete(ctx, deployment); err != nil {
