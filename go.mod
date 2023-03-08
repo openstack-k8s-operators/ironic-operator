@@ -84,10 +84,6 @@ require (
 
 replace github.com/openstack-k8s-operators/ironic-operator/api => ./api
 
-// Without this, the following error occurs:
-// ../go/pkg/mod/k8s.io/apimachinery@v0.24.3/pkg/util/managedfields/gvkparser.go:62:39: cannot use smdschema.Schema{…} (value of type "sigs.k8s.io/structured-merge-diff/v4/schema".Schema) as type *"sigs.k8s.io/structured-merge-diff/v4/schema".Schema in struct literal
-replace sigs.k8s.io/structured-merge-diff/v4 v4.2.2 => sigs.k8s.io/structured-merge-diff/v4 v4.2.1
-
 // This is need when updating to new version of lib-common.  For some reason, "go get -u" on the database and openstack
 // lib-common modules breaks because they try to find this "v0.0.0-00010101000000-000000000000" common module version
 // which does not exist.  So if you update the lib-common dependencies, uncomment the line below and change the common
