@@ -103,7 +103,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Name: "PodNetworksStatus",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.annotations['k8s.v1.cni.cncf.io/networks-status']",
+					FieldPath: "metadata.annotations['k8s.v1.cni.cncf.io/network-status']",
 				},
 			},
 		},

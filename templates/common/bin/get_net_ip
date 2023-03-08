@@ -19,7 +19,7 @@ import json
 import sys
 
 # Uses network status from pod:
-#   metadata.annotations['k8s.v1.cni.cncf.io/networks-status']
+#   metadata.annotations['k8s.v1.cni.cncf.io/network-status']
 #
 # Example network status json string:
 #
