@@ -309,9 +309,6 @@ func (r *IronicAPIReconciler) reconcileInit(
 		endpoint.EndpointPublic: {
 			Port: ironic.IronicPublicPort,
 		},
-		endpoint.EndpointAdmin: {
-			Port: ironic.IronicAdminPort,
-		},
 		endpoint.EndpointInternal: {
 			Port: ironic.IronicInternalPort,
 		},

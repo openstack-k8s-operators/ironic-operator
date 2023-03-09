@@ -26,8 +26,6 @@ const (
 	DatabaseName = "ironic"
 	// IronicPublicPort -
 	IronicPublicPort int32 = 6385
-	// IronicAdminPort -
-	IronicAdminPort int32 = 6385
 	// IronicInternalPort -
 	IronicInternalPort int32 = 6385
 	// KollaConfigDbSync -

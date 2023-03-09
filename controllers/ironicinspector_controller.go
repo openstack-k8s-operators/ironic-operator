@@ -838,9 +838,6 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		endpoint.EndpointPublic: {
 			Port: ironicinspector.IronicInspectorPublicPort,
 		},
-		endpoint.EndpointAdmin: {
-			Port: ironicinspector.IronicInspectorAdminPort,
-		},
 		endpoint.EndpointInternal: {
 			Port: ironicinspector.IronicInspectorInternalPort,
 		},
