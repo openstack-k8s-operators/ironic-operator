@@ -130,6 +130,10 @@ type IronicInspectorSpec struct {
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// InspectionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
 	InspectionNetwork string `json:"inspectionNetwork,omitempty"`
 

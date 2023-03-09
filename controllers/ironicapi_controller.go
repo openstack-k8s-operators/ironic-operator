@@ -317,6 +317,18 @@ func (r *IronicAPIReconciler) reconcileInit(
 		},
 	}
 
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := data[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		data[metallbcfg.Endpoint] = portCfg
+	}
+
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		helper,

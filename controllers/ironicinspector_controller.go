@@ -846,6 +846,18 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		},
 	}
 
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := data[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		data[metallbcfg.Endpoint] = portCfg
+	}
+
 	inspectorServiceName := ironic.ServiceName + "-" + ironic.InspectorComponent
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
