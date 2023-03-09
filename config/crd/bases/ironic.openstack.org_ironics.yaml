@@ -130,6 +130,12 @@ spec:
                       add additional files. Those get added to the service config
                       dir in /etc/<service> . TODO: -> implement'
                     type: object
+                  networkAttachments:
+                    description: NetworkAttachments is a list of NetworkAttachment
+                      resource names to expose the services to the given network
+                    items:
+                      type: string
+                    type: array
                   nodeSelector:
                     additionalProperties:
                       type: string
@@ -325,8 +331,8 @@ spec:
                         type: object
                       type: array
                     networkAttachments:
-                      description: NetworkAttachments list of network attachment definitions
-                        the pods get attached to.
+                      description: NetworkAttachments is a list of NetworkAttachment
+                        resource names to expose the services to the given network
                       items:
                         type: string
                       type: array
@@ -548,8 +554,8 @@ spec:
                       to expose boot DHCP, TFTP, HTTP services.
                     type: string
                   networkAttachments:
-                    description: NetworkAttachments list of network attachment definitions
-                      the pods get attached to.
+                    description: NetworkAttachments is a list of NetworkAttachment
+                      resource names to expose the services to the given network
                     items:
                       type: string
                     type: array

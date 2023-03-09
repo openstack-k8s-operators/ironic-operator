@@ -104,6 +104,10 @@ type IronicAPISpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 }
 
 // IronicAPIStatus defines the observed state of IronicAPI
@@ -122,10 +126,14 @@ type IronicAPIStatus struct {
 
 	// ServiceIDs
 	ServiceIDs map[string]string `json:"serviceIDs,omitempty"`
+
+	// NetworkAttachments status of the deployment pods
+	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="NetworkAttachments",type="string",JSONPath=".spec.networkAttachments",description="NetworkAttachments"
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
