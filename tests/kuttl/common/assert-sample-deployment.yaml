@@ -14,7 +14,6 @@ kind: Ironic
 metadata:
   finalizers:
   - Ironic
-  generation: 1
   name: ironic
   namespace: openstack
 spec:
@@ -88,7 +87,6 @@ kind: IronicAPI
 metadata:
   finalizers:
   - IronicAPI
-  generation: 1
   name: ironic-api
   namespace: openstack
   ownerReferences:
@@ -128,7 +126,6 @@ kind: IronicConductor
 metadata:
   finalizers:
   - IronicConductor
-  generation: 1
   name: ironic-conductor
   namespace: openstack
   ownerReferences:
@@ -166,7 +163,6 @@ kind: IronicInspector
 metadata:
   finalizers:
   - IronicInspector
-  generation: 1
   name: ironic-inspector
   namespace: openstack
   ownerReferences:
