@@ -88,7 +88,7 @@ func (r *Ironic) ValidateCreate() error {
 // this function can be called externally to validate an ironic spec.
 func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
-	
+
 	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
@@ -97,7 +97,7 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 		allErrs = append(allErrs, err...)
 	}
 
-	
+
 	if err := validateInspectorSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -342,7 +342,7 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			},
 		)
 	}
-	
+
 	for condIdx, conductor := range spec.IronicConductors {
 		for idx, dhcpRange := range conductor.DHCPRanges {
 			start := net.ParseIP(dhcpRange.Start)
@@ -369,7 +369,7 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			if bx == ax {
 				continue
 			}
-			allErrs = validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])	
+			allErrs = validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])
 		}
 	}
 
