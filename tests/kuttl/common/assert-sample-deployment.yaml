@@ -7,7 +7,7 @@
 # IronicInspector
 # apiEndpoints
 # service port connectivity
-# 
+#
 
 apiVersion: ironic.openstack.org/v1beta1
 kind: Ironic
