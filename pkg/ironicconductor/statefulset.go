@@ -16,15 +16,11 @@ limitations under the License.
 package ironicconductor
 
 import (
-	"fmt"
-
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/annotations"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +38,8 @@ func StatefulSet(
 	configHash string,
 	labels map[string]string,
 	ingressDomain string,
-) (*appsv1.StatefulSet, error) {
+	annotations map[string]string,
+) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
@@ -272,7 +269,8 @@ func StatefulSet(
 			Replicas: &instance.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Annotations: annotations,
+					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName:            ironic.ServiceAccount,
@@ -296,14 +294,6 @@ func StatefulSet(
 	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
 		statefulset.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
-
-	// networks to attach to
-	nwAnnotation, err := annotations.GetNADAnnotation(instance.Namespace, instance.Spec.NetworkAttachments)
-	if err != nil {
-		return nil, fmt.Errorf("failed create network annotation from %s: %w",
-			instance.Spec.NetworkAttachments, err)
-	}
-	statefulset.Spec.Template.Annotations = util.MergeStringMaps(statefulset.Spec.Template.Annotations, nwAnnotation)
 
 	// init.sh needs to detect and set ProvisionNetworkIP
 	deployHTTPURL := "http://%(ProvisionNetworkIP)s:8088/"
@@ -331,5 +321,5 @@ func StatefulSet(
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
-	return statefulset, nil
+	return statefulset
 }

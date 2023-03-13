@@ -104,6 +104,43 @@ type IronicAPISpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+}
+
+// MetalLBConfig to configure the MetalLB loadbalancer service
+type MetalLBConfig struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=internal;public
+	// Endpoint, OpenStack endpoint this service maps to
+	Endpoint endpoint.Endpoint `json:"endpoint"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// IPAddressPool expose VIP via MetalLB on the IPAddressPool
+	IPAddressPool string `json:"ipAddressPool"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	// SharedIP if true, VIP/VIPs get shared with multiple services
+	SharedIP bool `json:"sharedIP"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=""
+	// SharedIPKey specifies the sharing key which gets set as the annotation on the LoadBalancer service.
+	// Services which share the same VIP must have the same SharedIPKey. Defaults to the IPAddressPool if
+	// SharedIP is true, but no SharedIPKey specified.
+	SharedIPKey string `json:"sharedIPKey"`
+
+	// +kubebuilder:validation:Optional
+	// LoadBalancerIPs, request given IPs from the pool if available. Using a list to allow dual stack (IPv4/IPv6) support
+	LoadBalancerIPs []string `json:"loadBalancerIPs,omitempty"`
 }
 
 // IronicAPIStatus defines the observed state of IronicAPI
@@ -122,10 +159,14 @@ type IronicAPIStatus struct {
 
 	// ServiceIDs
 	ServiceIDs map[string]string `json:"serviceIDs,omitempty"`
+
+	// NetworkAttachments status of the deployment pods
+	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="NetworkAttachments",type="string",JSONPath=".spec.networkAttachments",description="NetworkAttachments"
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 

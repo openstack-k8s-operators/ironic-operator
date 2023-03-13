@@ -57,6 +57,69 @@ spec:
     }
 ```
 
+## Example: expose IronicAPI or IronicInspector to an isolated network
+
+The Ironic spec can be used to register e.g. the internal endpoint to
+an isolated network. MetalLB is used for this scenario.
+
+As a pre requisite, MetalLB needs to be installed and worker nodes
+prepared to work as MetalLB nodes to serve the LoadBalancer service.
+
+In this example the following MetalLB IPAddressPool is used:
+
+```
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: osp-internalapi
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.17.0.200-172.17.0.210
+  autoAssign: false
+```
+
+The following represents an example of Ironic resource that can be used
+to trigger the service deployment, and have the internal ironicAPI endpoint
+registerd as a MetalLB service using the IPAddressPool `osp-internal`,
+request to use the IP `172.17.0.202` as the VIP and the IP is shared with
+other services.
+
+```
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  name: ironic
+spec:
+  ...
+  ironicAPI:
+    ...
+    externalEndpoints:
+      - endpoint: internal
+        ipAddressPool: osp-internalapi
+        loadBalancerIPs:
+        - "172.17.0.202"
+        sharedIP: true
+        sharedIPKey: ""
+    ...
+...
+```
+
+The internal ironicAPI endpoint gets registered with its service name. This
+service name needs to resolve to the `LoadBalancerIP` on the isolated network
+either by DNS or via /etc/hosts:
+
+```
+# openstack endpoint list -c 'Service Name' -c Interface -c URL --service ironic
++--------------+-----------+-------------------------------------------------+
+| Service Name | Interface | URL                                             |
++--------------+-----------+-------------------------------------------------+
+| ironic       | internal  | http://ironic-internal.openstack.svc:6385       |
+| ironic       | public    | http://ironic-public-openstack.apps-crc.testing |
++--------------+-----------+-------------------------------------------------+
+```
+
 # Design
 The current design takes care of the following:
 

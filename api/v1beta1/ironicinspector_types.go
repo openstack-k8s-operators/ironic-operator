@@ -126,8 +126,12 @@ type IronicInspectorSpec struct {
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional
-	// NetworkAttachments list of network attachment definitions the pods get attached to.
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// InspectionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
@@ -161,15 +165,15 @@ type IronicInspectorStatus struct {
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
-	// Networks in addtion to the cluster network, the service is attached to
-	Networks []string `json:"networks,omitempty"`
+	// NetworkAttachments status of the deployment pods
+	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="NetworkAttachments",type="string",JSONPath=".spec.networkAttachments",description="NetworkAttachments"
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
 //+kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
-//+kubebuilder:printcolumn:name="Networks",type="string",JSONPath=".status.networks",description="Networks"
 
 // IronicInspector is the Schema for the IronicInspector
 type IronicInspector struct {

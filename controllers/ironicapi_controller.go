@@ -48,6 +48,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
@@ -101,6 +102,7 @@ var (
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile -
 func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
@@ -161,6 +163,7 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
 		)
 
 		if !instance.Spec.Standalone {
@@ -183,6 +186,9 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	if instance.Status.ServiceIDs == nil {
 		instance.Status.ServiceIDs = make(map[string]string)
+	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
 	}
 
 	// Handle service delete
@@ -303,12 +309,21 @@ func (r *IronicAPIReconciler) reconcileInit(
 		endpoint.EndpointPublic: {
 			Port: ironic.IronicPublicPort,
 		},
-		endpoint.EndpointAdmin: {
-			Port: ironic.IronicAdminPort,
-		},
 		endpoint.EndpointInternal: {
 			Port: ironic.IronicInternalPort,
 		},
+	}
+
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := data[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		data[metallbcfg.Endpoint] = portCfg
 	}
 
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
@@ -317,6 +332,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 		ironic.ServiceName,
 		serviceLabels,
 		data,
+		time.Duration(5)*time.Second,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -554,6 +570,35 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 		ironic.ComponentSelector: ironic.APIComponent,
 	}
 
+	// networks to attach to
+	for _, netAtt := range instance.Spec.NetworkAttachments {
+		_, err := nad.GetNADWithName(ctx, helper, netAtt, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.NetworkAttachmentsReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.NetworkAttachmentsReadyWaitingMessage,
+					netAtt))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("network-attachment-definition %s not found", netAtt)
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NetworkAttachmentsReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+
+	serviceAnnotations, err := nad.CreateNetworksAnnotation(instance.Namespace, instance.Spec.NetworkAttachments)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
+			instance.Spec.NetworkAttachments, err)
+	}
+
 	// Handle service init
 	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -584,8 +629,8 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 
 	// Define a new Deployment object
 	depl := deployment.NewDeployment(
-		ironicapi.Deployment(instance, inputHash, serviceLabels),
-		5,
+		ironicapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations),
+		time.Duration(5)*time.Second,
 	)
 
 	ctrlResult, err = depl.CreateOrPatch(ctx, helper)
@@ -606,6 +651,28 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 		return ctrlResult, nil
 	}
 	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, helper, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}

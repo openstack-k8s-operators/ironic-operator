@@ -31,6 +31,7 @@ import (
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
+	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -94,6 +95,7 @@ var (
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 
 // Reconcile -
 func (r *IronicInspectorReconciler) Reconcile(
@@ -173,6 +175,10 @@ func (r *IronicInspectorReconciler) Reconcile(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage),
+			condition.UnknownCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.InitReason,
+				condition.NetworkAttachmentsReadyInitMessage),
 		)
 
 		if !instance.Spec.Standalone {
@@ -197,6 +203,9 @@ func (r *IronicInspectorReconciler) Reconcile(
 	}
 	if instance.Status.ServiceIDs == nil {
 		instance.Status.ServiceIDs = make(map[string]string)
+	}
+	if instance.Status.NetworkAttachments == nil {
+		instance.Status.NetworkAttachments = map[string][]string{}
 	}
 
 	// Handle service delete
@@ -440,6 +449,7 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	helper *helper.Helper,
 	inputHash string,
 	serviceLabels map[string]string,
+	serviceAnnotations map[string]string,
 ) (ctrl.Result, error) {
 
 	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
@@ -448,12 +458,11 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	}
 
 	// Define a new StatefulSet object
-	ssDef, err := ironicinspector.StatefulSet(
-		instance, inputHash, serviceLabels, ingressDomain)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-	}
-	ss := statefulset.NewStatefulSet(ssDef, time.Second*10)
+	ss := statefulset.NewStatefulSet(
+		ironicinspector.StatefulSet(
+			instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations),
+		time.Duration(10)*time.Second,
+	)
 
 	ctrlResult, err := ss.CreateOrPatch(ctx, helper)
 	if err != nil {
@@ -474,6 +483,28 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	}
 
 	instance.Status.ReadyCount = ss.GetStatefulSet().Status.ReadyReplicas
+
+	// verify if network attachment matches expectations
+	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, helper, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.NetworkAttachments = networkAttachmentStatus
+	if networkReady {
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+	} else {
+		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.NetworkAttachmentsReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.NetworkAttachmentsReadyErrorMessage,
+			err.Error()))
+
+		return ctrl.Result{}, err
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(
 			condition.DeploymentReadyCondition,
@@ -482,7 +513,6 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 	// create Statefulset - end
-	instance.Status.Networks = instance.Spec.NetworkAttachments
 
 	return ctrl.Result{}, nil
 }
@@ -517,6 +547,35 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		ironic.ComponentSelector: ironic.InspectorComponent,
 	}
 
+	// networks to attach to
+	for _, netAtt := range instance.Spec.NetworkAttachments {
+		_, err := nad.GetNADWithName(ctx, helper, netAtt, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.NetworkAttachmentsReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.NetworkAttachmentsReadyWaitingMessage,
+					netAtt))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("network-attachment-definition %s not found", netAtt)
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NetworkAttachmentsReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+
+	serviceAnnotations, err := nad.CreateNetworksAnnotation(instance.Namespace, instance.Spec.NetworkAttachments)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
+			instance.Spec.NetworkAttachments, err)
+	}
+
 	// Handle service init
 	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -544,7 +603,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	//
 	// normal reconcile tasks
 	//
-	ctrlResult, err = r.reconcileStatefulSet(ctx, instance, helper, inputHash, serviceLabels)
+	ctrlResult, err = r.reconcileStatefulSet(ctx, instance, helper, inputHash, serviceLabels, serviceAnnotations)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -779,12 +838,21 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		endpoint.EndpointPublic: {
 			Port: ironicinspector.IronicInspectorPublicPort,
 		},
-		endpoint.EndpointAdmin: {
-			Port: ironicinspector.IronicInspectorAdminPort,
-		},
 		endpoint.EndpointInternal: {
 			Port: ironicinspector.IronicInspectorInternalPort,
 		},
+	}
+
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := data[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		data[metallbcfg.Endpoint] = portCfg
 	}
 
 	inspectorServiceName := ironic.ServiceName + "-" + ironic.InspectorComponent
@@ -794,6 +862,7 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		inspectorServiceName,
 		serviceLabels,
 		data,
+		time.Duration(5)*time.Second,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
