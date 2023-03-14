@@ -184,14 +184,14 @@ status:
 ---
 # the actual addresses of the apiEndpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
-# the three endpoints are defined and their addresses follow the default pattern
+# the endpoints are defined and their addresses follow the default pattern
 # This test is for the ironic endpoints
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 namespaced: true
 commands:
   - script: |
-      template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.admin}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
+      template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
       regex="http:\/\/ironic-public-openstack\.apps.*:http:\/\/ironic-admin-openstack\.apps.*:http:\/\/ironic-internal-openstack\.apps.*"
       apiEndpoints=$(oc get -n openstack ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
@@ -203,14 +203,14 @@ commands:
 ---
 # the actual addresses of the apiEndpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
-# the three endpoints are defined and their addresses follow the default pattern
+# the endpoints are defined and their addresses follow the default pattern
 # This test is for the ironic inspector endpoints
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 namespaced: true
 commands:
   - script: |
-      template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "admin"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
+      template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
       regex="http:\/\/ironic-inspector-public-openstack\.apps.*:http:\/\/ironic-inspector-admin-openstack\.apps.*:http:\/\/ironic-inspector-internal-openstack\.apps.*"
       apiEndpoints=$(oc get -n openstack ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
@@ -230,22 +230,10 @@ commands:
       set -x
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
-      ADMIN_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.admin}')
-      INTERNAL_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.internal}')
       STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
       if test $STATUSCODE -ne 200; then
           RETURN_CODE=1
           echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
-      fi
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $ADMIN_URL)
-      if test $STATUSCODE -ne 200; then
-          RETURN_CODE=1
-          echo "${ADMIN_URL} status code expected is 200 but was ${STATUSCODE}"
-      fi
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $INTERNAL_URL)
-      if test $STATUSCODE -ne 200; then
-          RETURN_CODE=1
-          echo "${INTERNAL_URL} status code expected is 200 but was ${STATUSCODE}"
       fi
       exit $RETURN_CODE
 ---
@@ -259,21 +247,9 @@ commands:
       set -x
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
-      ADMIN_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.admin}')
-      INTERNAL_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.internal}')
       STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
       if test $STATUSCODE -ne 200; then
           RETURN_CODE=1
           echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
-      fi
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $ADMIN_URL)
-      if test $STATUSCODE -ne 200; then
-          RETURN_CODE=1
-          echo "${ADMIN_URL} status code expected is 200 but was ${STATUSCODE}"
-      fi
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $INTERNAL_URL)
-      if test $STATUSCODE -ne 200; then
-          RETURN_CODE=1
-          echo "${INTERNAL_URL} status code expected is 200 but was ${STATUSCODE}"
       fi
       exit $RETURN_CODE
