@@ -44,10 +44,25 @@ const (
 	errForbiddenAddressOverlap = "%v overlap with %v: %v"
 )
 
+// IronicDefaults -
+type IronicDefaults struct {
+	APIContainerImageURL       string
+	ConductorContainerImageURL string
+	InspectorContainerImageURL string
+	PXEContainerImageURL       string
+}
+
+var ironicDefaults IronicDefaults
+
 type netIPStartEnd struct {
-	start net.IP       // Start address of DHCP Range
-	end   net.IP       // End address of DHCP Range
-	path  *field.Path  // Field path to DHCP Range in Ironic spec
+	start net.IP      // Start address of DHCP Range
+	end   net.IP      // End address of DHCP Range
+	path  *field.Path // Field path to DHCP Range in Ironic spec
+}
+
+// SetupDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
+func (spec *IronicSpec) SetupDefaults(defaults IronicDefaults) {
+	ironicDefaults = defaults
 }
 
 // SetupWebhookWithManager sets up the webhook with the Manager
@@ -96,7 +111,6 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	if err := validateConductorSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
-
 
 	if err := validateInspectorSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
@@ -195,7 +209,6 @@ func validateConductorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorLi
 
 	return allErrs
 }
-
 
 // validateConductoGroupsUnique implements validation of IronicConductor ConductorGroup
 func validateConductoGroupsUnique(spec *IronicSpec, basePath *field.Path) *field.Error {
@@ -315,7 +328,6 @@ func validateDHCPRange(
 	return allErrs
 }
 
-
 // validateDHCPRangesOverlap
 // Check for overlapping start->end in all DHCP ranges. (Conductor and Inspector)
 func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.ErrorList {
@@ -337,8 +349,8 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			netIPStartEnds,
 			netIPStartEnd{
 				start: start,
-				end: end,
-				path: inspectorPath.Index(idx),
+				end:   end,
+				path:  inspectorPath.Index(idx),
 			},
 		)
 	}
@@ -349,7 +361,7 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 			end := net.ParseIP(dhcpRange.End)
 			if start == nil || end == nil {
 				// If net.ParseIP returns 'nil' the address is not valid, the issue
-			    // has already been detected by previous validation ...
+				// has already been detected by previous validation ...
 				// can safely skip here.
 				continue
 			}
@@ -357,8 +369,8 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 				netIPStartEnds,
 				netIPStartEnd{
 					start: start,
-					end: end,
-					path: conductorPath.Index(condIdx).Child("dhcpRanges").Index(idx),
+					end:   end,
+					path:  conductorPath.Index(condIdx).Child("dhcpRanges").Index(idx),
 				},
 			)
 		}
@@ -375,7 +387,6 @@ func validateDHCPRangesOverlap(spec *IronicSpec, basePath *field.Path) field.Err
 
 	return allErrs
 }
-
 
 // validateStartEndOverlap -
 // Check that start->end does not overlap
@@ -395,8 +406,8 @@ func validateStartEndOverlap(
 		case -1: // a.End < b.Start :: OK
 			return allErrs
 		case 0, 1: // a.Start < b.Start && a.End >= b.Start :: FORBIDDEN
-		    aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
-		    bRange := fmt.Sprintf("%v->%v", b.start.String(), b.end.String())
+			aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
+			bRange := fmt.Sprintf("%v->%v", b.start.String(), b.end.String())
 			allErrs = append(
 				allErrs,
 				field.Forbidden(
@@ -406,7 +417,7 @@ func validateStartEndOverlap(
 			return allErrs
 		}
 	case 0: // a.Start == b.Start :: FORBIDDEN
-	    aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
+		aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
 		bRange := fmt.Sprintf("%v->%v", b.start.String(), b.end.String())
 		allErrs = append(
 			allErrs,
@@ -420,7 +431,7 @@ func validateStartEndOverlap(
 		case 1: // a.Start > b.End -> OK
 			return allErrs
 		case 0, -1: // a.start > b.Start && a.Start <= b.End :: FORBIDDEN
-		    aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
+			aRange := fmt.Sprintf("%v->%v", a.start.String(), a.end.String())
 			bRange := fmt.Sprintf("%v->%v", b.start.String(), b.end.String())
 			allErrs = append(
 				allErrs,
@@ -457,6 +468,10 @@ func (spec *IronicSpec) Default() {
 // defaultIronicAPI - implements defaulter for IronicAPI spec
 func defaultIronicAPI(spec *IronicSpec) {
 	ironiclog.Info("webhook - calling IronicAPI defaulter")
+	// ContainerImage
+	if spec.IronicAPI.ContainerImage == "" {
+		spec.IronicAPI.ContainerImage = ironicDefaults.APIContainerImageURL
+	}
 	// Standalone
 	if spec.Standalone {
 		spec.IronicAPI.Standalone = true
@@ -485,6 +500,14 @@ func defaultIronicAPI(spec *IronicSpec) {
 func defaultIronicConductors(spec *IronicSpec) {
 	ironiclog.Info("webhook - calling IronicConductors defaulter")
 	for idx, c := range spec.IronicConductors {
+		// ContainerImage
+		if spec.IronicConductors[idx].ContainerImage == "" {
+			spec.IronicConductors[idx].ContainerImage = ironicDefaults.ConductorContainerImageURL
+		}
+		// PxeContainerImage
+		if spec.IronicConductors[idx].PxeContainerImage == "" {
+			spec.IronicConductors[idx].PxeContainerImage = ironicDefaults.PXEContainerImageURL
+		}
 		// StorageClass
 		if c.StorageClass == "" {
 			spec.IronicConductors[idx].StorageClass = spec.StorageClass
@@ -520,6 +543,14 @@ func defaultIronicConductors(spec *IronicSpec) {
 // defaultIronicInspector - implements defaulter for IronicInspector Spec
 func defaultIronicInspector(spec *IronicSpec) {
 	ironiclog.Info("webhook - calling IronicInspector defaulter")
+	// ContainerImage
+	if spec.IronicInspector.ContainerImage == "" {
+		spec.IronicInspector.ContainerImage = ironicDefaults.InspectorContainerImageURL
+	}
+	// PxeContainerImage
+	if spec.IronicInspector.PxeContainerImage == "" {
+		spec.IronicInspector.PxeContainerImage = ironicDefaults.PXEContainerImageURL
+	}
 	// Standalone
 	if spec.Standalone {
 		spec.IronicInspector.Standalone = true

@@ -254,6 +254,7 @@ spec:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             required:
+            - containerImage
             - storageClass
             - storageRequest
             type: object

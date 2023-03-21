@@ -30,9 +30,9 @@ type IronicInspectorSpec struct {
 	// Standalone - Whether to deploy a standalone Ironic Inspector.
 	Standalone bool `json:"standalone"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// ContainerImage - Ironic Inspector Container Image URL
-	ContainerImage string `json:"containerImage,omitempty"`
+	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image URL

@@ -242,6 +242,8 @@ spec:
               transportURLSecret:
                 description: Secret containing RabbitMq transport URL
                 type: string
+            required:
+            - containerImage
             type: object
           status:
             description: IronicAPIStatus defines the observed state of IronicAPI
