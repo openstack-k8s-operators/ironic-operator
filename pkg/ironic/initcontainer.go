@@ -106,14 +106,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Name:  "ProvisionNetwork",
 			Value: init.ProvisionNetwork,
 		},
-		{
-			Name: "PodNetworksStatus",
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.annotations['k8s.v1.cni.cncf.io/network-status']",
-				},
-			},
-		},
 	}
 	if init.TransportURLSecret != "" {
 		envTransport := corev1.EnvVar{

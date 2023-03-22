@@ -18,6 +18,8 @@ import os
 import json
 import sys
 
+from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
+
 # Uses network status from pod:
 #   metadata.annotations['k8s.v1.cni.cncf.io/network-status']
 #
@@ -40,7 +42,20 @@ import sys
 
 def get_ip_from_network_status():
     namespace = os.environ.get('PodNamespace')
-    net_status = json.loads(os.environ.get('PodNetworksStatus'))
+    network_status_content = None
+    try:
+        for attempt in Retrying(
+            stop=stop_after_attempt(5),
+            wait=wait_exponential(multiplier=1, min=2, max=10)):
+            with attempt:
+                with open('/etc/podinfo/network-status') as f:
+                    network_status_content = f.read()
+                    net_status = json.loads(network_status_content)
+    except RetryError:
+        raise Exception(
+            f"Unable to load pod network status - /etc/podinfo/network-status contains: "
+            f"{network_status_content}")
+
     net_attachment_name = sys.argv[1]
 
     for net in net_status:
