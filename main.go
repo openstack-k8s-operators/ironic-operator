@@ -152,12 +152,24 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "IronicInspector")
 		os.Exit(1)
 	}
+
+	// Acquire environmental defaults and initialize Ironic defaults with them
+	ironicDefaults := ironicv1.IronicDefaults{
+		APIContainerImageURL:       os.Getenv("IRONIC_API_IMAGE_URL_DEFAULT"),
+		ConductorContainerImageURL: os.Getenv("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT"),
+		InspectorContainerImageURL: os.Getenv("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT"),
+		PXEContainerImageURL:       os.Getenv("IRONIC_PXE_IMAGE_URL_DEFAULT"),
+	}
+
+	(&ironicv1.Ironic{}).Spec.SetupDefaults(ironicDefaults)
+
 	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
 		if err = (&ironicv1.Ironic{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Ironic")
 			os.Exit(1)
 		}
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

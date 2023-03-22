@@ -282,6 +282,8 @@ spec:
                   transportURLSecret:
                     description: Secret containing RabbitMq transport URL
                     type: string
+                required:
+                - containerImage
                 type: object
               ironicConductors:
                 description: IronicConductors - Spec definitions for the conductor
@@ -501,6 +503,7 @@ spec:
                         transportURL
                       type: string
                   required:
+                  - containerImage
                   - storageClass
                   - storageRequest
                   type: object
@@ -768,6 +771,8 @@ spec:
                   transportURLSecret:
                     description: TransportURLSecret - Secret containing RabbitMQ transportURL
                     type: string
+                required:
+                - containerImage
                 type: object
               nodeSelector:
                 additionalProperties:
