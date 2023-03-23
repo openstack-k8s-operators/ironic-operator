@@ -714,7 +714,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	databaseName := strings.Replace(instance.Name, "-", "_", -1)
 	db := database.NewDatabase(
 		databaseName,
-		instance.Spec.DatabaseUser,
+		databaseName,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.DatabaseInstance,

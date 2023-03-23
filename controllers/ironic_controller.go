@@ -551,7 +551,7 @@ func (r *IronicReconciler) reconcileInit(
 	//
 	db := database.NewDatabase(
 		instance.Name,
-		instance.Spec.DatabaseUser,
+		instance.Name,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.DatabaseInstance,
@@ -834,13 +834,6 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
 			deployment.Spec = instance.Spec.IronicInspector
-			// Add in transfers from umbrella Ironic (this instance) spec
-			// TODO: Add logic to determine when to set/overwrite, etc
-			// TODO: Revist DatabaseUser - It is currently implemented in lib-common,
-			//       but not in mariadb-operator. mariadb-operator always creates
-			//       database user with name == .DatabaseName
-			//       See: https://raw.githubusercontent.com/openstack-k8s-operators/mariadb-operator/master/templates/database.sh
-			// deployment.Spec.DatabaseUser = instance.Spec.DatabaseUser
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {

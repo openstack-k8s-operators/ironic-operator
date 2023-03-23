@@ -27,7 +27,6 @@ type APIDetails struct {
 	PxeInit              bool
 	PxeContainerImage    string
 	DatabaseHost         string
-	DatabaseUser         string
 	DatabaseName         string
 	TransportURLSecret   string
 	OSPSecret            string
@@ -54,7 +53,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	envVars := map[string]env.Setter{}
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
-	envVars["DatabaseUser"] = env.SetValue(init.DatabaseUser)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
 	envVars["InspectorHTTPURL"] = env.SetValue(init.InspectorHTTPURL)
 	envVars["IngressDomain"] = env.SetValue(init.IngressDomain)

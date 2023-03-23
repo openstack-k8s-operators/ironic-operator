@@ -306,7 +306,6 @@ func StatefulSet(
 		ContainerImage:       instance.Spec.ContainerImage,
 		PxeContainerImage:    instance.Spec.PxeContainerImage,
 		DatabaseHost:         instance.Spec.DatabaseHostname,
-		DatabaseUser:         instance.Spec.DatabaseUser,
 		DatabaseName:         ironic.DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
 		TransportURLSecret:   instance.Spec.TransportURLSecret,

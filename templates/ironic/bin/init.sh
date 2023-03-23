@@ -18,7 +18,7 @@ set -ex
 # Secrets are obtained from ENV variables.
 export DB=${DatabaseName:-"ironic"}
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DBUSER=${DatabaseUser:-"ironic"}
+export DBUSER=${DatabaseName:-"ironic"}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export IRONICPASSWORD=${IronicPassword:?"Please specify a IronicPassword variable."}
 export TRANSPORTURL=${TransportURL:-""}

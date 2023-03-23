@@ -21,10 +21,8 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: ironic
   ironicAPI:
     containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
-    databaseUser: ironic
     passwordSelectors:
       database: IronicDatabasePassword
       service: IronicPassword
@@ -34,7 +32,6 @@ spec:
     standalone: false
   ironicConductors:
   - containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
-    databaseUser: ironic
     passwordSelectors:
       database: IronicDatabasePassword
       service: IronicPassword
@@ -47,7 +44,6 @@ spec:
   ironicInspector:
     containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
     customServiceConfig: '# add your customization here'
-    databaseUser: ironic_inspector
     passwordSelectors:
       database: IronicInspectorDatabasePassword
       service: IronicInspectorPassword
@@ -90,7 +86,6 @@ spec:
   containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
-  databaseUser: ironic
   debug:
     bootstrap: false
     dbSync: false
@@ -125,7 +120,6 @@ spec:
   containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
-  databaseUser: ironic
   debug:
     bootstrap: false
     dbSync: false
@@ -161,7 +155,6 @@ spec:
   containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
   customServiceConfig: '# add your customization here'
   databaseInstance: openstack
-  databaseUser: ironic_inspector
   debug:
     bootstrap: false
     dbSync: false

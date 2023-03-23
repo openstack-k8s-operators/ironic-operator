@@ -10,7 +10,6 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: ironic
   storageClass: local-storage
   ironicAPI:
     replicas: 1

@@ -24,12 +24,11 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: ironic
   ironicAPI:
     replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-api:current-tripleo
-  ironicConductor:
-    replicas: 1
+  ironicConductors:
+  - replicas: 1
     containerImage: quay.io/tripleomastercentos9/openstack-ironic-conductor:current-tripleo
     pxeContainerImage: quay.io/tripleomastercentos9/openstack-ironic-pxe:current-tripleo
     provisionNetwork: provision-net

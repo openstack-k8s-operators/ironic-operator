@@ -149,7 +149,6 @@ func Deployment(
 	initContainerDetails := ironic.APIDetails{
 		ContainerImage:       instance.Spec.ContainerImage,
 		DatabaseHost:         instance.Spec.DatabaseHostname,
-		DatabaseUser:         instance.Spec.DatabaseUser,
 		DatabaseName:         ironic.DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
 		TransportURLSecret:   instance.Spec.TransportURLSecret,

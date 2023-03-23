@@ -62,12 +62,6 @@ spec:
               databaseHostname:
                 description: DatabaseHostname - Ironic Database Hostname
                 type: string
-              databaseUser:
-                default: ironic
-                description: 'DatabaseUser - optional username used for ironic DB,
-                  defaults to ironic TODO: -> implement needs work in mariadb-operator,
-                  right now only ironic'
-                type: string
               debug:
                 description: Debug - enable debug for different deploy stages. If
                   an init container is used, it runs and the actual action pod gets

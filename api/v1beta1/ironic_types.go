@@ -50,12 +50,6 @@ type IronicSpec struct {
 	// Might not be required in future.
 	DatabaseInstance string `json:"databaseInstance"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=ironic
-	// DatabaseUser - optional username used for ironic DB, defaults to ironic.
-	// TODO: -> implement needs work in mariadb-operator, right now only ironic.
-	DatabaseUser string `json:"databaseUser"`
-
 	// +kubebuilder:validation:Required
 	// Secret containing OpenStack password information for ironic IronicDatabasePassword, AdminPassword
 	Secret string `json:"secret"`
