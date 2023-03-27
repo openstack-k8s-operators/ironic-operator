@@ -38,6 +38,21 @@ func GetVolumes(name string) []corev1.Volume {
 				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
 			},
 		},
+		{
+			Name: "etc-podinfo",
+			VolumeSource: corev1.VolumeSource{
+				DownwardAPI: &corev1.DownwardAPIVolumeSource{
+					Items: []corev1.DownwardAPIVolumeFile{
+						{
+							Path: "network-status",
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "metadata.annotations['k8s.v1.cni.cncf.io/network-status']",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 }
@@ -60,6 +75,11 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
 		},
+		{
+			Name:      "etc-podinfo",
+			MountPath: "/etc/podinfo",
+			ReadOnly:  false,
+		},
 	}
 
 }
@@ -75,6 +95,11 @@ func GetVolumeMounts() []corev1.VolumeMount {
 		{
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
+			ReadOnly:  false,
+		},
+		{
+			Name:      "etc-podinfo",
+			MountPath: "/etc/podinfo",
 			ReadOnly:  false,
 		},
 	}
