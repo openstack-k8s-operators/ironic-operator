@@ -38,7 +38,7 @@ type IronicAPISpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Required
-	// ContainerImage - Ironic API Container Image URL
+	// ContainerImage - Ironic API Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional

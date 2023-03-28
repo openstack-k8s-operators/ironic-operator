@@ -60,9 +60,10 @@ type netIPStartEnd struct {
 	path  *field.Path // Field path to DHCP Range in Ironic spec
 }
 
-// SetupDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
-func (spec *IronicSpec) SetupDefaults(defaults IronicDefaults) {
+// SetupIronicDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
+func SetupIronicDefaults(defaults IronicDefaults) {
 	ironicDefaults = defaults
+	ironiclog.Info("Ironic defaults initialized", "defaults", defaults)
 }
 
 // SetupWebhookWithManager sets up the webhook with the Manager
@@ -72,9 +73,6 @@ func (r *Ironic) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-ironic-openstack-org-v1beta1-ironic,mutating=false,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=vironic.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/mutate-ironic-openstack-org-v1beta1-ironic,mutating=true,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=mironic.kb.io,admissionReviewVersions=v1
 
