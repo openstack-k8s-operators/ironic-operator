@@ -53,6 +53,7 @@ spec:
                 type: string
               containerImage:
                 description: ContainerImage - Ironic Conductor Container Image URL
+                  (will be set to environmental default if empty)
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -163,7 +164,7 @@ spec:
                 type: string
               pxeContainerImage:
                 description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
-                  URL
+                  URL (will be set to environmental default if empty)
                 type: string
               replicas:
                 default: 1
@@ -250,6 +251,7 @@ spec:
                 type: string
             required:
             - containerImage
+            - pxeContainerImage
             - storageClass
             - storageRequest
             type: object

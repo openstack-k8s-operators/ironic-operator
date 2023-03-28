@@ -161,7 +161,7 @@ func main() {
 		PXEContainerImageURL:       os.Getenv("IRONIC_PXE_IMAGE_URL_DEFAULT"),
 	}
 
-	(&ironicv1.Ironic{}).Spec.SetupDefaults(ironicDefaults)
+	ironicv1.SetupIronicDefaults(ironicDefaults)
 
 	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
 		if err = (&ironicv1.Ironic{}).SetupWebhookWithManager(mgr); err != nil {

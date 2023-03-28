@@ -50,6 +50,7 @@ spec:
             properties:
               containerImage:
                 description: ContainerImage - Ironic Inspector Container Image URL
+                  (will be set to environmental default if empty)
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -209,7 +210,7 @@ spec:
                 type: boolean
               pxeContainerImage:
                 description: PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container
-                  Image URL
+                  Image URL (will be set to environmental default if empty)
                 type: string
               rabbitMqClusterName:
                 default: rabbitmq
@@ -298,6 +299,7 @@ spec:
                 type: string
             required:
             - containerImage
+            - pxeContainerImage
             type: object
           status:
             description: IronicInspectorStatus defines the observed state of IronicInspector

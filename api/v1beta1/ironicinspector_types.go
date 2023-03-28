@@ -31,12 +31,12 @@ type IronicInspectorSpec struct {
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Required
-	// ContainerImage - Ironic Inspector Container Image URL
+	// ContainerImage - Ironic Inspector Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
 
-	// +kubebuilder:validation:Optional
-	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image URL
-	PxeContainerImage string `json:"pxeContainerImage,omitempty"`
+	// +kubebuilder:validation:Required
+	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image URL (will be set to environmental default if empty)
+	PxeContainerImage string `json:"pxeContainerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic-inspector
