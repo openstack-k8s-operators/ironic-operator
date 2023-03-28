@@ -48,12 +48,6 @@ spec:
                   to get the credentials from the instance to create the DB. Might
                   not be required in future.
                 type: string
-              databaseUser:
-                default: ironic
-                description: 'DatabaseUser - optional username used for ironic DB,
-                  defaults to ironic. TODO: -> implement needs work in mariadb-operator,
-                  right now only ironic.'
-                type: string
               debug:
                 description: Debug - enable debug for different deploy stages. If
                   an init container is used, it runs and the actual action pod gets
@@ -97,12 +91,6 @@ spec:
                     type: string
                   databaseHostname:
                     description: DatabaseHostname - Ironic Database Hostname
-                    type: string
-                  databaseUser:
-                    default: ironic
-                    description: 'DatabaseUser - optional username used for ironic
-                      DB, defaults to ironic TODO: -> implement needs work in mariadb-operator,
-                      right now only ironic'
                     type: string
                   debug:
                     description: Debug - enable debug for different deploy stages.
@@ -309,12 +297,6 @@ spec:
                       type: string
                     databaseHostname:
                       description: DatabaseHostname - Ironic Database Hostname
-                      type: string
-                    databaseUser:
-                      default: ironic
-                      description: 'DatabaseUser - optional username used for ironic
-                        DB, defaults to ironic TODO: -> implement needs work in mariadb-operator,
-                        right now only ironic'
                       type: string
                     debug:
                       description: Debug - enable debug for different deploy stages.
@@ -530,12 +512,6 @@ spec:
                     description: MariaDB instance name. Right now required by the
                       maridb-operator to get the credentials from the instance to
                       create the DB. Might not be required in future.
-                    type: string
-                  databaseUser:
-                    default: ironic_inspector
-                    description: 'DatabaseUser - optional username used for ironic
-                      DB, defaults to ironic TODO: -> implement needs work in mariadb-operator,
-                      right now only ironic'
                     type: string
                   debug:
                     description: Debug - enable debug for different deploy stages.

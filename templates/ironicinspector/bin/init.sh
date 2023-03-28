@@ -17,7 +17,7 @@
 # Secrets are obtained from ENV variables.
 export DB=${DatabaseName:-"ironic_inspector"}
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DBUSER=${DatabaseUser:-"ironic_inspector"}
+export DBUSER=${DatabaseName:-"ironic_inspector"}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export INSPECTORPASSWORD=${IronicInspectorPassword:?"Please specify a IronicInspectorPassword variable."}
 export TRANSPORTURL=${TransportURL:-""}

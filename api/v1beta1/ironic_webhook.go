@@ -480,10 +480,6 @@ func defaultIronicAPI(spec *IronicSpec) {
 	if spec.IronicAPI.ServiceUser == "" {
 		spec.IronicAPI.ServiceUser = spec.ServiceUser
 	}
-	// DatabaseUser
-	if spec.IronicAPI.DatabaseUser == "" {
-		spec.IronicAPI.DatabaseUser = spec.DatabaseUser
-	}
 	// Secret
 	if spec.IronicAPI.Secret == "" {
 		spec.IronicAPI.Secret = spec.Secret
@@ -519,10 +515,6 @@ func defaultIronicConductors(spec *IronicSpec) {
 		// ServiceUser
 		if c.ServiceUser == "" {
 			spec.IronicConductors[idx].ServiceUser = spec.ServiceUser
-		}
-		// DatabaseUser
-		if c.DatabaseUser == "" {
-			spec.IronicConductors[idx].DatabaseUser = spec.DatabaseUser
 		}
 		// RPCTransport
 		if c.RPCTransport == "" {
