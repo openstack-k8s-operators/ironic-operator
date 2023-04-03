@@ -1,0 +1,15 @@
+# See the OWNERS_ALIASES docs: https://git.k8s.io/community/contributors/guide/owners.md#owners_aliases
+
+aliases:
+  baremetal-approvers:
+  - hjensas
+  - juliakreger
+  - steveb
+  ci-approvers:
+  - Sandeepyadav93
+  - viroel
+  openstack-approvers:
+  - abays
+  - dprince
+  - olliewalsh
+  - stuggi
