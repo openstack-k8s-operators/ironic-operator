@@ -299,7 +299,7 @@ func StatefulSet(
 	deployHTTPURL := "http://%(ProvisionNetworkIP)s:8088/"
 	if instance.Spec.ProvisionNetwork == "" {
 		// Build what the fully qualified Route hostname will be when the Route exists
-		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.apps.%(IngressDomain)s/"
+		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.%(IngressDomain)s/"
 	}
 
 	initContainerDetails := ironic.APIDetails{

@@ -45,6 +45,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
@@ -678,6 +679,17 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneVars["keystoneInternalURL"]
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneVars["keystonePublicURL"]
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	} else {
+		ironicAPI, err := ironicv1.GetIronicAPI(
+			ctx, h, instance.Namespace, map[string]string{})
+		if err != nil {
+			return err
+		}
+		ironicPublicURL, err := ironicAPI.GetEndpoint(endpoint.EndpointPublic)
+		if err != nil {
+			return err
+		}
+		templateParameters["IronicPublicURL"] = ironicPublicURL
 	}
 	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
 	if err != nil {
