@@ -126,8 +126,8 @@ type IronicConductorSpec struct {
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional
-	// keystoneVars - (Hidden) Internally used map of Keystone API endpoints
-	KeystoneVars map[string]string `json:"-"`
+	// keystoneVars - Internally used map of Keystone API endpoints
+	KeystoneVars map[string]string `json:"keystoneVars,omitempty"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor
