@@ -360,6 +360,12 @@ spec:
                         - start
                         type: object
                       type: array
+                    keystoneVars:
+                      additionalProperties:
+                        type: string
+                      description: keystoneVars - Internally used map of Keystone
+                        API endpoints
+                      type: object
                     networkAttachments:
                       description: NetworkAttachments is a list of NetworkAttachment
                         resource names to expose the services to the given network
