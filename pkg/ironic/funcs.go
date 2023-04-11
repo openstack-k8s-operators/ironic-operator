@@ -54,7 +54,7 @@ func GetIngressDomain(
 		ingress,
 	)
 	if err != nil {
-		return "", fmt.Errorf("unable to retrieve ingress domain %v", err)
+		return "", fmt.Errorf("unable to retrieve ingress domain %w", err)
 	}
 	ingressDomain := ""
 
