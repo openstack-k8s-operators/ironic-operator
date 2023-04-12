@@ -1,0 +1,58 @@
+#
+# Check for:
+#
+# No IronicAPI CR
+# No Deployment for IronicAPI CR
+# No Pods in ironic Deployment
+# No Ironic Services
+# No Ironic Routes
+#
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicAPI
+metadata:
+  finalizers:
+  - IronicAPI
+  name: ironic
+  namespace: openstack
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ironic
+  namespace: openstack
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: ironic
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    internal: "true"
+    service: ironic
+  name: ironic-internal
+  namespace: openstack
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    public: "true"
+    service: ironic
+  name: ironic-public
+  namespace: openstack
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ironic-public
+  labels:
+    public: "true"
+    service: ironic
+  namespace: openstack

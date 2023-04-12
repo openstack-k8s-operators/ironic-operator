@@ -9,7 +9,6 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  storageClass: local-storage
   ironicAPI:
     replicas: 1
     containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
@@ -32,4 +31,10 @@ spec:
     replicas: 1
     containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
     pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
-  secret: ironic-secret
+  secret: osp-secret
+status:
+  databaseHostname: openstack
+  ironicAPIReadyCount: 1
+  ironicConductorReadyCount:
+    auckland: 1
+    stockholm: 1
