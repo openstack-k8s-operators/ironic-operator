@@ -26,9 +26,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-//
 // GetIronicAPI - get ironicAPI object in namespace
-//
 func GetIronicAPI(
 	ctx context.Context,
 	h *helper.Helper,
