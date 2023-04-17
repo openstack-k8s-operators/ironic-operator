@@ -1,0 +1,9 @@
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicNeutronAgent
+metadata:
+  name: ironic-neutron-agent
+  namespace: openstack
+spec:
+  containerImage: quay.io/tripleomastercentos9/openstack-ironic-neutron-agent:current-tripleo
+  replicas: 1
+  secret: osp-secret

@@ -152,6 +152,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "IronicInspector")
 		os.Exit(1)
 	}
+	if err = (&controllers.IronicNeutronAgentReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Kclient: kclient,
+		Log:     ctrl.Log.WithName("controllers").WithName("IronicNeutronAgent"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "IronicNeutronAgent")
+		os.Exit(1)
+	}
 
 	// Acquire environmental defaults and initialize Ironic defaults with them
 	ironicDefaults := ironicv1.IronicDefaults{
