@@ -2,5 +2,5 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
   - script: |
-      PWD=$INSTALL_YAMLS
-      make -C $INSTALL_YAMLS ironic_deploy
+      cp ../../../../config/samples/ironic_v1beta1_ironic.yaml deploy
+      oc kustomize deploy | oc apply -n openstack -f -
