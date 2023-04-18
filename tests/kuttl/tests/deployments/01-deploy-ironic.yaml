@@ -2,5 +2,4 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
   - script: |
-      cp ../../../../config/samples/ironic_v1beta1_ironic.yaml deploy
-      oc kustomize deploy | oc apply -n openstack -f -
+      oc apply -n openstack -f ../../../../config/samples/ironic_v1beta1_ironic.yaml
