@@ -12,10 +12,10 @@ spec:
       - name: manager
         env:
         - name: IRONIC_API_IMAGE_URL_DEFAULT
-          value: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
+          value: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
         - name: IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT
-          value: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
+          value: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
         - name: IRONIC_INSPECTOR_IMAGE_URL_DEFAULT
-          value: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
+          value: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
         - name: IRONIC_PXE_IMAGE_URL_DEFAULT
-          value: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+          value: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
