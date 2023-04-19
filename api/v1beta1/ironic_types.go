@@ -171,10 +171,6 @@ type IronicDebug struct {
 	DBSync bool `json:"dbSync"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	// ReadyCount enable debug
-	Bootstrap bool `json:"bootstrap"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
 	// Service enable debug
 	Service bool `json:"service"`
 }

@@ -87,7 +87,6 @@ spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
-    bootstrap: false
     dbSync: false
     service: false
   passwordSelectors:
@@ -121,7 +120,6 @@ spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
-    bootstrap: false
     dbSync: false
     service: false
   passwordSelectors:
@@ -156,7 +154,6 @@ spec:
   customServiceConfig: '# add your customization here'
   databaseInstance: openstack
   debug:
-    bootstrap: false
     dbSync: false
     service: false
   passwordSelectors:
