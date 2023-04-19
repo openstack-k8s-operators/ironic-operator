@@ -121,6 +121,15 @@ func StatefulSet(
 			Path: "/v1",
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
 		}
+
+		// (TODO): Use http request if we can create a good request path
+		httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+		}
+		httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+		}
+
 		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
@@ -129,16 +138,6 @@ func StatefulSet(
 		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-			},
-		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
-			},
-		}
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
 			},
 		}
 	}
