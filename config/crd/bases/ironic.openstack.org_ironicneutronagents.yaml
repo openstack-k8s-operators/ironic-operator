@@ -67,10 +67,6 @@ spec:
                   an init container is used, it runs and the actual action pod gets
                   started with sleep infinity
                 properties:
-                  bootstrap:
-                    default: false
-                    description: ReadyCount enable debug
-                    type: boolean
                   service:
                     default: false
                     description: Service enable debug
