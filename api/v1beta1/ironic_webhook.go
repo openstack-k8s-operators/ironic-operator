@@ -461,6 +461,7 @@ func (spec *IronicSpec) Default() {
 	defaultIronicAPI(spec)
 	defaultIronicConductors(spec)
 	defaultIronicInspector(spec)
+	defaultIronicNeutronAgent(spec)
 }
 
 // defaultIronicAPI - implements defaulter for IronicAPI spec
@@ -556,4 +557,14 @@ func defaultIronicInspector(spec *IronicSpec) {
 		spec.IronicInspector.NodeSelector = spec.NodeSelector
 	}
 	ironiclog.Info("webhook - IronicInspector defaulter called")
+}
+
+// defaultIronicNeutronAgent - implements defaulter for IronicNeutronAgent Spec
+func defaultIronicNeutronAgent(spec *IronicSpec) {
+	ironiclog.Info("webhool - calling IronicNeutronAgent defaulter")
+	// Secret
+	if spec.IronicNeutronAgent.Secret == "" {
+		spec.IronicNeutronAgent.Secret = spec.Secret
+	}
+	ironiclog.Info("webhook - IronicNeutronAgent defaulter called")
 }

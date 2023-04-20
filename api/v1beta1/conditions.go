@@ -30,8 +30,11 @@ const (
 	// IronicRabbitMqTransportURLReady Status=True condition which indicates if the RabbitMQ TransportURLUrl is ready
 	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
 
-	// IronicInspectorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
+	// IronicInspectorReadyCondition Status=True condition which indicates if the Inspector is configured and operational
 	IronicInspectorReadyCondition condition.Type = "IronicInspectorReady"
+
+	// IronicNeutronAgentReadyCondition Status=True condition which indicates if the ML2 baremetal Ironic Neutron Agent is configured and operational
+	IronicNeutronAgentReadyCondition condition.Type = "IronicNeutronAgentReady"
 )
 
 // Ironic Reasons used by API objects.
@@ -77,4 +80,7 @@ const (
 
 	// IronicInspectorReadyErrorMessage
 	IronicInspectorReadyErrorMessage = "IronicInspector error occured %s"
+
+	// IronicNeutronAgentReadyErrorMessage
+	IronicNeutronAgentReadyErrorMessage = "IronicNeutronAgent error occured %s"
 )
