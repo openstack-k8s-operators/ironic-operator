@@ -5,18 +5,20 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: ironic-controller-manager
+    control-plane: controller-manager
+    openstack.org/operator-name: ironic
 spec:
   selector:
     matchLabels:
-      control-plane: ironic-controller-manager
+      openstack.org/operator-name: ironic
   replicas: 1
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: ironic-controller-manager
+        control-plane: controller-manager
+        openstack.org/operator-name: ironic
     spec:
       securityContext:
         runAsNonRoot: true

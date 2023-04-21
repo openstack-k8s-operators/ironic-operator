@@ -16,4 +16,4 @@ spec:
       protocol: TCP
       targetPort: 9443
   selector:
-    control-plane: ironic-controller-manager
+    openstack.org/operator-name: ironic
