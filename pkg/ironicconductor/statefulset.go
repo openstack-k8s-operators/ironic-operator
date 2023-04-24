@@ -25,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -117,17 +118,12 @@ func StatefulSet(
 		//
 
 		if instance.Spec.RPCTransport == "json-rpc" {
-			// Make a POST request to the JSON-RPC port
-			livenessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"sh", "-c", "ss -ltn | grep :8089",
-				},
+			// (TODO) Make a http request to the JSON-RPC port ?
+			livenessProbe.TCPSocket = &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
 			}
-			// Make a POST request to the JSON-RPC port
-			readinessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"sh", "-c", "ss -ltn | grep :8089",
-				},
+			readinessProbe.TCPSocket = &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
 			}
 		} else {
 			// TODO
@@ -143,17 +139,15 @@ func StatefulSet(
 				},
 			}
 		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
-			},
+
+		// (TODO): Use http request if we can create a good request path
+		httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+		}
+		httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
 		}
 
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -ltn | grep :8088",
-			},
-		}
 		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
