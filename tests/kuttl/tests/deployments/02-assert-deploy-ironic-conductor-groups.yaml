@@ -11,26 +11,26 @@ spec:
   databaseInstance: openstack
   ironicAPI:
     replicas: 1
-    containerImage: quay.io/tripleozedcentos9/openstack-ironic-api:current-tripleo
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
   ironicConductors:
   - replicas: 1
-    containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
-    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
+    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
     storageRequest: 10G
   - conductorGroup: auckland
     replicas: 1
-    containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
-    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
+    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
     storageRequest: 10G
   - conductorGroup: stockholm
     replicas: 1
-    containerImage: quay.io/tripleozedcentos9/openstack-ironic-conductor:current-tripleo
-    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
+    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
     storageRequest: 10G
   ironicInspector:
     replicas: 1
-    containerImage: quay.io/tripleozedcentos9/openstack-ironic-inspector:current-tripleo
-    pxeContainerImage: quay.io/tripleozedcentos9/openstack-ironic-pxe:current-tripleo
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
+    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
   secret: osp-secret
 status:
   databaseHostname: openstack
