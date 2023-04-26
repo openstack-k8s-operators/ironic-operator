@@ -511,13 +511,9 @@ func defaultIronicConductors(spec *IronicSpec) {
 			spec.IronicConductors[idx].Standalone = true
 		}
 		// ServiceUser
-		if c.ServiceUser == "" {
-			spec.IronicConductors[idx].ServiceUser = spec.ServiceUser
-		}
+		spec.IronicConductors[idx].ServiceUser = spec.ServiceUser
 		// RPCTransport
-		if c.RPCTransport == "" {
-			spec.IronicConductors[idx].RPCTransport = spec.RPCTransport
-		}
+		spec.IronicConductors[idx].RPCTransport = spec.RPCTransport
 		// Secret
 		if c.Secret == "" {
 			spec.IronicConductors[idx].Secret = spec.Secret
@@ -550,9 +546,7 @@ func defaultIronicInspector(spec *IronicSpec) {
 		spec.IronicInspector.DatabaseInstance = spec.DatabaseInstance
 	}
 	// RPCTransport
-	if spec.IronicInspector.RPCTransport == "" {
-		spec.IronicInspector.RPCTransport = spec.RPCTransport
-	}
+	spec.IronicInspector.RPCTransport = spec.RPCTransport
 	// Secret
 	if spec.IronicInspector.Secret == "" {
 		spec.IronicInspector.Secret = spec.Secret
