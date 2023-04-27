@@ -72,6 +72,9 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/finalizers,verbs=update
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete;
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch;delete;watch
@@ -183,6 +186,7 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&ironicv1.IronicConductor{}).
 		Owns(&ironicv1.IronicAPI{}).
 		Owns(&ironicv1.IronicInspector{}).
+		Owns(&ironicv1.IronicNeutronAgent{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Secret{}).
@@ -505,6 +509,39 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		}
 	}
 
+	// deploy ironic-neutron-agent (ML2 baremetal agent)
+	ironicNeutronAgentDeploymentReady := false
+	if instance.Spec.IronicNeutronAgent.Replicas != 0 {
+		ironicNeutronAgenet, op, err := r.ironicNeutronAgentDeploymentCreateOrUpdate(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicNeutronAgentReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicNeutronAgentReadyErrorMessage,
+					err.Error()))
+			return ctrl.Result{}, err
+		}
+		if op != controllerutil.OperationResultNone {
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		}
+		// Mirror IronicNeutronAgent status ReadyCount to this parent CR
+		instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgenet.Status.ReadyCount
+		// Mirror IronicNeutronAgent's condition status
+		c = ironicNeutronAgenet.Status.Conditions.Mirror(ironicv1.IronicNeutronAgentReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+		ironicNeutronAgentDeploymentReady = ironicNeutronAgenet.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
+	} else {
+		err := r.ironicNeutronAgentDeploymentDelete(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		ironicNeutronAgentDeploymentReady = true
+	}
+
 	// Set ExposeServiceReadyCondition True if both IronicAPI and IronicInspector is ready
 	ironicAPIServiceReady := ironicAPI.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
 	if inspectorServiceReady && ironicAPIServiceReady {
@@ -526,8 +563,8 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			break
 		}
 	}
-	// Set DeploymentReadyCondition True if both IronicConductors and IronicInspector is ready
-	if inspectorDeploymentReady && conductorDeployemntsReady {
+	// Set DeploymentReadyCondition True if all of IronicConductors, IronicInspector and IronicNeutronAgent are ready
+	if inspectorDeploymentReady && conductorDeployemntsReady && ironicNeutronAgentDeploymentReady {
 		instance.Status.Conditions.MarkTrue(
 			condition.DeploymentReadyCondition,
 			condition.DeploymentReadyMessage,
@@ -876,6 +913,63 @@ func (r *IronicReconciler) inspectorDeploymentDelete(
 	instance.Status.InspectorReadyCount = 0
 	// Remove IronicInspectorReadyCondition
 	instance.Status.Conditions.Remove(ironicv1.IronicInspectorReadyCondition)
+
+	return nil
+}
+
+func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
+	instance *ironicv1.Ironic,
+) (*ironicv1.IronicNeutronAgent, controllerutil.OperationResult, error) {
+	deployment := &ironicv1.IronicNeutronAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-ironic-neutron-agent", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(
+		context.TODO(), r.Client, deployment, func() error {
+			deployment.Spec = instance.Spec.IronicNeutronAgent
+			err := controllerutil.SetControllerReference(
+				instance, deployment, r.Scheme)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+	return deployment, op, err
+}
+
+func (r *IronicReconciler) ironicNeutronAgentDeploymentDelete(
+	ctx context.Context,
+	instance *ironicv1.Ironic,
+) error {
+	deployment := &ironicv1.IronicNeutronAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-ironic-neutron-agent", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+	err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
+	if err != nil {
+		return err
+	}
+	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
+	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
+		if k8s_errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if err := r.Client.Delete(ctx, deployment); err != nil {
+		return err
+	}
+	// Set ReadyCount 0
+	instance.Status.IronicNeutronAgentReadyCount = 0
+	// Remove IronicNeutronAgentReadyCondition
+	instance.Status.Conditions.Remove(ironicv1.IronicNeutronAgentReadyCondition)
 
 	return nil
 }

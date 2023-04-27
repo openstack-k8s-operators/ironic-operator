@@ -22,4 +22,7 @@ spec:
     replicas: 1
     containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
     pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+  ironicNeutronAgent:
+    replicas: 1
+    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
   secret: osp-secret

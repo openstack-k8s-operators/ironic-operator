@@ -800,6 +800,7 @@ func (in *IronicSpec) DeepCopyInto(out *IronicSpec) {
 		}
 	}
 	in.IronicInspector.DeepCopyInto(&out.IronicInspector)
+	in.IronicNeutronAgent.DeepCopyInto(&out.IronicNeutronAgent)
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
 		*out = make(map[string]string, len(*in))

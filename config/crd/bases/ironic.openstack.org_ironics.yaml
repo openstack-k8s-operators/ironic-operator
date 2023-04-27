@@ -489,7 +489,7 @@ spec:
                   type: object
                 type: array
               ironicInspector:
-                description: IronicInspector - Spec definition for the conductor service
+                description: IronicInspector - Spec definition for the inspector service
                   of this Ironic deployment
                 properties:
                   containerImage:
@@ -747,6 +747,121 @@ spec:
                 - containerImage
                 - pxeContainerImage
                 type: object
+              ironicNeutronAgent:
+                description: IronicNeutronAgent - Spec definition for the ML2 baremetal
+                  ironic-neutron-agent service of this Ironic deployment
+                properties:
+                  containerImage:
+                    description: ContainerImage - ML2 baremtal - Ironic Neutron Agent
+                      Image URL
+                    type: string
+                  customServiceConfig:
+                    default: '# add your customization here'
+                    description: CustomServiceConfig - customize the service config
+                      using this parameter to change service defaults, or overwrite
+                      rendered information using raw OpenStack config format. The
+                      content gets added to to /etc/<service>/<service>.conf.d directory
+                      as custom.conf file.
+                    type: string
+                  debug:
+                    description: Debug - enable debug for different deploy stages.
+                      If an init container is used, it runs and the actual action
+                      pod gets started with sleep infinity
+                    properties:
+                      service:
+                        default: false
+                        description: Service enable debug
+                        type: boolean
+                    type: object
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector to target subset of worker nodes running
+                      this service.
+                    type: object
+                  passwordSelectors:
+                    default:
+                      service: IronicPassword
+                    description: PasswordSelectors - Selectors to identify the ServiceUser
+                      password from the Secret
+                    properties:
+                      service:
+                        default: IronicPassword
+                        description: Service - Selector to get the ironic service
+                          password from the Secret
+                        type: string
+                    type: object
+                  rabbitMqClusterName:
+                    default: rabbitmq
+                    description: RabbitMQ instance name Needed to request a transportURL
+                      that is created and used in Ironic
+                    type: string
+                  replicas:
+                    default: 1
+                    description: Replicas - ML2 baremetal - Ironic Neutron Agent Replicas
+                    format: int32
+                    type: integer
+                  resources:
+                    description: Resources - Compute Resources required by this service
+                      (Limits/Requests). https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                  secret:
+                    description: Secret containing OpenStack password information
+                      for IronicPassword
+                    type: string
+                  serviceUser:
+                    default: ironic
+                    description: ServiceUser - optional username used for this service
+                      to register in ironic
+                    type: string
+                required:
+                - secret
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -812,6 +927,7 @@ spec:
             - ironicAPI
             - ironicConductors
             - ironicInspector
+            - ironicNeutronAgent
             - secret
             - storageClass
             type: object
@@ -888,6 +1004,10 @@ spec:
                 type: object
               ironicInspectorReadyCount:
                 description: ReadyCount of Ironic Inspector instance
+                format: int32
+                type: integer
+              ironicNeutronAgentReadyCount:
+                description: ReadyCount of Ironic Neutron Agent instance
                 format: int32
                 type: integer
               serviceIDs:

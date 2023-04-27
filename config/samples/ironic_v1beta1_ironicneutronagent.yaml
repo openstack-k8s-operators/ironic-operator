@@ -4,6 +4,6 @@ metadata:
   name: ironic-neutron-agent
   namespace: openstack
 spec:
-  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
   replicas: 1
+  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
   secret: osp-secret

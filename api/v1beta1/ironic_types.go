@@ -91,8 +91,13 @@ type IronicSpec struct {
 	IronicConductors []IronicConductorSpec `json:"ironicConductors"`
 
 	// +kubebuilder:validation:Required
-	// IronicInspector - Spec definition for the conductor service of this Ironic deployment
+	// IronicInspector - Spec definition for the inspector service of this Ironic deployment
 	IronicInspector IronicInspectorSpec `json:"ironicInspector"`
+
+	// +kubebuilder:validation:Required
+	// IronicNeutronAgent - Spec definition for the ML2 baremetal ironic-neutron-agent
+	// service of this Ironic deployment
+	IronicNeutronAgent IronicNeutronAgentSpec `json:"ironicNeutronAgent"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
@@ -200,6 +205,9 @@ type IronicStatus struct {
 
 	// ReadyCount of Ironic Inspector instance
 	InspectorReadyCount int32 `json:"ironicInspectorReadyCount,omitempty"`
+
+	// ReadyCount of Ironic Neutron Agent instance
+	IronicNeutronAgentReadyCount int32 `json:"ironicNeutronAgentReadyCount,omitempty"`
 
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
