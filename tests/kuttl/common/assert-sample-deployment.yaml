@@ -220,10 +220,16 @@ commands:
       set -x
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
-      if test $STATUSCODE -ne 200; then
+      if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
-          echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          echo "Endpoint: apiEndpoints.ironic.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
       fi
       exit $RETURN_CODE
 ---
@@ -237,9 +243,15 @@ commands:
       set -x
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
-      STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
-      if test $STATUSCODE -ne 200; then
+      if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
-          echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          echo "Endpoint: .status.apiEndpoints.ironic-inspector.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
       fi
       exit $RETURN_CODE
