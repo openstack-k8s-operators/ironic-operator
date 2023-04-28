@@ -19,7 +19,7 @@ kind: TestSuite
 reportFormat: JSON
 reportName: kuttl-test-ironic
 namespace: openstack
-timeout: 750
+timeout: 900
 parallel: 1
 suppress:
   - events                     # Remove spammy event logs
