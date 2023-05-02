@@ -19,3 +19,5 @@ spec:
           value: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
         - name: IRONIC_PXE_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+        - name: IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT
+          value: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
