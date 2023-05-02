@@ -860,6 +860,7 @@ spec:
                       to register in ironic
                     type: string
                 required:
+                - containerImage
                 - secret
                 type: object
               nodeSelector:

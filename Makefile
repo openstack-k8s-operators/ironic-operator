@@ -323,6 +323,7 @@ run-with-webhook: export IRONIC_API_IMAGE_URL_DEFAULT=quay.io/podified-antelope-
 run-with-webhook: export IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT=quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
 run-with-webhook: export IRONIC_INSPECTOR_IMAGE_URL_DEFAULT=quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
 run-with-webhook: export IRONIC_PXE_IMAGE_URL_DEFAULT=quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+run-with-webhook: export IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT=quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
 run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/configure_local_webhook.sh
 	go run ./main.go

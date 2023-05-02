@@ -50,6 +50,7 @@ type IronicDefaults struct {
 	ConductorContainerImageURL string
 	InspectorContainerImageURL string
 	PXEContainerImageURL       string
+	INAContainerImageURL       string
 }
 
 var ironicDefaults IronicDefaults
@@ -562,6 +563,10 @@ func defaultIronicInspector(spec *IronicSpec) {
 // defaultIronicNeutronAgent - implements defaulter for IronicNeutronAgent Spec
 func defaultIronicNeutronAgent(spec *IronicSpec) {
 	ironiclog.Info("webhool - calling IronicNeutronAgent defaulter")
+	// ContainerImage
+	if spec.IronicAPI.ContainerImage == "" {
+		spec.IronicNeutronAgent.ContainerImage = ironicDefaults.INAContainerImageURL
+	}
 	// Secret
 	if spec.IronicNeutronAgent.Secret == "" {
 		spec.IronicNeutronAgent.Secret = spec.Secret
