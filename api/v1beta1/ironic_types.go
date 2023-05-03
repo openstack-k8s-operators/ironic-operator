@@ -40,6 +40,11 @@ type IronicSpec struct {
 	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	// Images - Container images for all ironic services
+	Images IronicImages `json:"images"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic
 	// ServiceUser - optional username used for this service to register in ironic
 	ServiceUser string `json:"serviceUser"`
@@ -124,6 +129,29 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=""
 	StorageClass string `json:"storageClass"`
+}
+
+// IronicImages to specify container images required by all ironic services
+type IronicImages struct {
+	// +kubebuilder:validation:Optional
+	// API - Ironic API Container Image (will be set to environmental default if empty)
+	API string `json:"api"`
+
+	// +kubebuilder:validation:Optional
+	// Conductor - Ironic Conductor Container Image (will be set to environmental default if empty)
+	Conductor string `json:"conductor"`
+
+	// +kubebuilder:validation:Optional
+	// Inspector - Ironic Inspector Container Image (will be set to environmental default if empty)
+	Inspector string `json:"inspector"`
+
+	// +kubebuilder:validation:Optional
+	// NeutronAgent - ML2 baremtal - Ironic Neutron Agent Image (will be set to environmental default if empty)
+	NeutronAgent string `json:"neutronAgent"`
+
+	// +kubebuilder:validation:Optional
+	// Pxe- Ironic DHCP/TFTP/HTTP Container Image URL (will be set to environmental default if empty)
+	Pxe string `json:"pxe"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret

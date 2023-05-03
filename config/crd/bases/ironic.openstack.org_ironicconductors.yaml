@@ -52,8 +52,7 @@ spec:
                 description: ConductorGroup - Ironic Conductor conductor group.
                 type: string
               containerImage:
-                description: ContainerImage - Ironic Conductor Container Image URL
-                  (will be set to environmental default if empty)
+                description: ContainerImage - Ironic Conductor Container Image
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -165,7 +164,6 @@ spec:
                 type: string
               pxeContainerImage:
                 description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
-                  URL (will be set to environmental default if empty)
                 type: string
               replicas:
                 default: 1
@@ -255,8 +253,6 @@ spec:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             required:
-            - containerImage
-            - pxeContainerImage
             - serviceAccount
             - storageClass
             - storageRequest

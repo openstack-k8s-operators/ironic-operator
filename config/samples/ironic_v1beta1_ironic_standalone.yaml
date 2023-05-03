@@ -5,6 +5,11 @@ metadata:
   namespace: openstack
 spec:
   standalone: true
+  images:
+    api: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
+    conductor: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
+    inspector: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
+    pxe: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
   serviceUser: ironic
   customServiceConfig: |
     [DEFAULT]
@@ -13,14 +18,9 @@ spec:
   storageClass: local-storage
   ironicAPI:
     replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
   ironicConductors:
   - replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
     storageRequest: 10G
   ironicInspector:
     replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
-    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
   secret: ironic-secret

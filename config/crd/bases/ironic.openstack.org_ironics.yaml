@@ -70,13 +70,36 @@ spec:
                   files. Those get added to the service config dir in /etc/<service>
                   . TODO: -> implement'
                 type: object
+              images:
+                description: Images - Container images for all ironic services
+                properties:
+                  api:
+                    description: API - Ironic API Container Image (will be set to
+                      environmental default if empty)
+                    type: string
+                  conductor:
+                    description: Conductor - Ironic Conductor Container Image (will
+                      be set to environmental default if empty)
+                    type: string
+                  inspector:
+                    description: Inspector - Ironic Inspector Container Image (will
+                      be set to environmental default if empty)
+                    type: string
+                  neutronAgent:
+                    description: NeutronAgent - ML2 baremtal - Ironic Neutron Agent
+                      Image (will be set to environmental default if empty)
+                    type: string
+                  pxe:
+                    description: Pxe- Ironic DHCP/TFTP/HTTP Container Image URL (will
+                      be set to environmental default if empty)
+                    type: string
+                type: object
               ironicAPI:
                 description: IronicAPI - Spec definition for the API service of this
                   Ironic deployment
                 properties:
                   containerImage:
-                    description: ContainerImage - Ironic API Container Image URL (will
-                      be set to environmental default if empty)
+                    description: ContainerImage - Ironic API Container Image
                     type: string
                   customServiceConfig:
                     default: '# add your customization here'
@@ -269,7 +292,6 @@ spec:
                     description: Secret containing RabbitMq transport URL
                     type: string
                 required:
-                - containerImage
                 - serviceAccount
                 type: object
               ironicConductors:
@@ -283,7 +305,6 @@ spec:
                       type: string
                     containerImage:
                       description: ContainerImage - Ironic Conductor Container Image
-                        URL (will be set to environmental default if empty)
                       type: string
                     customServiceConfig:
                       default: '# add your customization here'
@@ -397,7 +418,7 @@ spec:
                       type: string
                     pxeContainerImage:
                       description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container
-                        Image URL (will be set to environmental default if empty)
+                        Image
                       type: string
                     replicas:
                       default: 1
@@ -491,8 +512,6 @@ spec:
                         transportURL
                       type: string
                   required:
-                  - containerImage
-                  - pxeContainerImage
                   - serviceAccount
                   - storageClass
                   - storageRequest
@@ -504,7 +523,6 @@ spec:
                 properties:
                   containerImage:
                     description: ContainerImage - Ironic Inspector Container Image
-                      URL (will be set to environmental default if empty)
                     type: string
                   customServiceConfig:
                     default: '# add your customization here'
@@ -663,8 +681,7 @@ spec:
                     type: boolean
                   pxeContainerImage:
                     description: PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP
-                      Container Image URL (will be set to environmental default if
-                      empty)
+                      Container Image
                     type: string
                   rabbitMqClusterName:
                     default: rabbitmq
@@ -758,8 +775,6 @@ spec:
                     description: TransportURLSecret - Secret containing RabbitMQ transportURL
                     type: string
                 required:
-                - containerImage
-                - pxeContainerImage
                 - serviceAccount
                 type: object
               ironicNeutronAgent:
@@ -768,7 +783,7 @@ spec:
                 properties:
                   containerImage:
                     description: ContainerImage - ML2 baremtal - Ironic Neutron Agent
-                      Image URL
+                      Image
                     type: string
                   customServiceConfig:
                     default: '# add your customization here'
@@ -879,7 +894,6 @@ spec:
                       to register in ironic
                     type: string
                 required:
-                - containerImage
                 - secret
                 - serviceAccount
                 type: object
