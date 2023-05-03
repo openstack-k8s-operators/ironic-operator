@@ -89,6 +89,10 @@ type IronicNeutronAgentSpec struct {
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide the default SA name
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IronicNeutronAgentStatus defines the observed state of ML2 baremetal - ironic-neutron-agent

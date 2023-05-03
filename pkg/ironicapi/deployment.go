@@ -107,7 +107,7 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: ironic.ServiceAccount,
+					ServiceAccountName: instance.Spec.ServiceAccount,
 					Containers: []corev1.Container{
 						{
 							Name: ironic.ServiceName + "-" + ironic.APIComponent,

@@ -18,7 +18,6 @@ package ironicneutronagent
 
 import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -100,7 +99,7 @@ func Deployment(
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: ironic.ServiceAccount,
+					ServiceAccountName: instance.Spec.ServiceAccount,
 					Containers: []corev1.Container{
 						{
 							Name: ServiceName,

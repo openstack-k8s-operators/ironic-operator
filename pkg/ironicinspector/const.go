@@ -1,8 +1,6 @@
 package ironicinspector
 
 const (
-	// ServiceAccount -
-	ServiceAccount = "ironic-operator-ironic"
 	// DatabaseName -
 	DatabaseName = "ironic_inspector"
 	// IronicInspectorPublicPort -
