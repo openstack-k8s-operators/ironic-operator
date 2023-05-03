@@ -106,6 +106,10 @@ type IronicAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
 	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// ServiceAccount - service account name used internally to provide the default SA name
+	ServiceAccount string `json:"serviceAccount"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
@@ -199,4 +203,19 @@ func (instance IronicAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, e
 		}
 	}
 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
+}
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance Ironic) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance Ironic) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance Ironic) RbacResourceName() string {
+	return "ironic-" + instance.Name
 }

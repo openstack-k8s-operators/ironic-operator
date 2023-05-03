@@ -20,8 +20,6 @@ const (
 	ServiceName = "ironic"
 	// ServiceType -
 	ServiceType = "baremetal"
-	// ServiceAccount -
-	ServiceAccount = "ironic-operator-ironic"
 	// DatabaseName -
 	DatabaseName = "ironic"
 	// IronicPublicPort -

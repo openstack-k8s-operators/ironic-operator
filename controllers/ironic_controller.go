@@ -33,6 +33,7 @@ import (
 	helper "github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	database "github.com/openstack-k8s-operators/lib-common/modules/database"
@@ -49,6 +50,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -82,6 +84,14 @@ type IronicReconciler struct {
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
+
+// service account, role, rolebinding
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update
+// service account permissions that are needed to grant permission to the above
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;privileged,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -153,6 +163,10 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
 			condition.UnknownCondition(ironicv1.IronicRabbitMqTransportURLReadyCondition, condition.InitReason, ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
+			// service account, role, rolebinding conditions
+			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
+			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
+			condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -218,6 +232,27 @@ func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironic
 
 func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service")
+
+	// Service account, role, binding
+	rbacRules := []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{"security.openshift.io"},
+			ResourceNames: []string{"anyuid", "privileged"},
+			Resources:     []string{"securitycontextconstraints"},
+			Verbs:         []string{"use"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
+	}
+	rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, rbacRules)
+	if err != nil {
+		return rbacResult, err
+	} else if (rbacResult != ctrl.Result{}) {
+		return rbacResult, nil
+	}
 
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
@@ -730,6 +765,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
 		deployment.Spec.KeystoneVars = keystoneVars
+		deployment.Spec.ServiceAccount = instance.RbacResourceName()
 
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
@@ -756,6 +792,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 		// TODO: Add logic to determine when to set/overwrite, etc
 		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
 		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
+		deployment.Spec.ServiceAccount = instance.RbacResourceName()
 
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
@@ -871,6 +908,7 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
 			deployment.Spec = instance.Spec.IronicInspector
+			deployment.Spec.ServiceAccount = instance.RbacResourceName()
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {
@@ -930,6 +968,7 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
 			deployment.Spec = instance.Spec.IronicNeutronAgent
+			deployment.Spec.ServiceAccount = instance.RbacResourceName()
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {
