@@ -134,10 +134,6 @@ type IronicInspectorSpec struct {
 	// +kubebuilder:validation:Optional
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
-
-	// +kubebuilder:validation:Required
-	// ServiceAccount - service account name used internally to provide the default SA name
-	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IronicInspectorStatus defines the observed state of IronicInspector

@@ -237,7 +237,7 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:            instance.Spec.ServiceAccount,
+					ServiceAccountName:            ServiceAccount,
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 				},

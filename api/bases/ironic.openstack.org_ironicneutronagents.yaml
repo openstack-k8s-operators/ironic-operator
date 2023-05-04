@@ -152,10 +152,6 @@ spec:
                 description: Secret containing OpenStack password information for
                   IronicPassword
                 type: string
-              serviceAccount:
-                description: ServiceAccount - service account name used internally
-                  to provide the default SA name
-                type: string
               serviceUser:
                 default: ironic
                 description: ServiceUser - optional username used for this service
@@ -164,7 +160,6 @@ spec:
             required:
             - containerImage
             - secret
-            - serviceAccount
             type: object
           status:
             description: IronicNeutronAgentStatus defines the observed state of ML2

@@ -231,10 +231,6 @@ spec:
                 description: Secret containing OpenStack password information for
                   IronicDatabasePassword, AdminPassword
                 type: string
-              serviceAccount:
-                description: ServiceAccount - service account name used internally
-                  to provide the default SA name
-                type: string
               serviceUser:
                 default: ironic
                 description: ServiceUser - optional username used for this service
@@ -257,7 +253,6 @@ spec:
             required:
             - containerImage
             - pxeContainerImage
-            - serviceAccount
             - storageClass
             - storageRequest
             type: object

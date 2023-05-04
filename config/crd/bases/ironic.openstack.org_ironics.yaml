@@ -252,10 +252,6 @@ spec:
                     description: Secret containing OpenStack password information
                       for IronicDatabasePassword, AdminPassword
                     type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
                   serviceUser:
                     default: ironic
                     description: ServiceUser - optional username used for this service
@@ -270,7 +266,6 @@ spec:
                     type: string
                 required:
                 - containerImage
-                - serviceAccount
                 type: object
               ironicConductors:
                 description: IronicConductors - Spec definitions for the conductor
@@ -466,10 +461,6 @@ spec:
                       description: Secret containing OpenStack password information
                         for IronicDatabasePassword, AdminPassword
                       type: string
-                    serviceAccount:
-                      description: ServiceAccount - service account name used internally
-                        to provide the default SA name
-                      type: string
                     serviceUser:
                       default: ironic
                       description: ServiceUser - optional username used for this service
@@ -493,7 +484,6 @@ spec:
                   required:
                   - containerImage
                   - pxeContainerImage
-                  - serviceAccount
                   - storageClass
                   - storageRequest
                   type: object
@@ -737,10 +727,6 @@ spec:
                     description: Secret containing OpenStack password information
                       for IronicInspectorDatabasePassword, AdminPassword
                     type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
                   serviceUser:
                     default: ironic-inspector
                     description: ServiceUser - optional username used for this service
@@ -760,7 +746,6 @@ spec:
                 required:
                 - containerImage
                 - pxeContainerImage
-                - serviceAccount
                 type: object
               ironicNeutronAgent:
                 description: IronicNeutronAgent - Spec definition for the ML2 baremetal
@@ -869,10 +854,6 @@ spec:
                     description: Secret containing OpenStack password information
                       for IronicPassword
                     type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
                   serviceUser:
                     default: ironic
                     description: ServiceUser - optional username used for this service
@@ -881,7 +862,6 @@ spec:
                 required:
                 - containerImage
                 - secret
-                - serviceAccount
                 type: object
               nodeSelector:
                 additionalProperties:

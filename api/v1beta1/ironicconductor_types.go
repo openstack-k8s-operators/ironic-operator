@@ -128,10 +128,6 @@ type IronicConductorSpec struct {
 	// +kubebuilder:validation:Optional
 	// keystoneVars - Internally used map of Keystone API endpoints
 	KeystoneVars map[string]string `json:"keystoneVars,omitempty"`
-
-	// +kubebuilder:validation:Required
-	// ServiceAccount - service account name used internally to provide the default SA name
-	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor
