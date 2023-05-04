@@ -833,6 +833,9 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 
 	templateParameters := make(map[string]interface{})
+	// Initialize ConductorGroup key to ensure template rendering does not fail
+	templateParameters["ConductorGroup"] = nil
+
 	if !instance.Spec.Standalone {
 		templateParameters["KeystoneInternalURL"] = keystoneVars["keystoneInternalURL"]
 		templateParameters["KeystonePublicURL"] = keystoneVars["keystonePublicURL"]
