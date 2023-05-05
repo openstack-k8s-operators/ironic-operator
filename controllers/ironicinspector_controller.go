@@ -1073,13 +1073,18 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		if err != nil {
 			return err
 		}
-		authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+		keystoneInternalURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+		if err != nil {
+			return err
+		}
+		keystonePublicURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
 		if err != nil {
 			return err
 		}
 
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
-		templateParameters["KeystoneInternalURL"] = authURL
+		templateParameters["KeystoneInternalURL"] = keystoneInternalURL
+		templateParameters["KeystonePublicURL"] = keystonePublicURL
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})
