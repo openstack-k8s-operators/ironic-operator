@@ -38,12 +38,12 @@ type IronicConductorSpec struct {
 	// ServiceUser - optional username used for this service to register in ironic
 	ServiceUser string `json:"serviceUser"`
 
-	// +kubebuilder:validation:Required
-	// ContainerImage - Ironic Conductor Container Image URL (will be set to environmental default if empty)
+	// +kubebuilder:validation:Optional
+	// ContainerImage - Ironic Conductor Container Image
 	ContainerImage string `json:"containerImage"`
 
-	// +kubebuilder:validation:Required
-	// PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image URL (will be set to environmental default if empty)
+	// +kubebuilder:validation:Optional
+	// PxeContainerImage - Ironic DHCP/TFTP/HTTP Container Image
 	PxeContainerImage string `json:"pxeContainerImage"`
 
 	// +kubebuilder:validation:Optional

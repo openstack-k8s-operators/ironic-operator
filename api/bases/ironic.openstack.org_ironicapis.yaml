@@ -49,8 +49,7 @@ spec:
             description: IronicAPISpec defines the desired state of IronicAPI
             properties:
               containerImage:
-                description: ContainerImage - Ironic API Container Image URL (will
-                  be set to environmental default if empty)
+                description: ContainerImage - Ironic API Container Image
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
@@ -239,7 +238,6 @@ spec:
                 description: Secret containing RabbitMq transport URL
                 type: string
             required:
-            - containerImage
             - serviceAccount
             type: object
           status:

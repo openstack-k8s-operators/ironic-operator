@@ -44,7 +44,13 @@ const (
 	errForbiddenAddressOverlap = "%v overlap with %v: %v"
 )
 
-// IronicDefaults -
+type netIPStartEnd struct {
+	start net.IP      // Start address of DHCP Range
+	end   net.IP      // End address of DHCP Range
+	path  *field.Path // Field path to DHCP Range in Ironic spec
+}
+
+// IronicDefaults - TODO remove when openstack-operator has moved to IronicImages
 type IronicDefaults struct {
 	APIContainerImageURL       string
 	ConductorContainerImageURL string
@@ -53,18 +59,23 @@ type IronicDefaults struct {
 	INAContainerImageURL       string
 }
 
-var ironicDefaults IronicDefaults
-
-type netIPStartEnd struct {
-	start net.IP      // Start address of DHCP Range
-	end   net.IP      // End address of DHCP Range
-	path  *field.Path // Field path to DHCP Range in Ironic spec
+// SetupIronicDefaults - TODO remove when openstack-operator has moved to SetupIronicImageDefaults
+func SetupIronicDefaults(defaults IronicDefaults) {
+	SetupIronicImageDefaults(IronicImages{
+		API:          defaults.APIContainerImageURL,
+		Conductor:    defaults.ConductorContainerImageURL,
+		Inspector:    defaults.InspectorContainerImageURL,
+		Pxe:          defaults.PXEContainerImageURL,
+		NeutronAgent: defaults.INAContainerImageURL,
+	})
 }
 
-// SetupIronicDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
-func SetupIronicDefaults(defaults IronicDefaults) {
-	ironicDefaults = defaults
-	ironiclog.Info("Ironic defaults initialized", "defaults", defaults)
+var imageDefaults IronicImages
+
+// SetupIronicImageDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
+func SetupIronicImageDefaults(images IronicImages) {
+	imageDefaults = images
+	ironiclog.Info("Ironic defaults initialized", "images", imageDefaults)
 }
 
 // SetupWebhookWithManager sets up the webhook with the Manager
@@ -459,6 +470,21 @@ func (r *Ironic) Default() {
 // Default - Exported function wrapping non-exported defaulter functions,
 // this function can be called externally to default an ironic spec.
 func (spec *IronicSpec) Default() {
+	if spec.Images.API == "" {
+		spec.Images.API = imageDefaults.API
+	}
+	if spec.Images.Conductor == "" {
+		spec.Images.Conductor = imageDefaults.Conductor
+	}
+	if spec.Images.Inspector == "" {
+		spec.Images.Inspector = imageDefaults.Inspector
+	}
+	if spec.Images.NeutronAgent == "" {
+		spec.Images.NeutronAgent = imageDefaults.NeutronAgent
+	}
+	if spec.Images.Pxe == "" {
+		spec.Images.Pxe = imageDefaults.Pxe
+	}
 	defaultIronicAPI(spec)
 	defaultIronicConductors(spec)
 	defaultIronicInspector(spec)
@@ -470,7 +496,7 @@ func defaultIronicAPI(spec *IronicSpec) {
 	ironiclog.Info("webhook - calling IronicAPI defaulter")
 	// ContainerImage
 	if spec.IronicAPI.ContainerImage == "" {
-		spec.IronicAPI.ContainerImage = ironicDefaults.APIContainerImageURL
+		spec.IronicAPI.ContainerImage = spec.Images.API
 	}
 	// Standalone
 	if spec.Standalone {
@@ -498,11 +524,11 @@ func defaultIronicConductors(spec *IronicSpec) {
 	for idx, c := range spec.IronicConductors {
 		// ContainerImage
 		if spec.IronicConductors[idx].ContainerImage == "" {
-			spec.IronicConductors[idx].ContainerImage = ironicDefaults.ConductorContainerImageURL
+			spec.IronicConductors[idx].ContainerImage = spec.Images.Conductor
 		}
 		// PxeContainerImage
 		if spec.IronicConductors[idx].PxeContainerImage == "" {
-			spec.IronicConductors[idx].PxeContainerImage = ironicDefaults.PXEContainerImageURL
+			spec.IronicConductors[idx].PxeContainerImage = spec.Images.Pxe
 		}
 		// StorageClass
 		if c.StorageClass == "" {
@@ -533,11 +559,11 @@ func defaultIronicInspector(spec *IronicSpec) {
 	ironiclog.Info("webhook - calling IronicInspector defaulter")
 	// ContainerImage
 	if spec.IronicInspector.ContainerImage == "" {
-		spec.IronicInspector.ContainerImage = ironicDefaults.InspectorContainerImageURL
+		spec.IronicInspector.ContainerImage = spec.Images.Inspector
 	}
 	// PxeContainerImage
 	if spec.IronicInspector.PxeContainerImage == "" {
-		spec.IronicInspector.PxeContainerImage = ironicDefaults.PXEContainerImageURL
+		spec.IronicInspector.PxeContainerImage = spec.Images.Pxe
 	}
 	// Standalone
 	if spec.Standalone {
@@ -564,8 +590,8 @@ func defaultIronicInspector(spec *IronicSpec) {
 func defaultIronicNeutronAgent(spec *IronicSpec) {
 	ironiclog.Info("webhool - calling IronicNeutronAgent defaulter")
 	// ContainerImage
-	if spec.IronicAPI.ContainerImage == "" {
-		spec.IronicNeutronAgent.ContainerImage = ironicDefaults.INAContainerImageURL
+	if spec.IronicNeutronAgent.ContainerImage == "" {
+		spec.IronicNeutronAgent.ContainerImage = spec.Images.NeutronAgent
 	}
 	// Secret
 	if spec.IronicNeutronAgent.Secret == "" {
