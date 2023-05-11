@@ -840,6 +840,17 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["KeystoneInternalURL"] = keystoneVars["keystoneInternalURL"]
 		templateParameters["KeystonePublicURL"] = keystoneVars["keystonePublicURL"]
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	} else {
+		ironicAPI, err := ironicv1.GetIronicAPI(
+			ctx, h, instance.Namespace, map[string]string{})
+		if err != nil {
+			return err
+		}
+		ironicPublicURL, err := ironicAPI.GetEndpoint(endpoint.EndpointPublic)
+		if err != nil {
+			return err
+		}
+		templateParameters["IronicPublicURL"] = ironicPublicURL
 	}
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
