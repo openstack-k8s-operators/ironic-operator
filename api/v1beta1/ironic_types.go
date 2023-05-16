@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,6 +31,19 @@ const (
 
 	// ConductorGroupNull - Used in IronicConductorReadyCount map and resource labels when ConductorGroup is not set
 	ConductorGroupNull = "null_conductor_group_null"
+
+	// Container image fall-back defaults
+
+	// IronicAPIContainerImage is the fall-back container image for IronicAPI
+	IronicAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified"
+	// IronicConductorContainerImage is the fall-back container image for IronicConductor
+	IronicConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified"
+	// IronicInspectorContainerImage is the fall-back container image for IronicInspector
+	IronicInspectorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified"
+	// IronicPXEContainerImage is the fall-back container image for IronicPXE
+	IronicPXEContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified"
+	// IronicNeutronAgentContainerImage is the fall-back container image for IronicConductor
+	IronicNeutronAgentContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified"
 )
 
 // IronicSpec defines the desired state of Ironic
@@ -289,4 +303,18 @@ func (instance Ironic) IsReady() bool {
 	// ready = ready && instance.Status.IronicInspectorReadyCount > 0
 
 	return ready
+}
+
+// SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)
+func SetupDefaults() {
+	// Acquire environmental defaults and initialize Ironic defaults with them
+	imageDefaults := IronicImages{
+		API:          util.GetEnvVar("IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
+		Conductor:    util.GetEnvVar("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
+		Inspector:    util.GetEnvVar("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
+		Pxe:          util.GetEnvVar("IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
+		NeutronAgent: util.GetEnvVar("IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
+	}
+
+	SetupIronicImageDefaults(imageDefaults)
 }

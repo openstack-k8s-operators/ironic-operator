@@ -162,16 +162,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Acquire environmental defaults and initialize Ironic defaults with them
-	imageDefaults := ironicv1.IronicImages{
-		API:          os.Getenv("IRONIC_API_IMAGE_URL_DEFAULT"),
-		Conductor:    os.Getenv("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT"),
-		Inspector:    os.Getenv("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT"),
-		Pxe:          os.Getenv("IRONIC_PXE_IMAGE_URL_DEFAULT"),
-		NeutronAgent: os.Getenv("IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT"),
-	}
-
-	ironicv1.SetupIronicImageDefaults(imageDefaults)
+	// Acquire environmental defaults and initialize operator defaults with them
+	ironicv1.SetupDefaults()
 
 	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
 		if err = (&ironicv1.Ironic{}).SetupWebhookWithManager(mgr); err != nil {
