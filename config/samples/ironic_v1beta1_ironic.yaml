@@ -2,15 +2,8 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: Ironic
 metadata:
   name: ironic
-  namespace: openstack
 spec:
   serviceUser: ironic
-  images:
-    api: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
-    conductor: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-    inspector: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
-    pxe: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
-    neutronAgent: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
   customServiceConfig: |
     [DEFAULT]
     debug = true

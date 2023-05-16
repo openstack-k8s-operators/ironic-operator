@@ -3,4 +3,4 @@ kind: IronicAPI
 metadata:
   name: ironicapi-sample
 spec:
-  # TODO(user): Add fields here
+  replicas: 1

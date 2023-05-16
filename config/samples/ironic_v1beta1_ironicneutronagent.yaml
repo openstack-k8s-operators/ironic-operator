@@ -1,9 +1,8 @@
 apiVersion: ironic.openstack.org/v1beta1
 kind: IronicNeutronAgent
 metadata:
-  name: ironic-neutron-agent
+  name: ironic-neutron-agent-sample
   namespace: openstack
 spec:
   replicas: 1
-  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
   secret: osp-secret
