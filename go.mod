@@ -8,12 +8,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.9.4
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230505165400-46c5e7325f0d
-	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-20230508031313-bd7a6bbd6307
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230503142030-4d9a9bccf284
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230505090059-1db7d191885e
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230505090059-1db7d191885e
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230505124740-6d38a5ee77b8
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230515135008-28b4b15c5915
+	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-20230516021436-94d3615259a9
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230515212624-62d8100c3ead
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230510145530-3c8e9179fb6e
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230510145530-3c8e9179fb6e
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230515195124-f5d912595564
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.26.3
@@ -50,7 +50,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230505090059-1db7d191885e // indirect; indirect // indirect // indirect // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230510145530-3c8e9179fb6e // indirect; indirect // indirect // indirect // indirect // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
