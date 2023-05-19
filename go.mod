@@ -13,12 +13,18 @@ require (
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230519193353-09694c267b18
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230522113906-6f4206cbf317
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230522113906-6f4206cbf317
+	github.com/openstack-k8s-operators/lib-common/modules/test-operators v0.0.0-20230522113906-6f4206cbf317
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230517052836-8478be8b3aaa
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.26.3
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
 	sigs.k8s.io/controller-runtime v0.14.6
+)
+
+require (
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230522113906-6f4206cbf317
+	golang.org/x/mod v0.10.0 // indirect
 )
 
 require (
@@ -40,7 +46,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/gophercloud/gophercloud v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -59,7 +65,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
+	go.uber.org/zap v1.24.0
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
 	golang.org/x/sys v0.8.0 // indirect
@@ -72,7 +78,7 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiextensions-apiserver v0.26.2 // indirect
 	k8s.io/component-base v0.26.2 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
