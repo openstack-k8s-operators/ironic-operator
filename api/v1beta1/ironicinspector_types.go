@@ -157,9 +157,6 @@ type IronicInspectorStatus struct {
 	// ReadyCount of Ironic Inspector instances
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
-	// ServiceIDs
-	ServiceIDs map[string]string `json:"serviceIDs,omitempty"`
-
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 

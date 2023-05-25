@@ -309,11 +309,6 @@ spec:
                 description: ReadyCount of ironic API instances
                 format: int32
                 type: integer
-              serviceIDs:
-                additionalProperties:
-                  type: string
-                description: ServiceIDs
-                type: object
             type: object
         type: object
     served: true

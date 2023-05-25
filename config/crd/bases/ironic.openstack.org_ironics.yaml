@@ -1045,11 +1045,6 @@ spec:
                 description: ReadyCount of Ironic Neutron Agent instance
                 format: int32
                 type: integer
-              serviceIDs:
-                additionalProperties:
-                  type: string
-                description: ServiceIDs
-                type: object
               transportURLSecret:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string

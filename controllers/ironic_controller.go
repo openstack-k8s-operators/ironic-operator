@@ -187,9 +187,6 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if instance.Status.APIEndpoints == nil {
 		instance.Status.APIEndpoints = make(map[string]map[string]string)
 	}
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = make(map[string]string)
-	}
 
 	// Handle service delete
 	if !instance.DeletionTimestamp.IsZero() {
@@ -459,7 +456,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			r.Log.Info(fmt.Sprintf("Conductor deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
 		}
 		// Mirror IronicConductor status' ReadyCount to this parent CR
-		// instance.Status.ServiceIDs = ironicConductor.Status.ServiceIDs
 		condGrp := conductorSpec.ConductorGroup
 		if conductorSpec.ConductorGroup == "" {
 			condGrp = ironicv1.ConductorGroupNull
@@ -497,9 +493,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	for k, v := range ironicAPI.Status.APIEndpoints {
 		instance.Status.APIEndpoints[k] = v
 	}
-	for k, v := range ironicAPI.Status.ServiceIDs {
-		instance.Status.ServiceIDs[k] = v
-	}
 	instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
 
 	// Mirror IronicAPI's condition status
@@ -531,9 +524,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
 		for k, v := range ironicInspector.Status.APIEndpoints {
 			instance.Status.APIEndpoints[k] = v
-		}
-		for k, v := range ironicInspector.Status.ServiceIDs {
-			instance.Status.ServiceIDs[k] = v
 		}
 		instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
@@ -959,7 +949,6 @@ func (r *IronicReconciler) inspectorDeploymentDelete(
 	}
 	// Remove inspector APIEndpoints, Services and set ReadyCount 0
 	delete(instance.Status.APIEndpoints, "ironic-inspector")
-	delete(instance.Status.ServiceIDs, "ironic-inspector")
 	instance.Status.InspectorReadyCount = 0
 	// Remove IronicInspectorReadyCondition
 	instance.Status.Conditions.Remove(ironicv1.IronicInspectorReadyCondition)
