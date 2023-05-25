@@ -288,21 +288,9 @@ func init() {
 // 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
 // }
 
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if Ironic is reconciled successfully
 func (instance Ironic) IsReady() bool {
-	ready := instance.Status.IronicAPIReadyCount > 0
-
-	for _, conductorSpec := range instance.Spec.IronicConductors {
-		condGrp := conductorSpec.ConductorGroup
-		if conductorSpec.ConductorGroup == "" {
-			condGrp = ConductorGroupNull
-		}
-		ready = ready && instance.Status.IronicConductorReadyCount[condGrp] > 0
-	}
-
-	// ready = ready && instance.Status.IronicInspectorReadyCount > 0
-
-	return ready
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)

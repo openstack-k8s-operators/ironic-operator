@@ -180,7 +180,7 @@ func init() {
 	SchemeBuilder.Register(&IronicConductor{}, &IronicConductorList{})
 }
 
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if IronicConductor is reconciled successfully
 func (instance IronicConductor) IsReady() bool {
-	return instance.Status.ReadyCount >= 1
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }

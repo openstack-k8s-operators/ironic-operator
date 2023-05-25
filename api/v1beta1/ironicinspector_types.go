@@ -195,7 +195,7 @@ func init() {
 	SchemeBuilder.Register(&IronicInspector{}, &IronicInspectorList{})
 }
 
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if IronicInspector is reconciled successfully
 func (instance IronicInspector) IsReady() bool {
-	return instance.Status.ReadyCount >= 1
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }

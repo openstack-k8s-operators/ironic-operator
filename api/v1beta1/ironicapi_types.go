@@ -190,9 +190,9 @@ func init() {
 	SchemeBuilder.Register(&IronicAPI{}, &IronicAPIList{})
 }
 
-// IsReady - returns true if service is ready to server requests
+// IsReady - returns true if IronicAPI is reconciled successfully
 func (instance IronicAPI) IsReady() bool {
-	return instance.Status.ReadyCount >= 1
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // GetEndpoint - returns the Ironic endpoint url for type
