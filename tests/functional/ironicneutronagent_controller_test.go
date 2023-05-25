@@ -114,12 +114,12 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				"Input data resources missing",
 			)
 		})
-		It("is unknown Ready", func() {
+		It("is false Ready", func() {
 			th.ExpectCondition(
 				ironicNames.INAName,
 				ConditionGetterFunc(INAConditionGetter),
 				condition.ReadyCondition,
-				corev1.ConditionUnknown,
+				corev1.ConditionFalse,
 			)
 		})
 		It("has empty Status fields", func() {
@@ -150,12 +150,12 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 					"Input data resources missing",
 				)
 			})
-			It("is unknown Ready", func() {
+			It("is false Ready", func() {
 				th.ExpectCondition(
 					ironicNames.INAName,
 					ConditionGetterFunc(INAConditionGetter),
 					condition.ReadyCondition,
-					corev1.ConditionUnknown,
+					corev1.ConditionFalse,
 				)
 			})
 			It("has empty Status fields", func() {
