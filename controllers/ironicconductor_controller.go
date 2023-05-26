@@ -174,10 +174,6 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = make(map[string]string)
 	}
-	// TODO: We don't use ServiceIDs in conductor controller
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = make(map[string]string)
-	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}

@@ -371,11 +371,6 @@ spec:
                 description: ReadyCount of Ironic Inspector instances
                 format: int32
                 type: integer
-              serviceIDs:
-                additionalProperties:
-                  type: string
-                description: ServiceIDs
-                type: object
               transportURLSecret:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string

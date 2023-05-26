@@ -191,9 +191,6 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if instance.Status.APIEndpoints == nil {
 		instance.Status.APIEndpoints = make(map[string]map[string]string)
 	}
-	if instance.Status.ServiceIDs == nil {
-		instance.Status.ServiceIDs = make(map[string]string)
-	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
@@ -403,8 +400,6 @@ func (r *IronicAPIReconciler) reconcileInit(
 			if (ctrlResult != ctrl.Result{}) {
 				return ctrlResult, nil
 			}
-
-			instance.Status.ServiceIDs[ksSvc["name"]] = ksSvcObj.GetServiceID()
 
 			//
 			// register endpoints

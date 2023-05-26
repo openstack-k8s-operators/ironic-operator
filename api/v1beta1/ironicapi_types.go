@@ -155,9 +155,6 @@ type IronicAPIStatus struct {
 	// ReadyCount of ironic API instances
 	ReadyCount int32 `json:"readyCount,omitempty"`
 
-	// ServiceIDs
-	ServiceIDs map[string]string `json:"serviceIDs,omitempty"`
-
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
 }

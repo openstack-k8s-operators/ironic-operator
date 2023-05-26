@@ -205,13 +205,6 @@ func (in *IronicAPIStatus) DeepCopyInto(out *IronicAPIStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.ServiceIDs != nil {
-		in, out := &in.ServiceIDs, &out.ServiceIDs
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.NetworkAttachments != nil {
 		in, out := &in.NetworkAttachments, &out.NetworkAttachments
 		*out = make(map[string][]string, len(*in))
@@ -362,13 +355,6 @@ func (in *IronicConductorStatus) DeepCopyInto(out *IronicConductorStatus) {
 		*out = make(condition.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
-	if in.ServiceIDs != nil {
-		in, out := &in.ServiceIDs, &out.ServiceIDs
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
 		}
 	}
 	if in.NetworkAttachments != nil {
@@ -583,13 +569,6 @@ func (in *IronicInspectorStatus) DeepCopyInto(out *IronicInspectorStatus) {
 		*out = make(condition.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
-	if in.ServiceIDs != nil {
-		in, out := &in.ServiceIDs, &out.ServiceIDs
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
 		}
 	}
 	if in.NetworkAttachments != nil {
@@ -868,13 +847,6 @@ func (in *IronicStatus) DeepCopyInto(out *IronicStatus) {
 				}
 			}
 			(*out)[key] = outVal
-		}
-	}
-	if in.ServiceIDs != nil {
-		in, out := &in.ServiceIDs, &out.ServiceIDs
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
 		}
 	}
 	if in.IronicConductorReadyCount != nil {
