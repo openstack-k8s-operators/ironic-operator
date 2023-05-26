@@ -38,6 +38,34 @@ func ReadSample(sampleFileName string) map[string]interface{} {
 	return rawSample
 }
 
+func CreateIronicFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	instance := CreateIronic(name, raw["spec"].(map[string]interface{}))
+	DeferCleanup(th.DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+}
+
+func CreateIronicAPIFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	instance := CreateIronicAPI(name, raw["spec"].(map[string]interface{}))
+	DeferCleanup(th.DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+}
+
+func CreateIronicConductorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	instance := CreateIronicConductor(name, raw["spec"].(map[string]interface{}))
+	DeferCleanup(th.DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+}
+
+func CreateIronicInspectorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
+	raw := ReadSample(sampleFileName)
+	instance := CreateIronicInspector(name, raw["spec"].(map[string]interface{}))
+	DeferCleanup(th.DeleteInstance, instance)
+	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
+}
+
 func CreateIronicNeutronAgentFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
 	instance := CreateIronicNeutronAgent(name, raw["spec"].(map[string]interface{}))
@@ -62,4 +90,45 @@ var _ = Describe("Samples", func() {
 			GetIronicNeutronAgent(name)
 		})
 	})
+
+	When("ironic_v1beta1_ironicinspector.yaml sample is applied", func() {
+		It("IronicInspector is created", func() {
+			name := CreateIronicInspectorFromSample(
+				"ironic_v1beta1_ironicinspector.yaml",
+				ironicNames.InspectorName,
+			)
+			GetIronicInspector(name)
+		})
+	})
+
+	When("ironic_v1beta1_ironicconductor.yaml sample is applied", func() {
+		It("IronicInspector is created", func() {
+			name := CreateIronicConductorFromSample(
+				"ironic_v1beta1_ironicconductor.yaml",
+				ironicNames.ConductorName,
+			)
+			GetIronicConductor(name)
+		})
+	})
+
+	When("ironic_v1beta1_ironicapi.yaml sample is applied", func() {
+		It("IronicInspector is created", func() {
+			name := CreateIronicAPIFromSample(
+				"ironic_v1beta1_ironicapi.yaml",
+				ironicNames.ConductorName,
+			)
+			GetIronicAPI(name)
+		})
+	})
+
+	// TODO(hjensas): Need to simulate the RBAC ServiceAccount?
+	// When("ironic_v1beta1_ironic.yaml sample is applied", func() {
+	// 	It("IronicInspector is created", func() {
+	// 		name := CreateIronicFromSample(
+	// 			"ironic_v1beta1_ironic.yaml",
+	// 			ironicNames.ConductorName,
+	// 		)
+	// 		GetIronic(name)
+	// 	})
+	// })
 })
