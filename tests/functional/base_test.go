@@ -42,6 +42,9 @@ type IronicNames struct {
 	Namespace           string
 	IronicName          types.NamespacedName
 	ServiceAccountName  types.NamespacedName
+	APIName             types.NamespacedName
+	ConductorName       types.NamespacedName
+	InspectorName       types.NamespacedName
 	INAName             types.NamespacedName
 	INATransportURLName types.NamespacedName
 	KeystoneServiceName types.NamespacedName
@@ -50,19 +53,47 @@ type IronicNames struct {
 func GetIronicNames(
 	ironicName types.NamespacedName,
 ) IronicNames {
-	// ironicAPI := types.NamespacedName{
-	// 	Namespace: ironicName.Namespace,
-	// }
+	ironic := types.NamespacedName{
+		Namespace: ironicName.Namespace,
+		Name:      "ironic",
+	}
+	ironicAPI := types.NamespacedName{
+		Namespace: ironicName.Namespace,
+		Name:      "ironic-api",
+	}
+	ironicConductor := types.NamespacedName{
+		Namespace: ironicName.Namespace,
+		Name:      "ironic-conductor",
+	}
+	ironicInspector := types.NamespacedName{
+		Namespace: ironicName.Namespace,
+		Name:      "ironic-inspector",
+	}
 	ironicNeutronAgent := types.NamespacedName{
 		Namespace: ironicName.Namespace,
 		Name:      "ironic-neutron-agent",
 	}
 
 	return IronicNames{
-		Namespace:  ironicName.Namespace,
-		IronicName: ironicName,
+		Namespace: ironicName.Namespace,
+		IronicName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic.Name,
+		},
+		APIName: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      ironicAPI.Name,
+		},
+		ConductorName: types.NamespacedName{
+			Namespace: ironicConductor.Namespace,
+			Name:      ironicConductor.Name,
+		},
+		InspectorName: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      ironicInspector.Name,
+		},
 		INAName: types.NamespacedName{
-			Namespace: ironicName.Namespace,
+			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name,
 		},
 		INATransportURLName: types.NamespacedName{
@@ -96,6 +127,114 @@ func CreateMessageBusSecret(
 	)
 	logger.Info("Secret created", "name", name)
 	return s
+}
+
+func CreateIronic(
+	name types.NamespacedName,
+	spec map[string]interface{},
+) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "ironic.openstack.org/v1beta1",
+		"kind":       "Ironic",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+
+}
+
+func GetIronic(
+	name types.NamespacedName,
+) *ironicv1.Ironic {
+	instance := &ironicv1.Ironic{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func CreateIronicAPI(
+	name types.NamespacedName,
+	spec map[string]interface{},
+) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "ironic.openstack.org/v1beta1",
+		"kind":       "IronicAPI",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+
+}
+
+func GetIronicAPI(
+	name types.NamespacedName,
+) *ironicv1.IronicAPI {
+	instance := &ironicv1.IronicAPI{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func CreateIronicConductor(
+	name types.NamespacedName,
+	spec map[string]interface{},
+) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "ironic.openstack.org/v1beta1",
+		"kind":       "IronicConductor",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+
+}
+
+func GetIronicConductor(
+	name types.NamespacedName,
+) *ironicv1.IronicConductor {
+	instance := &ironicv1.IronicConductor{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+func CreateIronicInspector(
+	name types.NamespacedName,
+	spec map[string]interface{},
+) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "ironic.openstack.org/v1beta1",
+		"kind":       "IronicInspector",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+
+}
+
+func GetIronicInspector(
+	name types.NamespacedName,
+) *ironicv1.IronicInspector {
+	instance := &ironicv1.IronicInspector{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
 }
 
 func CreateIronicNeutronAgent(

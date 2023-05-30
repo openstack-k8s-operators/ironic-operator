@@ -4,3 +4,4 @@ metadata:
   name: ironicapi-sample
 spec:
   replicas: 1
+  serviceAccount: ironic

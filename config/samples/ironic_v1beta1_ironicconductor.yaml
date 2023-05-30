@@ -5,3 +5,4 @@ metadata:
 spec:
   replicas: 1
   storageRequest: 10G
+  serviceAccount: ironic
