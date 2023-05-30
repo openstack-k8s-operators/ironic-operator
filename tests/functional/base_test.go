@@ -17,7 +17,7 @@ limitations under the License.
 package functional_test
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 
 	. "github.com/onsi/gomega"
@@ -39,15 +39,16 @@ const (
 )
 
 type IronicNames struct {
-	Namespace           string
-	IronicName          types.NamespacedName
-	ServiceAccountName  types.NamespacedName
-	APIName             types.NamespacedName
-	ConductorName       types.NamespacedName
-	InspectorName       types.NamespacedName
-	INAName             types.NamespacedName
-	INATransportURLName types.NamespacedName
-	KeystoneServiceName types.NamespacedName
+	Namespace                 string
+	IronicName                types.NamespacedName
+	ServiceAccountName        types.NamespacedName
+	APIName                   types.NamespacedName
+	ConductorName             types.NamespacedName
+	InspectorName             types.NamespacedName
+	InspectorTransportURLName types.NamespacedName
+	INAName                   types.NamespacedName
+	INATransportURLName       types.NamespacedName
+	KeystoneServiceName       types.NamespacedName
 }
 
 func GetIronicNames(
@@ -92,6 +93,10 @@ func GetIronicNames(
 			Namespace: ironicInspector.Namespace,
 			Name:      ironicInspector.Name,
 		},
+		InspectorTransportURLName: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      ironicInspector.Name + "-transport",
+		},
 		INAName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name,
@@ -115,19 +120,19 @@ func CreateIronicSecret(namespace string, name string) *corev1.Secret {
 	)
 }
 
-func CreateMessageBusSecret(
-	namespace string,
-	name string,
-) *corev1.Secret {
-	s := th.CreateSecret(
-		types.NamespacedName{Namespace: namespace, Name: name},
-		map[string][]byte{
-			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
-		},
-	)
-	logger.Info("Secret created", "name", name)
-	return s
-}
+// func CreateMessageBusSecret(
+// 	namespace string,
+// 	name string,
+// ) *corev1.Secret {
+// 	s := th.CreateSecret(
+// 		types.NamespacedName{Namespace: namespace, Name: name},
+// 		map[string][]byte{
+// 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
+// 		},
+// 	)
+// 	logger.Info("Secret created", "name", name)
+// 	return s
+// }
 
 func CreateIronic(
 	name types.NamespacedName,
@@ -143,7 +148,6 @@ func CreateIronic(
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-
 }
 
 func GetIronic(
@@ -170,7 +174,6 @@ func CreateIronicAPI(
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-
 }
 
 func GetIronicAPI(
@@ -197,7 +200,6 @@ func CreateIronicConductor(
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-
 }
 
 func GetIronicConductor(
@@ -224,7 +226,6 @@ func CreateIronicInspector(
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-
 }
 
 func GetIronicInspector(
@@ -235,6 +236,19 @@ func GetIronicInspector(
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func GetDefaultIronicInspectorSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":         SecretName,
+		"containerImage": ContainerImage,
+		"serviceAccount": "ironic",
+	}
+}
+
+func IronicInspectorConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetIronicInspector(name)
+	return instance.Status.Conditions
 }
 
 func CreateIronicNeutronAgent(
@@ -251,7 +265,6 @@ func CreateIronicNeutronAgent(
 		"spec": spec,
 	}
 	return th.CreateUnstructured(raw)
-
 }
 
 func GetIronicNeutronAgent(

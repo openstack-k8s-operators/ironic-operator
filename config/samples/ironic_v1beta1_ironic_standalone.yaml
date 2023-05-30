@@ -17,4 +17,6 @@ spec:
     storageRequest: 10G
   ironicInspector:
     replicas: 1
+  ironicNeutronAgent:
+    replicas: 0  # Neutron agent replicas is zero, i.e disabled for standalone.
   secret: ironic-secret

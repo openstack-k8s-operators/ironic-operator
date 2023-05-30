@@ -102,7 +102,7 @@ var _ = Describe("Samples", func() {
 	})
 
 	When("ironic_v1beta1_ironicconductor.yaml sample is applied", func() {
-		It("IronicInspector is created", func() {
+		It("IronicConductor is created", func() {
 			name := CreateIronicConductorFromSample(
 				"ironic_v1beta1_ironicconductor.yaml",
 				ironicNames.ConductorName,
@@ -112,7 +112,7 @@ var _ = Describe("Samples", func() {
 	})
 
 	When("ironic_v1beta1_ironicapi.yaml sample is applied", func() {
-		It("IronicInspector is created", func() {
+		It("IronicAPI is created", func() {
 			name := CreateIronicAPIFromSample(
 				"ironic_v1beta1_ironicapi.yaml",
 				ironicNames.ConductorName,
@@ -121,14 +121,33 @@ var _ = Describe("Samples", func() {
 		})
 	})
 
-	// TODO(hjensas): Need to simulate the RBAC ServiceAccount?
-	// When("ironic_v1beta1_ironic.yaml sample is applied", func() {
-	// 	It("IronicInspector is created", func() {
-	// 		name := CreateIronicFromSample(
-	// 			"ironic_v1beta1_ironic.yaml",
-	// 			ironicNames.ConductorName,
-	// 		)
-	// 		GetIronic(name)
-	// 	})
-	// })
+	When("ironic_v1beta1_ironic.yaml sample is applied", func() {
+		It("Ironic is created", func() {
+			name := CreateIronicFromSample(
+				"ironic_v1beta1_ironic.yaml",
+				ironicNames.ConductorName,
+			)
+			GetIronic(name)
+		})
+	})
+
+	When("ironic_v1beta1_ironic_conductor_groups.yaml sample is applied", func() {
+		It("Ironic is created", func() {
+			name := CreateIronicFromSample(
+				"ironic_v1beta1_ironic_conductor_groups.yaml",
+				ironicNames.ConductorName,
+			)
+			GetIronic(name)
+		})
+	})
+
+	When("ironic_v1beta1_ironic_standalone.yaml sample is applied", func() {
+		It("Ironic is created", func() {
+			name := CreateIronicFromSample(
+				"ironic_v1beta1_ironic_standalone.yaml",
+				ironicNames.ConductorName,
+			)
+			GetIronic(name)
+		})
+	})
 })
