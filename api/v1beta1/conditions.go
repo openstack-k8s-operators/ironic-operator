@@ -78,8 +78,14 @@ const (
 	// IronicRabbitMqTransportURLReadyErrorMessage
 	IronicRabbitMqTransportURLReadyErrorMessage = "IronicRabbitMqTransportURL error occured %s"
 
+	// IronicInspectorReadyInitMessage
+	IronicInspectorReadyInitMessage = "IronicInspector not started"
+
 	// IronicInspectorReadyErrorMessage
 	IronicInspectorReadyErrorMessage = "IronicInspector error occured %s"
+
+	// IronicNeutronAgentReadyInitMessage
+	IronicNeutronAgentReadyInitMessage = "IronicNeutronAgent not started"
 
 	// IronicNeutronAgentReadyErrorMessage
 	IronicNeutronAgentReadyErrorMessage = "IronicNeutronAgent error occured %s"
