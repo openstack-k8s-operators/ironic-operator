@@ -288,7 +288,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 		//
 		conductorServiceLabels := map[string]string{
 			common.AppSelector:            ironic.ServiceName,
-			ironic.ComponentSelector:      ironic.ConductorComponent,
+			common.ComponentSelector:      ironic.ConductorComponent,
 			ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
 		}
 		if instance.Spec.ConductorGroup != "" {
@@ -331,7 +331,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 			//
 			conductorRouteLabels := map[string]string{
 				common.AppSelector:            ironic.ServiceName,
-				ironic.ComponentSelector:      ironic.HttpbootComponent,
+				common.ComponentSelector:      ironic.HttpbootComponent,
 				ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
 			}
 			if instance.Spec.ConductorGroup != "" {
@@ -530,7 +530,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 
 	serviceLabels := map[string]string{
 		common.AppSelector:            ironic.ServiceName,
-		ironic.ComponentSelector:      ironic.ConductorComponent,
+		common.ComponentSelector:      ironic.ConductorComponent,
 		ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
 	}
 	if instance.Spec.ConductorGroup != "" {

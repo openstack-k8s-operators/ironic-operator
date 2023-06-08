@@ -549,7 +549,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 
 	serviceLabels := map[string]string{
 		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.InspectorComponent,
+		common.ComponentSelector: ironic.InspectorComponent,
 	}
 
 	// networks to attach to
@@ -1179,7 +1179,7 @@ func (r *IronicInspectorReconciler) reconcileServices(
 		// Create the inspector pod service if none exists
 		inspectorServiceLabels := map[string]string{
 			common.AppSelector:       ironic.ServiceName,
-			ironic.ComponentSelector: ironic.InspectorComponent,
+			common.ComponentSelector: ironic.InspectorComponent,
 		}
 		inspectorService := ironicinspector.Service(
 			inspectorPod.Name,
@@ -1219,7 +1219,7 @@ func (r *IronicInspectorReconciler) reconcileServices(
 			// httpboot service, only when there is no inspection network
 			inspectorRouteLabels := map[string]string{
 				common.AppSelector:       ironic.ServiceName,
-				ironic.ComponentSelector: ironic.InspectorComponent + "-" + ironic.HttpbootComponent,
+				common.ComponentSelector: ironic.InspectorComponent + "-" + ironic.HttpbootComponent,
 			}
 			inspectorRoute := ironicinspector.Route(inspectorPod.Name, instance, inspectorRouteLabels)
 			err = controllerutil.SetOwnerReference(&inspectorPod, inspectorRoute, helper.GetScheme())
