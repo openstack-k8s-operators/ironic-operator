@@ -569,7 +569,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 
 	serviceLabels := map[string]string{
 		common.AppSelector:       ironic.ServiceName,
-		ironic.ComponentSelector: ironic.APIComponent,
+		common.ComponentSelector: ironic.APIComponent,
 	}
 
 	// networks to attach to

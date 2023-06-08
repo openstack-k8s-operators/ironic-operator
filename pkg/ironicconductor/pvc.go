@@ -16,7 +16,7 @@ import (
 func Pvc(instance *ironicv1.IronicConductor) *corev1.PersistentVolumeClaim {
 	labels := map[string]string{
 		common.AppSelector:            ironic.ServiceName,
-		ironic.ComponentSelector:      ironic.ConductorComponent,
+		common.ComponentSelector:      ironic.ConductorComponent,
 		ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
 	}
 	pvcName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
