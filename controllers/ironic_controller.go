@@ -165,10 +165,12 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		cl := condition.CreateList(
 			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
 			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
-			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
-			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+			condition.UnknownCondition(ironicv1.IronicAPIReadyCondition, condition.InitReason, ironicv1.IronicAPIReadyInitMessage),
+			condition.UnknownCondition(ironicv1.IronicConductorReadyCondition, condition.InitReason, ironicv1.IronicConductorReadyInitMessage),
+			condition.UnknownCondition(ironicv1.IronicInspectorReadyCondition, condition.InitReason, ironicv1.IronicInspectorReadyInitMessage),
+			condition.UnknownCondition(ironicv1.IronicNeutronAgentReadyCondition, condition.InitReason, ironicv1.IronicNeutronAgentReadyInitMessage),
 			condition.UnknownCondition(ironicv1.IronicRabbitMqTransportURLReadyCondition, condition.InitReason, ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
@@ -435,7 +437,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// TODO: Should validate and refuse to continue if instance.Spec.IronicConductors
 	//       container multiple elements with the same ConductorGroup defined.
 	// deploy ironic-conductors
-	ironicConductorsDeploymentReadyMap := make(map[string]bool)
 	for _, conductorSpec := range instance.Spec.IronicConductors {
 
 		ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(
@@ -466,12 +467,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
-		// Update Deployent Ready Map
-		if ironicConductor.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
-			ironicConductorsDeploymentReadyMap[condGrp] = true
-		} else {
-			ironicConductorsDeploymentReadyMap[condGrp] = false
-		}
 	}
 
 	// deploy ironic-api
@@ -501,9 +496,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.Set(c)
 	}
 
-	inspectorServiceReady := true
-	inspectorDeploymentReady := true
-
 	// deploy ironic-inspector
 	if instance.Spec.IronicInspector.Replicas != 0 {
 		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
@@ -532,17 +524,23 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
-		inspectorServiceReady = ironicInspector.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
-		inspectorDeploymentReady = ironicInspector.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
 	} else {
 		err := r.inspectorDeploymentDelete(ctx, instance)
 		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicInspectorReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicInspectorReadyErrorMessage,
+					err.Error()))
 			return ctrl.Result{}, err
 		}
+		// TODO: We do not have a specific message for not-requested services
+		instance.Status.Conditions.MarkTrue(ironicv1.IronicInspectorReadyCondition, "")
 	}
 
 	// deploy ironic-neutron-agent (ML2 baremetal agent)
-	ironicNeutronAgentDeploymentReady := false
 	if instance.Spec.IronicNeutronAgent.Replicas != 0 {
 		ironicNeutronAgenet, op, err := r.ironicNeutronAgentDeploymentCreateOrUpdate(instance)
 		if err != nil {
@@ -565,42 +563,20 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
-		ironicNeutronAgentDeploymentReady = ironicNeutronAgenet.Status.Conditions.IsTrue(condition.DeploymentReadyCondition)
 	} else {
 		err := r.ironicNeutronAgentDeploymentDelete(ctx, instance)
 		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicNeutronAgentReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicNeutronAgentReadyErrorMessage,
+					err.Error()))
 			return ctrl.Result{}, err
 		}
-		ironicNeutronAgentDeploymentReady = true
-	}
-
-	// Set ExposeServiceReadyCondition True if both IronicAPI and IronicInspector is ready
-	ironicAPIServiceReady := ironicAPI.Status.Conditions.IsTrue(condition.ExposeServiceReadyCondition)
-	if inspectorServiceReady && ironicAPIServiceReady {
-		instance.Status.Conditions.MarkTrue(
-			condition.ExposeServiceReadyCondition,
-			condition.ExposeServiceReadyMessage,
-		)
-	}
-
-	conductorDeployemntsReady := true
-	for _, conductorSpec := range instance.Spec.IronicConductors {
-		condGrp := conductorSpec.ConductorGroup
-		if conductorSpec.ConductorGroup == "" {
-			condGrp = ironicv1.ConductorGroupNull
-		}
-		if !ironicConductorsDeploymentReadyMap[condGrp] {
-			conductorDeployemntsReady = false
-			// No reason to continue, if one conductor group is not Ready
-			break
-		}
-	}
-	// Set DeploymentReadyCondition True if all of IronicConductors, IronicInspector and IronicNeutronAgent are ready
-	if inspectorDeploymentReady && conductorDeployemntsReady && ironicNeutronAgentDeploymentReady {
-		instance.Status.Conditions.MarkTrue(
-			condition.DeploymentReadyCondition,
-			condition.DeploymentReadyMessage,
-		)
+		// TODO: We do not have a specific message for not-requested services
+		instance.Status.Conditions.MarkTrue(ironicv1.IronicNeutronAgentReadyCondition, "")
 	}
 
 	r.Log.Info("Reconciled Ironic successfully")
