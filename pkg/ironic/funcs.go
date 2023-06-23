@@ -18,18 +18,6 @@ import (
 	k8snet "k8s.io/utils/net"
 )
 
-// GetOwningIronicName - Given a IronicAPI, IronicConductor
-// object, returning the parent Ironic object that created it (if any)
-func GetOwningIronicName(instance client.Object) string {
-	for _, ownerRef := range instance.GetOwnerReferences() {
-		if ownerRef.Kind == "Ironic" {
-			return ownerRef.Name
-		}
-	}
-
-	return ""
-}
-
 // GetIngressDomain - Get the Ingress Domain of cluster
 func GetIngressDomain(
 	ctx context.Context,

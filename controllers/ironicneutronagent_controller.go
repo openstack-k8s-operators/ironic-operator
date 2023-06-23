@@ -47,6 +47,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
@@ -89,6 +90,14 @@ type IronicNeutronAgentReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch
+
+// service account, role, rolebinding
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update
+// service account permissions that are needed to grant permission to the above
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;privileged,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
 
 // Reconcile -
 func (r *IronicNeutronAgentReconciler) Reconcile(
@@ -171,6 +180,19 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 				condition.DeploymentReadyCondition,
 				condition.InitReason,
 				condition.DeploymentReadyInitMessage),
+			// service account, role, rolebinding conditions
+			condition.UnknownCondition(
+				condition.ServiceAccountReadyCondition,
+				condition.InitReason,
+				condition.ServiceAccountReadyInitMessage),
+			condition.UnknownCondition(
+				condition.RoleReadyCondition,
+				condition.InitReason,
+				condition.RoleReadyInitMessage),
+			condition.UnknownCondition(
+				condition.RoleBindingReadyCondition,
+				condition.InitReason,
+				condition.RoleBindingReadyInitMessage),
 		)
 
 		instance.Status.Conditions.Init(&cl)
@@ -378,6 +400,27 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling IronicNeutronAgent")
+
+	if ironicv1.GetOwningIronicName(instance) == "" {
+		// Service account, role, binding
+		rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, getCommonRbacRules())
+		if err != nil {
+			return rbacResult, err
+		} else if (rbacResult != ctrl.Result{}) {
+			return rbacResult, nil
+		}
+	} else {
+		// TODO(hjensas): Mirror conditions from parent, or check resource exist first
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.ServiceAccountReadyCondition,
+			condition.ServiceAccountReadyMessage))
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.RoleReadyCondition,
+			condition.RoleReadyMessage))
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.RoleBindingReadyCondition,
+			condition.RoleBindingReadyMessage))
+	}
 
 	ctrlResult, err := r.reconcileTransportURL(ctx, instance, helper)
 	if err != nil {

@@ -81,10 +81,6 @@ type IronicAPISpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
-
-	// +kubebuilder:validation:Required
-	// ServiceAccount - service account name used internally to provide the default SA name
-	ServiceAccount string `json:"serviceAccount"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
@@ -175,4 +171,23 @@ func (instance IronicAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, e
 		}
 	}
 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
+}
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance IronicAPI) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance IronicAPI) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance IronicAPI) RbacResourceName() string {
+	owningIronicName := GetOwningIronicName(&instance)
+	if owningIronicName != "" {
+		return "ironic-" + owningIronicName
+	}
+	return "ironicapi-" + instance.Name
 }

@@ -300,18 +300,3 @@ func SetupDefaults() {
 
 	SetupIronicImageDefaults(imageDefaults)
 }
-
-// RbacConditionsSet - set the conditions for the rbac object
-func (instance Ironic) RbacConditionsSet(c *condition.Condition) {
-	instance.Status.Conditions.Set(c)
-}
-
-// RbacNamespace - return the namespace
-func (instance Ironic) RbacNamespace() string {
-	return instance.Namespace
-}
-
-// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
-func (instance Ironic) RbacResourceName() string {
-	return "ironic-" + instance.Name
-}

@@ -153,10 +153,6 @@ type IronicInspectorSpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
-
-	// +kubebuilder:validation:Required
-	// ServiceAccount - service account name used internally to provide the default SA name
-	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IronicInspectorStatus defines the observed state of IronicInspector
@@ -214,4 +210,23 @@ func init() {
 // IsReady - returns true if IronicInspector is reconciled successfully
 func (instance IronicInspector) IsReady() bool {
 	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+}
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance IronicInspector) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance IronicInspector) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance IronicInspector) RbacResourceName() string {
+	owningIronicName := GetOwningIronicName(&instance)
+	if owningIronicName != "" {
+		return "ironic-" + owningIronicName
+	}
+	return "ironicinspector-" + instance.Name
 }
