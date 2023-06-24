@@ -17,11 +17,11 @@ limitations under the License.
 package functional_test
 
 import (
-	//"fmt"
 	"time"
 
 	. "github.com/onsi/gomega"
 
+	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +32,7 @@ import (
 
 const (
 	timeout              = 10 * time.Second
-	interval             = timeout / 100
+	interval             = 10 * time.Millisecond
 	SecretName           = "test-secret"
 	MessageBusSecretName = "rabbitmq-secret"
 	ContainerImage       = "test://ironic"
@@ -46,6 +46,11 @@ type IronicNames struct {
 	ConductorName             types.NamespacedName
 	InspectorName             types.NamespacedName
 	InspectorTransportURLName types.NamespacedName
+	InspectorServiceAccount   types.NamespacedName
+	InspectorRole             types.NamespacedName
+	InspectorRoleBinding      types.NamespacedName
+	InspectorDatabaseName     types.NamespacedName
+	InspectorDBSyncJobName    types.NamespacedName
 	INAName                   types.NamespacedName
 	INATransportURLName       types.NamespacedName
 	KeystoneServiceName       types.NamespacedName
@@ -96,6 +101,26 @@ func GetIronicNames(
 		InspectorTransportURLName: types.NamespacedName{
 			Namespace: ironicInspector.Namespace,
 			Name:      ironicInspector.Name + "-transport",
+		},
+		InspectorServiceAccount: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      "ironicinspector-" + ironicInspector.Name,
+		},
+		InspectorRole: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      "ironicinspector-" + ironicInspector.Name + "-role",
+		},
+		InspectorRoleBinding: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      "ironicinspector-" + ironicInspector.Name + "-rolebinding",
+		},
+		InspectorDatabaseName: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      ironicInspector.Name,
+		},
+		InspectorDBSyncJobName: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
+			Name:      ironic_pkg.ServiceName + "-" + ironic_pkg.InspectorComponent + "-db-sync",
 		},
 		INAName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
@@ -240,9 +265,10 @@ func GetIronicInspector(
 
 func GetDefaultIronicInspectorSpec() map[string]interface{} {
 	return map[string]interface{}{
-		"secret":         SecretName,
-		"containerImage": ContainerImage,
-		"serviceAccount": "ironic",
+		"databaseInstance": "openstack",
+		"secret":           SecretName,
+		"containerImage":   ContainerImage,
+		"serviceAccount":   "ironic",
 	}
 }
 
@@ -298,3 +324,68 @@ func INAConditionGetter(name types.NamespacedName) condition.Conditions {
 // 	}
 // 	return defaultValue
 // }
+
+func CreateFakeIngressController() {
+	// Namespace and Name for fake "default" ingresscontroller
+	name := types.NamespacedName{
+		Namespace: "openshift-ingress-operator",
+		Name:      "default",
+	}
+
+	// Fake IngressController custom resource
+	fakeCustomResorce := map[string]interface{}{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata": map[string]interface{}{
+			"name": "ingresscontrollers.operator.openshift.io",
+		},
+		"spec": map[string]interface{}{
+			"group": "operator.openshift.io",
+			"names": map[string]interface{}{
+				"kind":     "IngressController",
+				"listKind": "IngressControllerList",
+				"plural":   "ingresscontrollers",
+				"singular": "ingresscontroller",
+			},
+			"scope": "Namespaced",
+			"versions": []map[string]interface{}{{
+				"name":    "v1",
+				"served":  true,
+				"storage": true,
+				"schema": map[string]interface{}{
+					"openAPIV3Schema": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"status": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"domain": map[string]interface{}{
+										"type": "string",
+									},
+								},
+							},
+						},
+					},
+				},
+			}},
+		},
+	}
+
+	// Fake ingresscontroller
+	fakeIngressController := map[string]interface{}{
+		"apiVersion": "operator.openshift.io/v1",
+		"kind":       "IngressController",
+		"metadata": map[string]interface{}{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"status": map[string]interface{}{
+			"domain": "test.example.com",
+		},
+	}
+
+	// Create fake custom resource, namespace and fake ingresscontroller
+	th.CreateUnstructured(fakeCustomResorce)
+	th.CreateNamespace(name.Namespace)
+	th.CreateUnstructured(fakeIngressController)
+}

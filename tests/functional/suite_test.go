@@ -194,6 +194,10 @@ var _ = BeforeSuite(func() {
 	// Acquire environmental defaults and initialize operator defaults with them
 	ironicv1.SetupDefaults()
 
+	// The operator reads the ingress domain from the "default" IngressController
+	// set up a fake/mock in the test environment
+	CreateFakeIngressController()
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
