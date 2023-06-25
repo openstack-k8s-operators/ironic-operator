@@ -57,16 +57,18 @@ type IronicDefaults struct {
 	InspectorContainerImageURL string
 	PXEContainerImageURL       string
 	INAContainerImageURL       string
+	IPAContainerImageURL       string
 }
 
 // SetupIronicDefaults - TODO remove when openstack-operator has moved to SetupIronicImageDefaults
 func SetupIronicDefaults(defaults IronicDefaults) {
 	SetupIronicImageDefaults(IronicImages{
-		API:          defaults.APIContainerImageURL,
-		Conductor:    defaults.ConductorContainerImageURL,
-		Inspector:    defaults.InspectorContainerImageURL,
-		Pxe:          defaults.PXEContainerImageURL,
-		NeutronAgent: defaults.INAContainerImageURL,
+		API:               defaults.APIContainerImageURL,
+		Conductor:         defaults.ConductorContainerImageURL,
+		Inspector:         defaults.InspectorContainerImageURL,
+		Pxe:               defaults.PXEContainerImageURL,
+		NeutronAgent:      defaults.INAContainerImageURL,
+		IronicPythonAgent: defaults.IPAContainerImageURL,
 	})
 }
 
@@ -485,6 +487,9 @@ func (spec *IronicSpec) Default() {
 	if spec.Images.Pxe == "" {
 		spec.Images.Pxe = imageDefaults.Pxe
 	}
+	if spec.Images.IronicPythonAgent == "" {
+		spec.Images.IronicPythonAgent = imageDefaults.IronicPythonAgent
+	}
 	defaultIronicAPI(spec)
 	defaultIronicConductors(spec)
 	defaultIronicInspector(spec)
@@ -530,6 +535,10 @@ func defaultIronicConductors(spec *IronicSpec) {
 		if spec.IronicConductors[idx].PxeContainerImage == "" {
 			spec.IronicConductors[idx].PxeContainerImage = spec.Images.Pxe
 		}
+		// IronicPythonAgentImage
+		if spec.IronicConductors[idx].IronicPythonAgentImage == "" {
+			spec.IronicConductors[idx].IronicPythonAgentImage = spec.Images.IronicPythonAgent
+		}
 		// StorageClass
 		if c.StorageClass == "" {
 			spec.IronicConductors[idx].StorageClass = spec.StorageClass
@@ -564,6 +573,10 @@ func defaultIronicInspector(spec *IronicSpec) {
 	// PxeContainerImage
 	if spec.IronicInspector.PxeContainerImage == "" {
 		spec.IronicInspector.PxeContainerImage = spec.Images.Pxe
+	}
+	// IronicPythonAgentImage
+	if spec.IronicInspector.IronicPythonAgentImage == "" {
+		spec.IronicInspector.IronicPythonAgentImage = spec.Images.IronicPythonAgent
 	}
 	// Standalone
 	if spec.Standalone {

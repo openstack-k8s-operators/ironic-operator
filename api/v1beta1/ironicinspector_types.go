@@ -39,6 +39,10 @@ type IronicInspectorSpec struct {
 	PxeContainerImage string `json:"pxeContainerImage"`
 
 	// +kubebuilder:validation:Optional
+	// IronicPythonAgentImage - Image containing the ironic-python-agent kernel and ramdisk
+	IronicPythonAgentImage string `json:"ironicPythonAgentImage"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic-inspector
 	// ServiceUser - optional username used for this service to register in ironic-inspector
 	ServiceUser string `json:"serviceUser"`

@@ -122,6 +122,10 @@ spec:
                   - start
                   type: object
                 type: array
+              ironicPythonAgentImage:
+                description: IronicPythonAgentImage - Image containing the ironic-python-agent
+                  kernel and ramdisk
+                type: string
               keystoneVars:
                 additionalProperties:
                   type: string

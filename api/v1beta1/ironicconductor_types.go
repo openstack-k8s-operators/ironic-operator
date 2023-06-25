@@ -47,6 +47,10 @@ type IronicConductorSpec struct {
 	PxeContainerImage string `json:"pxeContainerImage"`
 
 	// +kubebuilder:validation:Optional
+	// IronicPythonAgentImage - Image containing the ironic-python-agent kernel and ramdisk
+	IronicPythonAgentImage string `json:"ironicPythonAgentImage"`
+
+	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 

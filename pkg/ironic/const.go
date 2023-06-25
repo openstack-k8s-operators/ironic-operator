@@ -42,4 +42,6 @@ const (
 	InspectorComponent = "inspector"
 	// ConductorGroupSelector -
 	ConductorGroupSelector = "conductorGroup"
+	// ImageDirectory -
+	ImageDirectory = "/var/lib/ironic/httpboot"
 )

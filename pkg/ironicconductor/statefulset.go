@@ -297,20 +297,22 @@ func StatefulSet(
 	}
 
 	initContainerDetails := ironic.APIDetails{
-		ContainerImage:       instance.Spec.ContainerImage,
-		PxeContainerImage:    instance.Spec.PxeContainerImage,
-		DatabaseHost:         instance.Spec.DatabaseHostname,
-		DatabaseName:         ironic.DatabaseName,
-		OSPSecret:            instance.Spec.Secret,
-		TransportURLSecret:   instance.Spec.TransportURLSecret,
-		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         GetInitVolumeMounts(),
-		PxeInit:              true,
-		ConductorInit:        true,
-		DeployHTTPURL:        deployHTTPURL,
-		IngressDomain:        ingressDomain,
-		ProvisionNetwork:     instance.Spec.ProvisionNetwork,
+		ContainerImage:         instance.Spec.ContainerImage,
+		PxeContainerImage:      instance.Spec.PxeContainerImage,
+		IronicPythonAgentImage: instance.Spec.IronicPythonAgentImage,
+		ImageDirectory:         ironic.ImageDirectory,
+		DatabaseHost:           instance.Spec.DatabaseHostname,
+		DatabaseName:           ironic.DatabaseName,
+		OSPSecret:              instance.Spec.Secret,
+		TransportURLSecret:     instance.Spec.TransportURLSecret,
+		DBPasswordSelector:     instance.Spec.PasswordSelectors.Database,
+		UserPasswordSelector:   instance.Spec.PasswordSelectors.Service,
+		VolumeMounts:           GetInitVolumeMounts(),
+		PxeInit:                true,
+		ConductorInit:          true,
+		DeployHTTPURL:          deployHTTPURL,
+		IngressDomain:          ingressDomain,
+		ProvisionNetwork:       instance.Spec.ProvisionNetwork,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 

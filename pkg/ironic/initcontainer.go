@@ -23,21 +23,23 @@ import (
 
 // APIDetails information
 type APIDetails struct {
-	ContainerImage       string
-	PxeContainerImage    string
-	DatabaseHost         string
-	DatabaseName         string
-	TransportURLSecret   string
-	OSPSecret            string
-	DBPasswordSelector   string
-	UserPasswordSelector string
-	VolumeMounts         []corev1.VolumeMount
-	Privileged           bool
-	PxeInit              bool
-	ConductorInit        bool
-	DeployHTTPURL        string
-	IngressDomain        string
-	ProvisionNetwork     string
+	ContainerImage         string
+	PxeContainerImage      string
+	IronicPythonAgentImage string
+	DatabaseHost           string
+	DatabaseName           string
+	TransportURLSecret     string
+	OSPSecret              string
+	DBPasswordSelector     string
+	UserPasswordSelector   string
+	VolumeMounts           []corev1.VolumeMount
+	Privileged             bool
+	PxeInit                bool
+	ConductorInit          bool
+	DeployHTTPURL          string
+	IngressDomain          string
+	ProvisionNetwork       string
+	ImageDirectory         string
 }
 
 const (
@@ -120,6 +122,12 @@ func InitContainer(init APIDetails) []corev1.Container {
 		envs = append(envs, envTransport)
 	}
 	envs = env.MergeEnvs(envs, envVars)
+	imageCopyEnvs := []corev1.EnvVar{
+		{
+			Name:  "DEST_DIR",
+			Value: init.ImageDirectory,
+		},
+	}
 
 	containers := []corev1.Container{
 		{
@@ -176,6 +184,16 @@ func InitContainer(init APIDetails) []corev1.Container {
 			VolumeMounts: init.VolumeMounts,
 		}
 		containers = append(containers, conductorInit)
+		ipaInit := corev1.Container{
+			Name:  "ironic-python-agent-init",
+			Image: init.IronicPythonAgentImage,
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: &init.Privileged,
+			},
+			Env:          imageCopyEnvs,
+			VolumeMounts: init.VolumeMounts,
+		}
+		containers = append(containers, ipaInit)
 	}
 	return containers
 }
