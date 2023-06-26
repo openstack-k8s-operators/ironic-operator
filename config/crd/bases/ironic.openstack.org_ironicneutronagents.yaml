@@ -162,7 +162,6 @@ spec:
                   to register in ironic
                 type: string
             required:
-            - secret
             - serviceAccount
             type: object
           status:

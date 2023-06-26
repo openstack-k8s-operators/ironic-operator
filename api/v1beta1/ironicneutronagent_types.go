@@ -54,9 +54,9 @@ type IronicNeutronAgentSpec struct {
 	// Replicas - ML2 baremetal - Ironic Neutron Agent Replicas
 	Replicas int32 `json:"replicas"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// Secret containing OpenStack password information for IronicPassword
-	Secret string `json:"secret"`
+	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={service: IronicPassword}
