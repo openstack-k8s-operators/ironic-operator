@@ -85,6 +85,10 @@ spec:
                     description: Inspector - Ironic Inspector Container Image (will
                       be set to environmental default if empty)
                     type: string
+                  ironicPythonAgent:
+                    description: IronicPythonAgent - Image containing the ironic-python-agent
+                      kernel and ramdisk
+                    type: string
                   neutronAgent:
                     description: NeutronAgent - ML2 baremtal - Ironic Neutron Agent
                       Image (will be set to environmental default if empty)
@@ -374,6 +378,10 @@ spec:
                         - start
                         type: object
                       type: array
+                    ironicPythonAgentImage:
+                      description: IronicPythonAgentImage - Image containing the ironic-python-agent
+                        kernel and ramdisk
+                      type: string
                     keystoneVars:
                       additionalProperties:
                         type: string
@@ -641,6 +649,10 @@ spec:
                   inspectionNetwork:
                     description: InspectionNetwork - Additional network to attach
                       to expose boot DHCP, TFTP, HTTP services.
+                    type: string
+                  ironicPythonAgentImage:
+                    description: IronicPythonAgentImage - Image containing the ironic-python-agent
+                      kernel and ramdisk
                     type: string
                   networkAttachments:
                     description: NetworkAttachments is a list of NetworkAttachment

@@ -167,6 +167,10 @@ spec:
                 description: InspectionNetwork - Additional network to attach to expose
                   boot DHCP, TFTP, HTTP services.
                 type: string
+              ironicPythonAgentImage:
+                description: IronicPythonAgentImage - Image containing the ironic-python-agent
+                  kernel and ramdisk
+                type: string
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
                   names to expose the services to the given network

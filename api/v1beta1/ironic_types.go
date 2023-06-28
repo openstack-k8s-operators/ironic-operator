@@ -44,6 +44,8 @@ const (
 	IronicPXEContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified"
 	// IronicNeutronAgentContainerImage is the fall-back container image for IronicConductor
 	IronicNeutronAgentContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified"
+	// IronicPythonAgentContainerImage is the fall-back container image for IronicPythonAgent
+	IronicPythonAgentContainerImage = "quay.io/podified-antelope-centos9/ironic-python-agent:current-podified"
 )
 
 // IronicSpec defines the desired state of Ironic
@@ -166,6 +168,10 @@ type IronicImages struct {
 	// +kubebuilder:validation:Optional
 	// Pxe- Ironic DHCP/TFTP/HTTP Container Image URL (will be set to environmental default if empty)
 	Pxe string `json:"pxe"`
+
+	// +kubebuilder:validation:Optional
+	// IronicPythonAgent - Image containing the ironic-python-agent kernel and ramdisk
+	IronicPythonAgent string `json:"ironicPythonAgent"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
@@ -294,11 +300,12 @@ func (instance Ironic) IsReady() bool {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Ironic defaults with them
 	imageDefaults := IronicImages{
-		API:          util.GetEnvVar("IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
-		Conductor:    util.GetEnvVar("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
-		Inspector:    util.GetEnvVar("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
-		Pxe:          util.GetEnvVar("IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
-		NeutronAgent: util.GetEnvVar("IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
+		API:               util.GetEnvVar("IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
+		Conductor:         util.GetEnvVar("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
+		Inspector:         util.GetEnvVar("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
+		Pxe:               util.GetEnvVar("IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
+		NeutronAgent:      util.GetEnvVar("IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
+		IronicPythonAgent: util.GetEnvVar("IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
 	}
 
 	SetupIronicImageDefaults(imageDefaults)

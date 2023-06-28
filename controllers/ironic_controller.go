@@ -828,7 +828,6 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"common.sh":  "/common/bin/common.sh",
 				"get_net_ip": "/common/bin/get_net_ip",
-				"imagetter":  "/common/bin/imagetter",
 			},
 			Labels: cmLabels,
 		},

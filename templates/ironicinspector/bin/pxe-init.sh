@@ -61,6 +61,3 @@ for dir in httpboot tftpboot; do
     # Ensure all files are readable
     chmod -R +r /var/lib/ironic/$dir
 done
-
-# Download ironic-python-agent and any other images
-/usr/local/bin/container-scripts/imagetter /usr/local/bin/container-scripts/imagetter.yaml

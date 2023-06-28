@@ -47,6 +47,3 @@ if [ ! -a "esp.img" ]; then
     mdir -i esp.img ::EFI/BOOT;
 fi
 popd
-
-# Download ironic-python-agent and any other images
-/usr/local/bin/container-scripts/imagetter /usr/local/bin/container-scripts/imagetter.yaml
