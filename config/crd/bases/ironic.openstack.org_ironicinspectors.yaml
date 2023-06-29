@@ -297,9 +297,6 @@ spec:
               storageClass:
                 description: StorageClass
                 type: string
-              transportURLSecret:
-                description: TransportURLSecret - Secret containing RabbitMQ transportURL
-                type: string
             required:
             - serviceAccount
             type: object

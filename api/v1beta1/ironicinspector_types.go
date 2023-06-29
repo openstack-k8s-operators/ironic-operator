@@ -112,10 +112,6 @@ type IronicInspectorSpec struct {
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
 	// +kubebuilder:validation:Optional
-	// TransportURLSecret - Secret containing RabbitMQ transportURL
-	TransportURLSecret string `json:"transportURLSecret,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
