@@ -141,11 +141,8 @@ spec:
                   within the Ironic CR
                 type: object
               passwordSelectors:
-                default:
-                  database: IronicDatabasePassword
-                  service: IronicPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password and TransportURL from the Secret
+                  ServiceUser password  from the Secret
                 properties:
                   database:
                     default: IronicDatabasePassword

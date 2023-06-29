@@ -22,6 +22,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// IronicInspectorPasswordSelector to identify the DB and AdminUser password from the Secret
+type IronicInspectorPasswordSelector struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="IronicInspectorDatabasePassword"
+	// Database - Selector to get the ironic-inspector Database user password from the Secret
+	// TODO: not used, need change in mariadb-operator
+	Database string `json:"database"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="IronicInspectorPassword"
+	// Database - Selector to get the ironic-inspector service password from the Secret
+	Service string `json:"service"`
+}
+
 // IronicInspectorSpec defines the desired state of IronicInspector
 type IronicInspectorSpec struct {
 
@@ -60,9 +73,9 @@ type IronicInspectorSpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicInspectorDatabasePassword, service: IronicInspectorPassword}
-	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
+	// +kubebuilder:default={}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
+	PasswordSelectors IronicInspectorPasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting here overrides

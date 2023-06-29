@@ -59,9 +59,9 @@ type IronicNeutronAgentSpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={service: IronicPassword}
+	// +kubebuilder:default={}
 	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
-	PasswordSelectors IronicNeutronAgentPasswordSelector `json:"passwordSelectors"`
+	PasswordSelectors IronicNeutronAgentPasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service.

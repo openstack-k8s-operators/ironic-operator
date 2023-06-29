@@ -79,8 +79,6 @@ spec:
                   this service.
                 type: object
               passwordSelectors:
-                default:
-                  service: IronicPassword
                 description: PasswordSelectors - Selectors to identify the ServiceUser
                   password from the Secret
                 properties:

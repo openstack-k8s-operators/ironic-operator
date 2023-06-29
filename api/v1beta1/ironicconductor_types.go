@@ -72,9 +72,9 @@ type IronicConductorSpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
-	// PasswordSelectors - Selectors to identify the DB and ServiceUser password and TransportURL from the Secret
-	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
+	// +kubebuilder:default={}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password  from the Secret
+	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
