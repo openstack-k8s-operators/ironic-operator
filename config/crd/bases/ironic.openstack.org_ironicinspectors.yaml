@@ -189,17 +189,18 @@ spec:
                   database: IronicInspectorDatabasePassword
                   service: IronicInspectorPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password and TransportURL from the Secret
+                  ServiceUser password from the Secret
                 properties:
                   database:
-                    default: IronicDatabasePassword
-                    description: 'Database - Selector to get the ironic Database user
-                      password from the Secret TODO: not used, need change in mariadb-operator'
+                    default: IronicInspectorDatabasePassword
+                    description: 'Database - Selector to get the ironic-inspector
+                      Database user password from the Secret TODO: not used, need
+                      change in mariadb-operator'
                     type: string
                   service:
-                    default: IronicPassword
-                    description: Database - Selector to get the ironic service password
-                      from the Secret
+                    default: IronicInspectorPassword
+                    description: Database - Selector to get the ironic-inspector service
+                      password from the Secret
                     type: string
                 type: object
               preserveJobs:
