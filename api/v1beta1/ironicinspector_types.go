@@ -31,30 +31,12 @@ type IronicInspectorPasswordSelector struct {
 	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="IronicInspectorPassword"
-	// Database - Selector to get the ironic-inspector service password from the Secret
+	// Service - Selector to get the ironic-inspector service password from the Secret
 	Service string `json:"service"`
 }
 
-// IronicInspectorSpec defines the desired state of IronicInspector
-type IronicInspectorSpec struct {
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Standalone - Whether to deploy a standalone Ironic Inspector.
-	Standalone bool `json:"standalone"`
-
-	// +kubebuilder:validation:Optional
-	// ContainerImage - Ironic Inspector Container Image
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
-	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image
-	PxeContainerImage string `json:"pxeContainerImage"`
-
-	// +kubebuilder:validation:Optional
-	// IronicPythonAgentImage - Image containing the ironic-python-agent kernel and ramdisk
-	IronicPythonAgentImage string `json:"ironicPythonAgentImage"`
-
+// IronicInspectorTemplate defines the input parameters for Ironic Inspector service
+type IronicInspectorTemplate struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic-inspector
 	// ServiceUser - optional username used for this service to register in ironic-inspector
@@ -65,16 +47,6 @@ type IronicInspectorSpec struct {
 	// +kubebuilder:default=1
 	// Replicas - Ironic Inspector Replicas
 	Replicas int32 `json:"replicas"`
-
-	// +kubebuilder:validation:Optional
-	// MariaDB instance name.
-	// Right now required by the maridb-operator to get the credentials from the instance to create the DB.
-	// Might not be required in future.
-	DatabaseInstance string `json:"databaseInstance"`
-
-	// +kubebuilder:validation:Optional
-	// Secret containing OpenStack password information for IronicInspectorDatabasePassword, AdminPassword
-	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: IronicInspectorDatabasePassword, service: IronicInspectorPassword}
@@ -119,20 +91,6 @@ type IronicInspectorSpec struct {
 	StorageClass string `json:"storageClass,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
-	// RabbitMQ instance name
-	// Needed to request a transportURL that is created and used in Ironic
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=json-rpc
-	// RPC transport type - Which RPC transport implementation to use between
-	// conductor and API services. 'oslo' to use oslo.messaging transport
-	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-	// requires oslo.messaging transport when not in standalone mode.
-	RPCTransport string `json:"rpcTransport"`
-
-	// +kubebuilder:validation:Optional
 	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
@@ -147,6 +105,54 @@ type IronicInspectorSpec struct {
 	// +kubebuilder:validation:Optional
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
+
+}
+
+// IronicInspectorSpec defines the desired state of IronicInspector
+type IronicInspectorSpec struct {
+	// Input parameters for the Ironic Inspector service
+	IronicInspectorTemplate `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	// Standalone - Whether to deploy a standalone Ironic Inspector.
+	Standalone bool `json:"standalone"`
+
+	// +kubebuilder:validation:Optional
+	// ContainerImage - Ironic Inspector Container Image
+	ContainerImage string `json:"containerImage"`
+
+	// +kubebuilder:validation:Optional
+	// PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP Container Image
+	PxeContainerImage string `json:"pxeContainerImage"`
+
+	// +kubebuilder:validation:Optional
+	// IronicPythonAgentImage - Image containing the ironic-python-agent kernel and ramdisk
+	IronicPythonAgentImage string `json:"ironicPythonAgentImage"`
+
+	// +kubebuilder:validation:Optional
+	// MariaDB instance name.
+	// Right now required by the maridb-operator to get the credentials from the instance to create the DB.
+	// Might not be required in future.
+	DatabaseInstance string `json:"databaseInstance"`
+
+	// +kubebuilder:validation:Optional
+	// Secret containing OpenStack password information for IronicInspectorDatabasePassword, AdminPassword
+	Secret string `json:"secret,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Ironic
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=json-rpc
+	// RPC transport type - Which RPC transport implementation to use between
+	// conductor and API services. 'oslo' to use oslo.messaging transport
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+	// requires oslo.messaging transport when not in standalone mode.
+	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide the default SA name

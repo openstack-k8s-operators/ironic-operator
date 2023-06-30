@@ -67,10 +67,6 @@ spec:
                   an init container is used, it runs and the actual action pod gets
                   started with sleep infinity
                 properties:
-                  dbSync:
-                    default: false
-                    description: DBSync enable debug
-                    type: boolean
                   service:
                     default: false
                     description: Service enable debug
@@ -153,13 +149,13 @@ spec:
                     type: string
                   service:
                     default: IronicPassword
-                    description: Database - Selector to get the ironic service password
+                    description: Service - Selector to get the ironic service password
                       from the Secret
                     type: string
                 type: object
               replicas:
                 default: 1
-                description: Replicas - Ironic API Replicas
+                description: Replicas -
                 format: int32
                 type: integer
               resources:

@@ -67,7 +67,7 @@ func DbSyncJob(
 								"/bin/bash",
 							},
 							Args:  args,
-							Image: instance.Spec.IronicAPI.ContainerImage,
+							Image: instance.Spec.Images.API,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
@@ -83,7 +83,7 @@ func DbSyncJob(
 	job.Spec.Template.Spec.Volumes = GetVolumes(ServiceName)
 
 	initContainerDetails := APIDetails{
-		ContainerImage:       instance.Spec.IronicAPI.ContainerImage,
+		ContainerImage:       instance.Spec.Images.API,
 		DatabaseHost:         instance.Status.DatabaseHostname,
 		DatabaseName:         DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
