@@ -43,6 +43,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/controllers"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	. "github.com/openstack-k8s-operators/lib-common/modules/test-operators/helpers"
@@ -117,6 +118,8 @@ var _ = BeforeSuite(func() {
 	err = corev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = appsv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = mariadbv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = rabbitmqv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
