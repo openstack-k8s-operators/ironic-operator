@@ -138,10 +138,16 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 	ironiclog.Info("validate update", "name", r.Name)
+
+	oldIronic, ok := old.(*Ironic)
+	if !ok || oldIronic == nil {
+		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+	}
+
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
-	if err := r.Spec.ValidateUpdate(basePath); err != nil {
+	if err := r.Spec.ValidateUpdate(oldIronic.Spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -156,7 +162,7 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
-func (spec *IronicSpec) ValidateUpdate(basePath *field.Path) field.ErrorList {
+func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
