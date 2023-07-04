@@ -717,12 +717,27 @@ func (r *IronicReconciler) reconcileUpgrade(ctx context.Context, instance *ironi
 
 func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
-	conductorSpec ironicv1.IronicConductorSpec,
+	conductorSpec ironicv1.IronicConductorTemplate,
 	keystoneVars map[string]string,
 ) (*ironicv1.IronicConductor, controllerutil.OperationResult, error) {
 	name := fmt.Sprintf("%s-%s", instance.Name, ironic.ConductorComponent)
 	if conductorSpec.ConductorGroup != "" {
 		name = strings.ToLower(fmt.Sprintf("%s-%s", name, conductorSpec.ConductorGroup))
+	}
+
+	IronicConductorSpec := ironicv1.IronicConductorSpec{
+		IronicConductorTemplate: conductorSpec,
+		ContainerImage:          instance.Spec.Images.Conductor,
+		PxeContainerImage:       instance.Spec.Images.Pxe,
+		IronicPythonAgentImage:  instance.Spec.Images.IronicPythonAgent,
+		Standalone:              instance.Spec.Standalone,
+		RPCTransport:            instance.Spec.RPCTransport,
+		Secret:                  instance.Spec.Secret,
+		PasswordSelectors:       instance.Spec.PasswordSelectors,
+		ServiceUser:             instance.Spec.ServiceUser,
+		DatabaseHostname:        instance.Status.DatabaseHostname,
+		TransportURLSecret:      instance.Status.TransportURLSecret,
+		ServiceAccount:          instance.RbacResourceName(),
 	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -732,14 +747,13 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 	}
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
-		deployment.Spec = conductorSpec
-		// Add in transfers from umbrella Ironic (this instance) spec
-		// TODO: Add logic to determine when to set/overwrite, etc
-		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
-		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
-		deployment.Spec.KeystoneVars = keystoneVars
-		deployment.Spec.ServiceAccount = instance.RbacResourceName()
-
+		deployment.Spec = IronicConductorSpec
+		if len(deployment.Spec.NodeSelector) == 0 {
+			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
+		if deployment.Spec.StorageClass == "" {
+			deployment.Spec.StorageClass = instance.Spec.StorageClass
+		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
 			return err
@@ -752,6 +766,19 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 }
 
 func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {
+	IronicAPISpec := ironicv1.IronicAPISpec{
+		IronicAPITemplate:  instance.Spec.IronicAPI,
+		ContainerImage:     instance.Spec.Images.API,
+		Standalone:         instance.Spec.Standalone,
+		RPCTransport:       instance.Spec.RPCTransport,
+		Secret:             instance.Spec.Secret,
+		PasswordSelectors:  instance.Spec.PasswordSelectors,
+		ServiceUser:        instance.Spec.ServiceUser,
+		DatabaseHostname:   instance.Status.DatabaseHostname,
+		TransportURLSecret: instance.Status.TransportURLSecret,
+		ServiceAccount:     instance.RbacResourceName(),
+	}
+
 	deployment := &ironicv1.IronicAPI{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-api", instance.Name),
@@ -760,13 +787,10 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 	}
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
-		deployment.Spec = instance.Spec.IronicAPI
-		// Add in transfers from umbrella Ironic (this instance) spec
-		// TODO: Add logic to determine when to set/overwrite, etc
-		deployment.Spec.DatabaseHostname = instance.Status.DatabaseHostname
-		deployment.Spec.TransportURLSecret = instance.Status.TransportURLSecret
-		deployment.Spec.ServiceAccount = instance.RbacResourceName()
-
+		deployment.Spec = IronicAPISpec
+		if len(deployment.Spec.NodeSelector) == 0 {
+			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
+		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
 			return err
@@ -875,6 +899,19 @@ func (r *IronicReconciler) createHashOfInputHashes(
 func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 ) (*ironicv1.IronicInspector, controllerutil.OperationResult, error) {
+	// TODO(tkajinam): Should we support using seprate DB/MQ for inspector ?
+	IronicInspectorSpec := ironicv1.IronicInspectorSpec{
+		IronicInspectorTemplate: instance.Spec.IronicInspector,
+		ContainerImage:          instance.Spec.Images.Inspector,
+		PxeContainerImage:       instance.Spec.Images.Pxe,
+		IronicPythonAgentImage:  instance.Spec.Images.IronicPythonAgent,
+		Standalone:              instance.Spec.Standalone,
+		RPCTransport:            instance.Spec.RPCTransport,
+		DatabaseInstance:        instance.Spec.DatabaseInstance,
+		RabbitMqClusterName:     instance.Spec.RabbitMqClusterName,
+		Secret:                  instance.Spec.Secret,
+		ServiceAccount:          instance.RbacResourceName(),
+	}
 	deployment := &ironicv1.IronicInspector{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-inspector", instance.Name),
@@ -884,8 +921,10 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
-			deployment.Spec = instance.Spec.IronicInspector
-			deployment.Spec.ServiceAccount = instance.RbacResourceName()
+			deployment.Spec = IronicInspectorSpec
+			if len(deployment.Spec.NodeSelector) == 0 {
+				deployment.Spec.NodeSelector = instance.Spec.NodeSelector
+			}
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {
@@ -934,6 +973,14 @@ func (r *IronicReconciler) inspectorDeploymentDelete(
 func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 ) (*ironicv1.IronicNeutronAgent, controllerutil.OperationResult, error) {
+	IronicNeutronAgentSpec := ironicv1.IronicNeutronAgentSpec{
+		IronicNeutronAgentTemplate: instance.Spec.IronicNeutronAgent,
+		ContainerImage:             instance.Spec.Images.NeutronAgent,
+		Secret:                     instance.Spec.Secret,
+		PasswordSelectors:          instance.Spec.PasswordSelectors,
+		ServiceUser:                instance.Spec.ServiceUser,
+		ServiceAccount:             instance.RbacResourceName(),
+	}
 	deployment := &ironicv1.IronicNeutronAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-ironic-neutron-agent", instance.Name),
@@ -943,8 +990,10 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
-			deployment.Spec = instance.Spec.IronicNeutronAgent
-			deployment.Spec.ServiceAccount = instance.RbacResourceName()
+			deployment.Spec = IronicNeutronAgentSpec
+			if len(deployment.Spec.NodeSelector) == 0 {
+				deployment.Spec.NodeSelector = instance.Spec.NodeSelector
+			}
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {

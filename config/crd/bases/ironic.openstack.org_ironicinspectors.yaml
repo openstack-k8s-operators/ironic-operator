@@ -199,7 +199,7 @@ spec:
                     type: string
                   service:
                     default: IronicInspectorPassword
-                    description: Database - Selector to get the ironic-inspector service
+                    description: Service - Selector to get the ironic-inspector service
                       password from the Secret
                     type: string
                 type: object

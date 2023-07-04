@@ -22,38 +22,18 @@ spec:
     debug = true
   databaseInstance: openstack
   ironicAPI:
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
-    passwordSelectors:
-      database: IronicDatabasePassword
-      service: IronicPassword
     replicas: 1
-    rpcTransport: json-rpc
-    serviceUser: ironic
-    standalone: false
   ironicConductors:
-  - containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-    passwordSelectors:
-      database: IronicDatabasePassword
-      service: IronicPassword
-    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
-    replicas: 1
-    rpcTransport: json-rpc
-    serviceUser: ironic
-    standalone: false
+  - replicas: 1
     storageRequest: 10G
   ironicInspector:
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
     customServiceConfig: '# add your customization here'
     passwordSelectors:
       database: IronicInspectorDatabasePassword
       service: IronicInspectorPassword
     preserveJobs: true
-    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
-    rabbitMqClusterName: rabbitmq
     replicas: 1
-    rpcTransport: json-rpc
     serviceUser: ironic-inspector
-    standalone: false
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -87,7 +67,6 @@ spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
-    dbSync: false
     service: false
   passwordSelectors:
     database: IronicDatabasePassword
@@ -120,7 +99,6 @@ spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
-    dbSync: false
     service: false
   passwordSelectors:
     database: IronicDatabasePassword

@@ -18,41 +18,34 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IronicNeutronAgentPasswordSelector to identify the AdminUser password from the Secret
-type IronicNeutronAgentPasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="IronicPassword"
-	// Service - Selector to get the ironic service password from the Secret
-	Service string `json:"service"`
-}
+// IronicNeutronAgentTemplate defines the input parameters for ML2 baremetal - ironic-neutron-agent agents
+type IronicNeutronAgentTemplate struct {
+	// Common input parameters for all Ironic services
+	IronicServiceTemplate `json:",inline"`
 
-// IronicNeutronAgentDebug defines the observed state of IronicNeutronAgent
-type IronicNeutronAgentDebug struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Service enable debug
-	Service bool `json:"service"`
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Ironic
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 }
 
 // IronicNeutronAgentSpec defines the desired state of ML2 baremetal - ironic-neutron-agent agents
 type IronicNeutronAgentSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=ironic
-	// ServiceUser - optional username used for this service to register in ironic
-	ServiceUser string `json:"serviceUser"`
+	// Input parameters for ironic-neutron-agent
+	IronicNeutronAgentTemplate `json:",inline"`
 
 	// +kubebuilder:validation:Optional
 	// ContainerImage - ML2 baremtal - Ironic Neutron Agent Image
 	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=1
-	// Replicas - ML2 baremetal - Ironic Neutron Agent Replicas
-	Replicas int32 `json:"replicas"`
+	// +kubebuilder:default=ironic
+	// ServiceUser - optional username used for this service to register in ironic
+	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
 	// Secret containing OpenStack password information for IronicPassword
@@ -61,34 +54,7 @@ type IronicNeutronAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
-	PasswordSelectors IronicNeutronAgentPasswordSelector `json:"passwordSelectors"`
-
-	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes running this service.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug IronicNeutronAgentDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="# add your customization here"
-	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
-	// or overwrite rendered information using raw OpenStack config format. The content gets added to
-	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
-	CustomServiceConfig string `json:"customServiceConfig"`
-
-	// +kubebuilder:validation:Optional
-	// Resources - Compute Resources required by this service (Limits/Requests).
-	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
-	// RabbitMQ instance name
-	// Needed to request a transportURL that is created and used in Ironic
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide the default SA name

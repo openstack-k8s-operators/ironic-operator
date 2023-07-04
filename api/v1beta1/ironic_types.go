@@ -72,7 +72,7 @@ type IronicSpec struct {
 	DatabaseInstance string `json:"databaseInstance"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for ironic IronicDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for ironic IronicDatabasePassword, IronicPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
@@ -83,7 +83,7 @@ type IronicSpec struct {
 	// +kubebuilder:validation:Optional
 	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
 	// actual action pod gets started with sleep infinity
-	Debug IronicDebug `json:"debug,omitempty"`
+	Debug IronicDBSyncDebug `json:"debug,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=true
@@ -105,20 +105,20 @@ type IronicSpec struct {
 
 	// +kubebuilder:validation:Required
 	// IronicAPI - Spec definition for the API service of this Ironic deployment
-	IronicAPI IronicAPISpec `json:"ironicAPI"`
+	IronicAPI IronicAPITemplate `json:"ironicAPI"`
 
 	// +kubebuilder:validation:Required
 	// IronicConductors - Spec definitions for the conductor service of this Ironic deployment
-	IronicConductors []IronicConductorSpec `json:"ironicConductors"`
+	IronicConductors []IronicConductorTemplate `json:"ironicConductors"`
 
 	// +kubebuilder:validation:Required
 	// IronicInspector - Spec definition for the inspector service of this Ironic deployment
-	IronicInspector IronicInspectorSpec `json:"ironicInspector"`
+	IronicInspector IronicInspectorTemplate `json:"ironicInspector"`
 
 	// +kubebuilder:validation:Required
 	// IronicNeutronAgent - Spec definition for the ML2 baremetal ironic-neutron-agent
 	// service of this Ironic deployment
-	IronicNeutronAgent IronicNeutronAgentSpec `json:"ironicNeutronAgent"`
+	IronicNeutronAgent IronicNeutronAgentTemplate `json:"ironicNeutronAgent"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
@@ -174,19 +174,6 @@ type IronicImages struct {
 	IronicPythonAgent string `json:"ironicPythonAgent"`
 }
 
-// PasswordSelector to identify the DB and AdminUser password from the Secret
-type PasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="IronicDatabasePassword"
-	// Database - Selector to get the ironic Database user password from the Secret
-	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="IronicPassword"
-	// Database - Selector to get the ironic service password from the Secret
-	Service string `json:"service"`
-}
-
 // DHCPRange to define address range for DHCP requestes
 type DHCPRange struct {
 	// +kubebuilder:validation:Optional
@@ -214,18 +201,6 @@ type DHCPRange struct {
 	Prefix int `json:"-"`
 	// Netmask - (Hidden) Inernal use only, netmask for IPv4 is autopopulated from Cidr
 	Netmask string `json:"-"`
-}
-
-// IronicDebug defines the observed state of Ironic
-type IronicDebug struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// DBSync enable debug
-	DBSync bool `json:"dbSync"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Service enable debug
-	Service bool `json:"service"`
 }
 
 // IronicStatus defines the observed state of Ironic
@@ -294,6 +269,21 @@ func init() {
 // IsReady - returns true if Ironic is reconciled successfully
 func (instance Ironic) IsReady() bool {
 	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+}
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance Ironic) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance Ironic) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance Ironic) RbacResourceName() string {
+	return "ironic-" + instance.Name
 }
 
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)

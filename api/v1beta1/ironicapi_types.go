@@ -21,12 +21,32 @@ import (
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// IronicAPITemplate defines the input parameters for Ironic API service
+type IronicAPITemplate struct {
+	// Common input parameters for all Ironic services
+	IronicServiceTemplate `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
+	NetworkAttachments []string `json:"networkAttachments,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
+	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+}
+
 // IronicAPISpec defines the desired state of IronicAPI
 type IronicAPISpec struct {
+	// Input parameters for the Ironic API service
+	IronicAPITemplate `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// ContainerImage - Ironic API Container Image
+	ContainerImage string `json:"containerImage"`
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// Whether to deploy a standalone Ironic.
@@ -38,19 +58,6 @@ type IronicAPISpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
-	// ContainerImage - Ironic API Container Image
-	ContainerImage string `json:"containerImage"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=1
-	// Replicas - Ironic API Replicas
-	Replicas int32 `json:"replicas"`
-
-	// +kubebuilder:validation:Optional
-	// DatabaseHostname - Ironic Database Hostname
-	DatabaseHostname string `json:"databaseHostname,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// Secret containing OpenStack password information for IronicDatabasePassword, AdminPassword
 	Secret string `json:"secret,omitempty"`
 
@@ -60,32 +67,8 @@ type IronicAPISpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
-	// NodeSelector to target subset of worker nodes running this service. Setting here overrides
-	// any global NodeSelector settings within the Ironic CR
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug IronicDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="# add your customization here"
-	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
-	// or overwrite rendered information using raw OpenStack config format. The content gets added to
-	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
-	CustomServiceConfig string `json:"customServiceConfig"`
-
-	// +kubebuilder:validation:Optional
-	// ConfigOverwrite - interface to overwrite default config files like e.g. policy.json.
-	// But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
-	// TODO: -> implement
-	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// Resources - Compute Resources required by this service (Limits/Requests).
-	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// DatabaseHostname - Ironic Database Hostname
+	DatabaseHostname string `json:"databaseHostname,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Secret containing RabbitMq transport URL
@@ -98,14 +81,6 @@ type IronicAPISpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
-
-	// +kubebuilder:validation:Optional
-	// NetworkAttachments is a list of NetworkAttachment resource names to expose the services to the given network
-	NetworkAttachments []string `json:"networkAttachments,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// ServiceAccount - service account name used internally to provide the default SA name
@@ -200,19 +175,4 @@ func (instance IronicAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, e
 		}
 	}
 	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
-}
-
-// RbacConditionsSet - set the conditions for the rbac object
-func (instance Ironic) RbacConditionsSet(c *condition.Condition) {
-	instance.Status.Conditions.Set(c)
-}
-
-// RbacNamespace - return the namespace
-func (instance Ironic) RbacNamespace() string {
-	return instance.Namespace
-}
-
-// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
-func (instance Ironic) RbacResourceName() string {
-	return "ironic-" + instance.Name
 }
