@@ -50,7 +50,6 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -240,20 +239,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	r.Log.Info("Reconciling Service")
 
 	// Service account, role, binding
-	rbacRules := []rbacv1.PolicyRule{
-		{
-			APIGroups:     []string{"security.openshift.io"},
-			ResourceNames: []string{"anyuid", "privileged"},
-			Resources:     []string{"securitycontextconstraints"},
-			Verbs:         []string{"use"},
-		},
-		{
-			APIGroups: []string{""},
-			Resources: []string{"pods"},
-			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
-		},
-	}
-	rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, rbacRules)
+	rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, getCommonRbacRules())
 	if err != nil {
 		return rbacResult, err
 	} else if (rbacResult != ctrl.Result{}) {
@@ -737,7 +723,6 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		ServiceUser:             instance.Spec.ServiceUser,
 		DatabaseHostname:        instance.Status.DatabaseHostname,
 		TransportURLSecret:      instance.Status.TransportURLSecret,
-		ServiceAccount:          instance.RbacResourceName(),
 	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -776,7 +761,6 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 		ServiceUser:        instance.Spec.ServiceUser,
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
-		ServiceAccount:     instance.RbacResourceName(),
 	}
 
 	deployment := &ironicv1.IronicAPI{
@@ -910,7 +894,6 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		DatabaseInstance:        instance.Spec.DatabaseInstance,
 		RabbitMqClusterName:     instance.Spec.RabbitMqClusterName,
 		Secret:                  instance.Spec.Secret,
-		ServiceAccount:          instance.RbacResourceName(),
 	}
 	deployment := &ironicv1.IronicInspector{
 		ObjectMeta: metav1.ObjectMeta{
@@ -979,7 +962,6 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		Secret:                     instance.Spec.Secret,
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
-		ServiceAccount:             instance.RbacResourceName(),
 	}
 	deployment := &ironicv1.IronicNeutronAgent{
 		ObjectMeta: metav1.ObjectMeta{

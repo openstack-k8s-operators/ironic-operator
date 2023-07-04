@@ -60,7 +60,7 @@ func DbSyncJob(
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: instance.Spec.ServiceAccount,
+					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
 							Name: ironic.ServiceName + "-" + ironic.InspectorComponent + "-db-sync",

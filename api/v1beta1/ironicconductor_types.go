@@ -110,9 +110,6 @@ type IronicConductorSpec struct {
 	// keystoneVars - Internally used map of Keystone API endpoints
 	KeystoneVars map[string]string `json:"keystoneVars,omitempty"`
 
-	// +kubebuilder:validation:Required
-	// ServiceAccount - service account name used internally to provide the default SA name
-	ServiceAccount string `json:"serviceAccount"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor
@@ -161,4 +158,23 @@ func init() {
 // IsReady - returns true if IronicConductor is reconciled successfully
 func (instance IronicConductor) IsReady() bool {
 	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
+}
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance IronicConductor) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance IronicConductor) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance IronicConductor) RbacResourceName() string {
+	owningIronicName := GetOwningIronicName(&instance)
+	if owningIronicName != "" {
+		return "ironic-" + owningIronicName
+	}
+	return "ironicconductor-" + instance.Name
 }

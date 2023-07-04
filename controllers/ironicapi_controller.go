@@ -49,6 +49,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
+	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
@@ -103,6 +104,14 @@ var (
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+
+// service account, role, rolebinding
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update
+// service account permissions that are needed to grant permission to the above
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;privileged,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
 
 // Reconcile -
 func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
@@ -171,6 +180,10 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
 			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
+			// service account, role, rolebinding conditions
+			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
+			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
+			condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
 		)
 
 		if !instance.Spec.Standalone {
@@ -225,7 +238,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if l, ok := label[labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))]; ok {
 			for _, cr := range apis.Items {
 				// return reconcil event for the CR where the CM owner label AND the parentIronicName matches
-				if l == ironic.GetOwningIronicName(&cr) {
+				if l == ironicv1.GetOwningIronicName(&cr) {
 					// return namespace and Name of CR
 					name := client.ObjectKey{
 						Namespace: o.GetNamespace(),
@@ -438,6 +451,27 @@ func (r *IronicAPIReconciler) reconcileInit(
 func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service")
 
+	if ironicv1.GetOwningIronicName(instance) == "" {
+		// Service account, role, binding
+		rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, getCommonRbacRules())
+		if err != nil {
+			return rbacResult, err
+		} else if (rbacResult != ctrl.Result{}) {
+			return rbacResult, nil
+		}
+	} else {
+		// TODO(hjensas): Mirror conditions from parent, or check resource exist first
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.ServiceAccountReadyCondition,
+			condition.ServiceAccountReadyMessage))
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.RoleReadyCondition,
+			condition.RoleReadyMessage))
+		instance.RbacConditionsSet(condition.TrueCondition(
+			condition.RoleBindingReadyCondition,
+			condition.RoleBindingReadyMessage))
+	}
+
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
 
@@ -495,7 +529,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	// check for required Ironic config maps that should have been created by parent Ironic CR
 	//
 
-	parentIronicName := ironic.GetOwningIronicName(instance)
+	parentIronicName := ironicv1.GetOwningIronicName(instance)
 
 	configMaps := []string{
 		fmt.Sprintf("%s-scripts", parentIronicName),     //ScriptsConfigMap
