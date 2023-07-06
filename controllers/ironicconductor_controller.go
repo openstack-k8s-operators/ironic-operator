@@ -453,8 +453,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	parentIronicName := ironicv1.GetOwningIronicName(instance)
 
 	configMaps := []string{
-		fmt.Sprintf("%s-scripts", parentIronicName),     //ScriptsConfigMap
-		fmt.Sprintf("%s-config-data", parentIronicName), //ConfigMap
+		fmt.Sprintf("%s-scripts", parentIronicName), //ScriptsConfigMap
 	}
 
 	_, err = configmap.GetConfigMaps(ctx, helper, instance, configMaps, instance.Namespace, &configMapVars)
@@ -672,7 +671,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	envVars *map[string]env.Setter,
 ) error {
 	//
-	// create custom Configmap for ironic-api-specific config input
+	// create custom Configmap for ironic-conductor-specific config input
 	// - %-config-data configmap holding custom config for the service's ironic.conf
 	//
 
