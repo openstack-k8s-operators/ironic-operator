@@ -61,6 +61,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -296,6 +297,9 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		// watch the config CMs we don't own
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
