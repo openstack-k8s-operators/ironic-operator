@@ -727,6 +727,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		ServiceUser:             instance.Spec.ServiceUser,
 		DatabaseHostname:        instance.Status.DatabaseHostname,
 		TransportURLSecret:      instance.Status.TransportURLSecret,
+		KeystoneVars:            keystoneVars,
 	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
