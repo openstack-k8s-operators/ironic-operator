@@ -695,7 +695,6 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"common.sh":  "/common/bin/common.sh",
 				"get_net_ip": "/common/bin/get_net_ip",
-				"init.sh":    "/common/bin/ironic-init.sh",
 			},
 			Labels: cmLabels,
 		},

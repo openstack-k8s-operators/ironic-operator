@@ -48,9 +48,6 @@ const (
 
 	// PxeInitContainerCommand -
 	PxeInitContainerCommand = "/usr/local/bin/container-scripts/pxe-init.sh"
-
-	// ConductorInitContainerCommand -
-	ConductorInitContainerCommand = "/usr/local/bin/container-scripts/conductor-init.sh"
 )
 
 // InitContainer - init container for Ironic pods
@@ -129,24 +126,8 @@ func InitContainer(init APIDetails) []corev1.Container {
 		},
 	}
 
-	containers := []corev1.Container{
-		{
-			Name:  "init",
-			Image: init.ContainerImage,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
-			},
-			Command: []string{
-				"/bin/bash",
-			},
-			Args: []string{
-				"-c",
-				InitContainerCommand,
-			},
-			Env:          envs,
-			VolumeMounts: init.VolumeMounts,
-		},
-	}
+	var containers []corev1.Container
+
 	if init.PxeInit {
 		pxeInit := corev1.Container{
 			Name:  "pxe-init",
@@ -166,24 +147,26 @@ func InitContainer(init APIDetails) []corev1.Container {
 		}
 		containers = append(containers, pxeInit)
 	}
+
+	initContainer := corev1.Container{
+		Name:  "init",
+		Image: init.ContainerImage,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		Command: []string{
+			"/bin/bash",
+		},
+		Args: []string{
+			"-c",
+			InitContainerCommand,
+		},
+		Env:          envs,
+		VolumeMounts: init.VolumeMounts,
+	}
+	containers = append(containers, initContainer)
+
 	if init.ConductorInit {
-		conductorInit := corev1.Container{
-			Name:  "conductor-init",
-			Image: init.ContainerImage,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
-			},
-			Command: []string{
-				"/bin/bash",
-			},
-			Args: []string{
-				"-c",
-				ConductorInitContainerCommand,
-			},
-			Env:          envs,
-			VolumeMounts: init.VolumeMounts,
-		}
-		containers = append(containers, conductorInit)
 		ipaInit := corev1.Container{
 			Name:  "ironic-python-agent-init",
 			Image: init.IronicPythonAgentImage,
@@ -195,5 +178,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 		}
 		containers = append(containers, ipaInit)
 	}
+
 	return containers
 }
