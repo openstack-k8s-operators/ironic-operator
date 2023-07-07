@@ -552,7 +552,7 @@ func (r *IronicNeutronAgentReconciler) generateServiceConfigMaps(
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 
 	cms := []util.Template{
-		// ScriptsConfigMap
+		// Scripts ConfigMap
 		{
 			Name:         fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:    instance.Namespace,

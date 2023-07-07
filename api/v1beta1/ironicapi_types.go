@@ -81,6 +81,10 @@ type IronicAPISpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// keystoneVars - Internally used map of Keystone API endpoints
+	KeystoneVars map[string]string `json:"keystoneVars,omitempty"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
