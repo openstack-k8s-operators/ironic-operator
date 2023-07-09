@@ -17,4 +17,4 @@ spec:
     storageRequest: 10G
   ironicInspector:
     replicas: 1
-  secret: ironic-secret
+  secret: osp-secret

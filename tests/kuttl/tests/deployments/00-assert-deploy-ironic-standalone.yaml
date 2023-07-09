@@ -1,0 +1,235 @@
+#
+# Check for:
+#
+# Ironic
+# IronicAPI
+# IronicConductor
+# IronicInspector
+# apiEndpoints
+# service port connectivity
+#
+
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  finalizers:
+  - Ironic
+  name: ironic
+  namespace: openstack
+spec:
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  ironicAPI:
+    replicas: 1
+  ironicConductors:
+  - replicas: 1
+    storageRequest: 10G
+  ironicInspector:
+    customServiceConfig: '# add your customization here'
+    passwordSelectors:
+      database: IronicInspectorDatabasePassword
+      service: IronicInspectorPassword
+    preserveJobs: true
+    replicas: 1
+    serviceUser: ironic-inspector
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  preserveJobs: true
+  rabbitMqClusterName: rabbitmq
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: true
+status:
+  databaseHostname: openstack
+  ironicAPIReadyCount: 1
+  ironicConductorReadyCount:
+    null_conductor_group_null: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicAPI
+metadata:
+  finalizers:
+  - IronicAPI
+  name: ironic-api
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
+  customServiceConfig: '# add your customization here'
+  databaseHostname: openstack
+  debug:
+    service: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: false
+status:
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicConductor
+metadata:
+  finalizers:
+  - IronicConductor
+  name: ironic-conductor
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  conductorGroup: ""
+  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
+  customServiceConfig: '# add your customization here'
+  databaseHostname: openstack
+  debug:
+    service: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic
+  standalone: false
+  storageRequest: 10G
+status:
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicInspector
+metadata:
+  finalizers:
+  - IronicInspector
+  name: ironic-inspector
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
+  customServiceConfig: '# add your customization here'
+  databaseInstance: openstack
+  debug:
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: IronicInspectorDatabasePassword
+    service: IronicInspectorPassword
+  preserveJobs: true
+  pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+  rabbitMqClusterName: rabbitmq
+  replicas: 1
+  resources: {}
+  rpcTransport: json-rpc
+  secret: osp-secret
+  serviceUser: ironic-inspector
+  standalone: false
+status:
+  databaseHostname: openstack
+  readyCount: 1
+---
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the endpoints are defined and their addresses follow the default pattern
+# This test is for the ironic endpoints
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
+      regex="http:\/\/ironic-public-openstack\.apps.*:http:\/\/ironic-admin-openstack\.apps.*:http:\/\/ironic-internal-openstack\.apps.*"
+      apiEndpoints=$(oc get -n openstack ironics.ironic.openstack.org ironic -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [ -z "$matches" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+---
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the endpoints are defined and their addresses follow the default pattern
+# This test is for the ironic inspector endpoints
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
+      regex="http:\/\/ironic-inspector-public-openstack\.apps.*:http:\/\/ironic-inspector-admin-openstack\.apps.*:http:\/\/ironic-inspector-internal-openstack\.apps.*"
+      apiEndpoints=$(oc get -n openstack ironics.ironic.openstack.org ironic -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [ -z "$matches" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+---
+# Test the status code is correct for each endpoint
+# This test is for ironic endpoints
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      set -x
+      RETURN_CODE=0
+      PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
+      if [ -z "$PUBLIC_URL" ]; then
+          RETURN_CODE=1
+          echo "Endpoint: apiEndpoints.ironic.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
+      fi
+      exit $RETURN_CODE
+---
+# Test the status code is correct for each endpoint
+# This test is for ironic inspector endpoints
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      set -x
+      RETURN_CODE=0
+      PUBLIC_URL=$(oc get -n openstack ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
+      if [ -z "$PUBLIC_URL" ]; then
+          RETURN_CODE=1
+          echo "Endpoint: .status.apiEndpoints.ironic-inspector.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
+      fi
+      exit $RETURN_CODE
