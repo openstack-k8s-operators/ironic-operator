@@ -61,6 +61,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -193,6 +194,10 @@ func (r *IronicInspectorReconciler) Reconcile(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.InitReason,
 				condition.NetworkAttachmentsReadyInitMessage),
+			condition.UnknownCondition(
+				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.InitReason,
+				ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(
 				condition.ServiceAccountReadyCondition,
@@ -209,11 +214,16 @@ func (r *IronicInspectorReconciler) Reconcile(
 		)
 
 		if !instance.Spec.Standalone {
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
-			cl = append(cl, *condition.UnknownCondition(
-				condition.KeystoneServiceReadyCondition,
-				condition.InitReason,
-				""))
+			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+			cl = append(cl,
+				*condition.UnknownCondition(
+					condition.KeystoneServiceReadyCondition,
+					condition.InitReason,
+					""),
+				*condition.UnknownCondition(
+					condition.KeystoneEndpointReadyCondition,
+					condition.InitReason, ""),
+			)
 		}
 
 		instance.Status.Conditions.Init(&cl)
@@ -296,6 +306,9 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		// watch the config CMs we don't own
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
@@ -349,7 +362,7 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				ironicv1.IronicRabbitMqTransportURLReadyRunningMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			return ctrl.Result{}, nil
 		}
 
 		instance.Status.Conditions.MarkTrue(
@@ -485,7 +498,7 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	ss := statefulset.NewStatefulSet(
 		ironicinspector.StatefulSet(
 			instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations),
-		time.Duration(10)*time.Second,
+		time.Duration(5)*time.Second,
 	)
 
 	ctrlResult, err := ss.CreateOrPatch(ctx, helper)
@@ -830,7 +843,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBsync(
 		jobDef,
 		ironicv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		time.Second*20,
+		time.Second*2,
 		dbSyncHash,
 	)
 	ctrlResult, err := dbSyncjob.DoJob(
