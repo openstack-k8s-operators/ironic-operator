@@ -4,6 +4,7 @@ metadata:
   name: ironic
 spec:
   serviceUser: ironic
+  secret: osp-secret
   customServiceConfig: |
     [DEFAULT]
     debug = true
@@ -18,4 +19,3 @@ spec:
     replicas: 1
   ironicNeutronAgent:
     replicas: 1
-  secret: osp-secret
