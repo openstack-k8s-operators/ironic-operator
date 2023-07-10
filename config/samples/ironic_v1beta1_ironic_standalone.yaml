@@ -19,4 +19,4 @@ spec:
     replicas: 1
   ironicNeutronAgent:
     replicas: 0  # Neutron agent replicas is zero, i.e disabled for standalone.
-  secret: ironic-secret
+  secret: osp-secret
