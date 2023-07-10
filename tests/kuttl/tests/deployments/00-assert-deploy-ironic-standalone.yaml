@@ -76,7 +76,7 @@ spec:
   rpcTransport: json-rpc
   secret: osp-secret
   serviceUser: ironic
-  standalone: false
+  standalone: true
 status:
   readyCount: 1
 ---
@@ -109,7 +109,7 @@ spec:
   rpcTransport: json-rpc
   secret: osp-secret
   serviceUser: ironic
-  standalone: false
+  standalone: true
   storageRequest: 10G
 status:
   readyCount: 1
@@ -145,7 +145,7 @@ spec:
   rpcTransport: json-rpc
   secret: osp-secret
   serviceUser: ironic-inspector
-  standalone: false
+  standalone: true
 status:
   databaseHostname: openstack
   readyCount: 1
