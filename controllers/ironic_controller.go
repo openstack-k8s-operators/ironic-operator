@@ -487,7 +487,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-inspector
-	if instance.Spec.IronicInspector.Replicas != 0 {
+	if *(instance.Spec.IronicInspector.Replicas) != 0 {
 		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
 		if err != nil {
 			instance.Status.Conditions.Set(
@@ -531,7 +531,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-neutron-agent (ML2 baremetal agent)
-	if instance.Spec.IronicNeutronAgent.Replicas != 0 {
+	if *(instance.Spec.IronicNeutronAgent.Replicas) != 0 {
 		ironicNeutronAgenet, op, err := r.ironicNeutronAgentDeploymentCreateOrUpdate(instance)
 		if err != nil {
 			instance.Status.Conditions.Set(

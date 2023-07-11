@@ -10,12 +10,8 @@ spec:
     debug = true
   databaseInstance: openstack
   storageClass: local-storage
-  ironicAPI:
-    replicas: 1
+  ironicAPI: {}
   ironicConductors:
-  - replicas: 1
-    storageRequest: 10G
-  ironicInspector:
-    replicas: 1
-  ironicNeutronAgent:
-    replicas: 1
+  - storageRequest: 10G
+  ironicInspector: {}
+  ironicNeutronAgent: {}
