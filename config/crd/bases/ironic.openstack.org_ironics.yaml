@@ -185,6 +185,8 @@ spec:
                     default: 1
                     description: Replicas -
                     format: int32
+                    maximum: 32
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service
@@ -328,6 +330,8 @@ spec:
                       default: 1
                       description: Replicas -
                       format: int32
+                      maximum: 32
+                      minimum: 0
                       type: integer
                     resources:
                       description: Resources - Compute Resources required by this
@@ -550,6 +554,7 @@ spec:
                     description: Replicas - Ironic Inspector Replicas
                     format: int32
                     maximum: 1
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service
@@ -655,6 +660,8 @@ spec:
                     default: 1
                     description: Replicas -
                     format: int32
+                    maximum: 32
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service

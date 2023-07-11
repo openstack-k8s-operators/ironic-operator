@@ -44,9 +44,10 @@ type IronicInspectorTemplate struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Maximum=1
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=1
 	// Replicas - Ironic Inspector Replicas
-	Replicas int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: IronicInspectorDatabasePassword, service: IronicInspectorPassword}
