@@ -3,5 +3,4 @@ kind: IronicInspector
 metadata:
   name: ironicinspector-sample
 spec:
-  replicas: 1
   secret: osp-secret
