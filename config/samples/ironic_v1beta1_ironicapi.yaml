@@ -2,5 +2,4 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
 metadata:
   name: ironicapi-sample
-spec:
-  replicas: 1
+spec: {}

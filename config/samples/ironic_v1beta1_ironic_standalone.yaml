@@ -10,13 +10,10 @@ spec:
     debug = true
   databaseInstance: openstack
   storageClass: local-storage
-  ironicAPI:
-    replicas: 1
+  ironicAPI: {}
   ironicConductors:
-  - replicas: 1
-    storageRequest: 10G
-  ironicInspector:
-    replicas: 1
+  - storageRequest: 10G
+  ironicInspector: {}
   ironicNeutronAgent:
     replicas: 0  # Neutron agent replicas is zero, i.e disabled for standalone.
   secret: osp-secret
