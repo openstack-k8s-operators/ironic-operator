@@ -27,7 +27,7 @@ import (
 
 const (
 	// DBSyncCommand -
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && su ironic -s /bin/bash -c 'ironic-dbsync --config-file /etc/ironic/ironic.conf'"
+	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-dbsync --config-file /etc/ironic/ironic.conf'"
 )
 
 // DbSyncJob func
