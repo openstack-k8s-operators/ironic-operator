@@ -90,6 +90,10 @@ require (
 
 replace github.com/openstack-k8s-operators/ironic-operator/api => ./api
 
+// mschuppert: map to latest commit from release-4.13 tag
+// must consistent within modules and service operators
+replace github.com/openshift/api => github.com/openshift/api v0.0.0-20230414143018-3367bc7e6ac7 //allow-merging
+
 // This is need when updating to new version of lib-common.  For some reason, "go get -u" on the database and openstack
 // lib-common modules breaks because they try to find this "v0.0.0-00010101000000-000000000000" common module version
 // which does not exist.  So if you update the lib-common dependencies, uncomment the line below and change the common
