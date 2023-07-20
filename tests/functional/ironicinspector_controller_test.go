@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
