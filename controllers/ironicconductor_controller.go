@@ -672,18 +672,12 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 func (r *IronicConductorReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	// r.Log.Info("Reconciling Service update")
 
-	// TODO: should have minor update tasks if required
-	// - delete dbsync hash from status to rerun it?
-
 	// r.Log.Info("Reconciled Service update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
 	// r.Log.Info("Reconciling Service upgrade")
-
-	// TODO: should have major version upgrade tasks
-	// -delete dbsync hash from status to rerun it?
 
 	// r.Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil

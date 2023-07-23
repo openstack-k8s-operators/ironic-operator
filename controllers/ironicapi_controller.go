@@ -723,22 +723,16 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 }
 
 func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling API update")
+	// r.Log.Info("Reconciling API update")
 
-	// TODO: should have minor update tasks if required
-	// - delete dbsync hash from status to rerun it?
-
-	r.Log.Info("Reconciled API update successfully")
+	// r.Log.Info("Reconciled API update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling API upgrade")
+	// r.Log.Info("Reconciling API upgrade")
 
-	// TODO: should have major version upgrade tasks
-	// -delete dbsync hash from status to rerun it?
-
-	r.Log.Info("Reconciled API upgrade successfully")
+	// r.Log.Info("Reconciled API upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
