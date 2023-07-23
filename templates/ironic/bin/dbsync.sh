@@ -16,4 +16,18 @@
 set -ex
 
 /usr/local/bin/kolla_set_configs
+ironic-status upgrade check && ret_val=$? || ret_val=$?
+if [ $ret_val -gt 1 ] ; then
+    # NOTE(TheJulia): We need to evaluate the return code from the
+    # upgrade status check as the framework defines
+    # Warnings are permissible and returned as status code 1, errors are
+    # returned as greater than 1 which means there is a major upgrade
+    # stopping issue which needs to be addressed.
+    echo "WARNING: Status check failed, we're going to attempt to apply the schema update and then re-evaluate."
+    ironic-dbsync --config-file=/etc/ironic/ironic.conf upgrade
+    ironic-status upgrade check && ret_val=$? || ret_val=$?
+    if [ $ret_val -gt 1 ] ; then
+        die $LINENO "Ironic DB Status check failed, returned: $ret_val"
+    fi
+fi
 ironic-dbsync --config-file /etc/ironic/ironic.conf
