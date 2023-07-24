@@ -31,3 +31,5 @@ if [ $ret_val -gt 1 ] ; then
     fi
 fi
 ironic-dbsync --config-file /etc/ironic/ironic.conf
+
+ironic-dbsync --config-file /etc/ironic/ironic.conf online_data_migrations
