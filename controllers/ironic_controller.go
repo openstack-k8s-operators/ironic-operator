@@ -668,7 +668,7 @@ func (r *IronicReconciler) reconcileUpgrade(
 		jobDef,
 		ironicv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		5,
+		time.Second*5,
 		dbSyncHash,
 	)
 	ctrlResult, err := dbSyncjob.DoJob(
