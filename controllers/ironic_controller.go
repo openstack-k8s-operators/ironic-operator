@@ -830,6 +830,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["IronicPublicURL"] = ""
 	}
 	templateParameters["Standalone"] = instance.Spec.Standalone
+	templateParameters["LogPath"] = ironic.LogPath
 
 	cms := []util.Template{
 		// ScriptsConfigMap
