@@ -22,4 +22,6 @@ const (
 	DnsmasqKollaConfig = "/var/lib/config-data/merged/dnsmasq-config.json"
 	// HttpbootKollaConfig -
 	HttpbootKollaConfig = "/var/lib/config-data/merged/httpboot-config.json"
+	// LogPath
+	LogPath = "/dev/stdout"
 )

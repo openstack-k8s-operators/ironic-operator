@@ -44,4 +44,6 @@ const (
 	ConductorGroupSelector = "conductorGroup"
 	// ImageDirectory -
 	ImageDirectory = "/var/lib/ironic/httpboot"
+	// LogPath - Log path for Ironc API
+	LogPath = "/var/log/ironic/ironic-api.log"
 )

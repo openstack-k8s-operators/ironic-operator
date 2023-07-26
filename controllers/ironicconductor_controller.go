@@ -739,6 +739,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
+	templateParameters["LogPath"] = ironicconductor.LogPath
 
 	cms := []util.Template{
 		// Custom ConfigMap

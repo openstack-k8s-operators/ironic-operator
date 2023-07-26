@@ -109,6 +109,22 @@ func Deployment(
 				Spec: corev1.PodSpec{
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
+						// the first container in a pod is the default selected
+						// by oc log so define the log stream container first.
+						{
+							Name: ironic.ServiceName + "-" + ironic.APIComponent + "-log",
+							Command: []string{
+								"/bin/bash",
+							},
+							Args:  []string{"-c", "tail -n+1 -F " + ironic.LogPath},
+							Image: instance.Spec.ContainerImage,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &runAsUser,
+							},
+							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts: []corev1.VolumeMount{GetLogVolumeMount()},
+							Resources:    instance.Spec.Resources,
+						},
 						{
 							Name: ironic.ServiceName + "-" + ironic.APIComponent,
 							Command: []string{

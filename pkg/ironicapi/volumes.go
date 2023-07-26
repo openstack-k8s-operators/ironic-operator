@@ -9,7 +9,7 @@ import (
 func GetVolumes(parentName string, name string) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
 
-	backupVolumes := []corev1.Volume{
+	apiVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
@@ -21,9 +21,24 @@ func GetVolumes(parentName string, name string) []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: "logs",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+			},
+		},
 	}
 
-	return append(ironic.GetVolumes(parentName), backupVolumes...)
+	return append(ironic.GetVolumes(parentName), apiVolumes...)
+}
+
+// GetLogVolumeMount - Ironic API LogVolumeMount
+func GetLogVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "logs",
+		MountPath: "/var/log/ironic",
+		ReadOnly:  false,
+	}
 }
 
 // GetInitVolumeMounts - Ironic API init task VolumeMounts
@@ -40,5 +55,5 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 
 // GetVolumeMounts - Ironic API VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
-	return ironic.GetVolumeMounts()
+	return append(ironic.GetVolumeMounts(), GetLogVolumeMount())
 }
