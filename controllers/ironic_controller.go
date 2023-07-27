@@ -171,7 +171,7 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			condition.UnknownCondition(ironicv1.IronicConductorReadyCondition, condition.InitReason, ironicv1.IronicConductorReadyInitMessage),
 			condition.UnknownCondition(ironicv1.IronicInspectorReadyCondition, condition.InitReason, ironicv1.IronicInspectorReadyInitMessage),
 			condition.UnknownCondition(ironicv1.IronicNeutronAgentReadyCondition, condition.InitReason, ironicv1.IronicNeutronAgentReadyInitMessage),
-			condition.UnknownCondition(ironicv1.IronicRabbitMqTransportURLReadyCondition, condition.InitReason, ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
+			condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
 			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
@@ -270,10 +270,10 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				ironicv1.IronicRabbitMqTransportURLReadyErrorMessage,
+				condition.RabbitMqTransportURLReadyErrorMessage,
 				err.Error(),
 			))
 			return ctrl.Result{}, err
@@ -288,17 +288,17 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if instance.Status.TransportURLSecret == "" {
 			r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				ironicv1.IronicRabbitMqTransportURLReadyRunningMessage))
+				condition.RabbitMqTransportURLReadyRunningMessage))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
-		instance.Status.Conditions.MarkTrue(ironicv1.IronicRabbitMqTransportURLReadyCondition, ironicv1.IronicRabbitMqTransportURLReadyMessage)
+		instance.Status.Conditions.MarkTrue(condition.RabbitMqTransportURLReadyCondition, condition.RabbitMqTransportURLReadyMessage)
 	} else {
 		instance.Status.TransportURLSecret = ""
-		instance.Status.Conditions.MarkTrue(ironicv1.IronicRabbitMqTransportURLReadyCondition, ironicv1.IronicRabbitMqTransportURLDisabledMessage)
+		instance.Status.Conditions.MarkTrue(condition.RabbitMqTransportURLReadyCondition, ironicv1.RabbitMqTransportURLDisabledMessage)
 	}
 	// end transportURL
 

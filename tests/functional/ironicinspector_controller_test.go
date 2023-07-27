@@ -22,8 +22,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
-
-	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 )
 
 var _ = Describe("IronicInspector controller", func() {
@@ -108,7 +106,7 @@ var _ = Describe("IronicInspector controller", func() {
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				corev1.ConditionTrue,
 			)
 			instance := GetIronicInspector(ironicNames.InspectorName)

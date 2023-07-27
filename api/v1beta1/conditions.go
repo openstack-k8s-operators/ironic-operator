@@ -27,9 +27,6 @@ const (
 	// IronicConductorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
 	IronicConductorReadyCondition condition.Type = "IronicConductorReady"
 
-	// IronicRabbitMqTransportURLReady Status=True condition which indicates if the RabbitMQ TransportURLUrl is ready
-	IronicRabbitMqTransportURLReadyCondition condition.Type = "IronicRabbitMqTransportURLReady"
-
 	// IronicInspectorReadyCondition Status=True condition which indicates if the Inspector is configured and operational
 	IronicInspectorReadyCondition condition.Type = "IronicInspectorReady"
 
@@ -42,6 +39,12 @@ const ()
 
 // Common Messages used by API objects.
 const (
+	//
+	// RabbitMqTransportURLReady condition messages
+	//
+	// RabbitMqTransportURLDisabledMessage
+	RabbitMqTransportURLDisabledMessage = "RabbitMqTransportURL disabled"
+
 	//
 	// IronicAPIReady condition messages
 	//
@@ -61,29 +64,17 @@ const (
 	IronicConductorReadyErrorMessage = "IronicConductor error occured %s"
 
 	//
-	// IronicRabbitMqTransportURLReady condition messages
+	// IronicInspectorReady condition messages
 	//
-	// IronicRabbitMqTransportURLReadyInitMessage
-	IronicRabbitMqTransportURLReadyInitMessage = "IronicRabbitMqTransportURL not started"
-
-	// IronicRabbitMqTransportURLReadyRunningMessage
-	IronicRabbitMqTransportURLReadyRunningMessage = "IronicRabbitMqTransportURL creation in progress"
-
-	// IronicRabbitMqTransportURLReadyMessage
-	IronicRabbitMqTransportURLReadyMessage = "IronicRabbitMqTransportURL successfully created"
-
-	// IronicRabbitMqTransportURLDisabledMessage
-	IronicRabbitMqTransportURLDisabledMessage = "IronicRabbitMqTransportURL disabled"
-
-	// IronicRabbitMqTransportURLReadyErrorMessage
-	IronicRabbitMqTransportURLReadyErrorMessage = "IronicRabbitMqTransportURL error occured %s"
-
 	// IronicInspectorReadyInitMessage
 	IronicInspectorReadyInitMessage = "IronicInspector not started"
 
 	// IronicInspectorReadyErrorMessage
 	IronicInspectorReadyErrorMessage = "IronicInspector error occured %s"
 
+	//
+	// IronicNeutronAgentReady condition messages
+	//
 	// IronicNeutronAgentReadyInitMessage
 	IronicNeutronAgentReadyInitMessage = "IronicNeutronAgent not started"
 

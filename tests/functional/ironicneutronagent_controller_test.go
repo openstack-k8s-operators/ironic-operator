@@ -27,8 +27,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 )
 
 var _ = Describe("IronicNeutronAgent controller", func() {
@@ -54,7 +52,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			th.ExpectCondition(
 				ironicNames.INAName,
 				ConditionGetterFunc(INAConditionGetter),
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				corev1.ConditionTrue,
 			)
 			instance := GetIronicNeutronAgent(ironicNames.INAName)

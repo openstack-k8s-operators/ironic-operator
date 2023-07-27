@@ -195,9 +195,9 @@ func (r *IronicInspectorReconciler) Reconcile(
 				condition.InitReason,
 				condition.NetworkAttachmentsReadyInitMessage),
 			condition.UnknownCondition(
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				condition.InitReason,
-				ironicv1.IronicRabbitMqTransportURLReadyInitMessage),
+				condition.RabbitMqTransportURLReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(
 				condition.ServiceAccountReadyCondition,
@@ -336,10 +336,10 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				ironicv1.IronicRabbitMqTransportURLReadyErrorMessage,
+				condition.RabbitMqTransportURLReadyErrorMessage,
 				err.Error(),
 			))
 			return ctrl.Result{}, err
@@ -358,21 +358,21 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 				"Waiting for TransportURL %s secret to be created",
 				transportURL.Name))
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				ironicv1.IronicRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				ironicv1.IronicRabbitMqTransportURLReadyRunningMessage))
+				condition.RabbitMqTransportURLReadyRunningMessage))
 			return ctrl.Result{}, nil
 		}
 
 		instance.Status.Conditions.MarkTrue(
-			ironicv1.IronicRabbitMqTransportURLReadyCondition,
-			ironicv1.IronicRabbitMqTransportURLReadyMessage)
+			condition.RabbitMqTransportURLReadyCondition,
+			condition.RabbitMqTransportURLReadyMessage)
 	} else {
 		instance.Status.TransportURLSecret = ""
 		instance.Status.Conditions.MarkTrue(
-			ironicv1.IronicRabbitMqTransportURLReadyCondition,
-			ironicv1.IronicRabbitMqTransportURLDisabledMessage)
+			condition.RabbitMqTransportURLReadyCondition,
+			ironicv1.RabbitMqTransportURLDisabledMessage)
 	}
 	// transportURL - end
 
