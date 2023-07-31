@@ -413,7 +413,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -640,6 +640,25 @@ func (r *IronicReconciler) reconcileInit(
 
 	// create service DB - end
 
+	r.Log.Info("Reconciled Ironic init successfully")
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
+	// r.Log.Info("Reconciling Ironic update")
+
+	// r.Log.Info("Reconciled Ironic update successfully")
+	return ctrl.Result{}, nil
+}
+
+func (r *IronicReconciler) reconcileUpgrade(
+	ctx context.Context,
+	instance *ironicv1.Ironic,
+	helper *helper.Helper,
+	serviceLabels map[string]string,
+) (ctrl.Result, error) {
+	r.Log.Info("Reconciling Ironic upgrade")
+
 	//
 	// run ironic db sync
 	//
@@ -649,10 +668,10 @@ func (r *IronicReconciler) reconcileInit(
 		jobDef,
 		ironicv1.DbSyncHash,
 		instance.Spec.PreserveJobs,
-		5,
+		time.Second*5,
 		dbSyncHash,
 	)
-	ctrlResult, err = dbSyncjob.DoJob(
+	ctrlResult, err := dbSyncjob.DoJob(
 		ctx,
 		helper,
 	)
@@ -680,26 +699,6 @@ func (r *IronicReconciler) reconcileInit(
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	// run ironic db sync - end
-
-	r.Log.Info("Reconciled Ironic init successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic update")
-
-	// TODO: should have minor update tasks if required
-	// - delete dbsync hash from status to rerun it?
-
-	r.Log.Info("Reconciled Ironic update successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic upgrade")
-
-	// TODO: should have major version upgrade tasks
-	// -delete dbsync hash from status to rerun it?
 
 	r.Log.Info("Reconciled Ironic upgrade successfully")
 	return ctrl.Result{}, nil

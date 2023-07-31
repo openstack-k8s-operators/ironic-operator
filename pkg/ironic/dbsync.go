@@ -27,7 +27,7 @@ import (
 
 const (
 	// DBSyncCommand -
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-dbsync --config-file /etc/ironic/ironic.conf'"
+	DBSyncCommand = "/usr/local/bin/container-scripts/dbsync.sh"
 )
 
 // DbSyncJob func
@@ -83,7 +83,7 @@ func DbSyncJob(
 	job.Spec.Template.Spec.Volumes = GetVolumes(ServiceName)
 
 	initContainerDetails := APIDetails{
-		ContainerImage:       instance.Spec.Images.API,
+		ContainerImage:       instance.Spec.Images.Conductor,
 		DatabaseHost:         instance.Status.DatabaseHostname,
 		DatabaseName:         DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
