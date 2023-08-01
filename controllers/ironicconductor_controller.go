@@ -58,26 +58,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
-// GetClient -
-func (r *IronicConductorReconciler) GetClient() client.Client {
-	return r.Client
-}
-
-// GetKClient -
-func (r *IronicConductorReconciler) GetKClient() kubernetes.Interface {
-	return r.Kclient
-}
-
-// GetLogger -
-func (r *IronicConductorReconciler) GetLogger() logr.Logger {
-	return r.Log
-}
-
-// GetScheme -
-func (r *IronicConductorReconciler) GetScheme() *runtime.Scheme {
-	return r.Scheme
-}
-
 // IronicConductorReconciler reconciles a IronicConductor object
 type IronicConductorReconciler struct {
 	client.Client
