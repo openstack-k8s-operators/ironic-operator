@@ -692,11 +692,13 @@ func (r *IronicInspectorReconciler) reconcileDeleteKeystoneServices(
 		}
 
 		if err == nil {
-			controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
-			if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
-				return ctrl.Result{}, err
+			if controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer()) {
+				err = r.Update(ctx, keystoneEndpoint)
+				if err != nil && !k8s_errors.IsNotFound(err) {
+					return ctrl.Result{}, err
+				}
+				util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
 			}
-			util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
 		}
 
 		// Remove the finalizer from our KeystoneService CR
@@ -706,11 +708,13 @@ func (r *IronicInspectorReconciler) reconcileDeleteKeystoneServices(
 		}
 
 		if err == nil {
-			controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer())
-			if err = helper.GetClient().Update(ctx, keystoneService); err != nil && !k8s_errors.IsNotFound(err) {
-				return ctrl.Result{}, err
+			if controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer()) {
+				err = r.Update(ctx, keystoneService)
+				if err != nil && !k8s_errors.IsNotFound(err) {
+					return ctrl.Result{}, err
+				}
+				util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 			}
-			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 		}
 	}
 	return ctrl.Result{}, nil

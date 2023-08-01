@@ -53,26 +53,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
-// GetClient -
-func (r *IronicNeutronAgentReconciler) GetClient() client.Client {
-	return r.Client
-}
-
-// GetKClient -
-func (r *IronicNeutronAgentReconciler) GetKClient() kubernetes.Interface {
-	return r.Kclient
-}
-
-// GetLogger -
-func (r *IronicNeutronAgentReconciler) GetLogger() logr.Logger {
-	return r.Log
-}
-
-// GetScheme -
-func (r *IronicNeutronAgentReconciler) GetScheme() *runtime.Scheme {
-	return r.Scheme
-}
-
 // IronicNeutronAgentReconciler reconciles a IronicNeutronAgent object
 type IronicNeutronAgentReconciler struct {
 	client.Client
