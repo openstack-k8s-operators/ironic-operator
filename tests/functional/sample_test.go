@@ -115,7 +115,7 @@ var _ = Describe("Samples", func() {
 		It("IronicAPI is created", func() {
 			name := CreateIronicAPIFromSample(
 				"ironic_v1beta1_ironicapi.yaml",
-				ironicNames.ConductorName,
+				ironicNames.APIName,
 			)
 			GetIronicAPI(name)
 		})
@@ -125,7 +125,7 @@ var _ = Describe("Samples", func() {
 		It("Ironic is created", func() {
 			name := CreateIronicFromSample(
 				"ironic_v1beta1_ironic.yaml",
-				ironicNames.ConductorName,
+				ironicNames.IronicName,
 			)
 			GetIronic(name)
 		})
@@ -135,7 +135,7 @@ var _ = Describe("Samples", func() {
 		It("Ironic is created", func() {
 			name := CreateIronicFromSample(
 				"ironic_v1beta1_ironic_conductor_groups.yaml",
-				ironicNames.ConductorName,
+				ironicNames.IronicName,
 			)
 			GetIronic(name)
 		})
@@ -145,7 +145,7 @@ var _ = Describe("Samples", func() {
 		It("Ironic is created", func() {
 			name := CreateIronicFromSample(
 				"ironic_v1beta1_ironic_standalone.yaml",
-				ironicNames.ConductorName,
+				ironicNames.IronicName,
 			)
 			GetIronic(name)
 		})

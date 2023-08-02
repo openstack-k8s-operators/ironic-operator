@@ -2,4 +2,5 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
 metadata:
   name: ironicapi-sample
-spec: {}
+spec:
+  databaseHostname: openstack
