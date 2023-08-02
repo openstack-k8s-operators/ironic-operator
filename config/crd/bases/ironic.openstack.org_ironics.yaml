@@ -651,11 +651,6 @@ spec:
                       this service. Setting here overrides any global NodeSelector
                       settings within the Ironic CR
                     type: object
-                  rabbitMqClusterName:
-                    default: rabbitmq
-                    description: RabbitMQ instance name Needed to request a transportURL
-                      that is created and used in Ironic
-                    type: string
                   replicas:
                     default: 1
                     description: Replicas -

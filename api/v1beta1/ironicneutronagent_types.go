@@ -25,12 +25,6 @@ import (
 type IronicNeutronAgentTemplate struct {
 	// Common input parameters for all Ironic services
 	IronicServiceTemplate `json:",inline"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
-	// RabbitMQ instance name
-	// Needed to request a transportURL that is created and used in Ironic
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 }
 
 // IronicNeutronAgentSpec defines the desired state of ML2 baremetal - ironic-neutron-agent agents
@@ -56,6 +50,11 @@ type IronicNeutronAgentSpec struct {
 	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Ironic
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 }
 
 // IronicNeutronAgentStatus defines the observed state of ML2 baremetal - ironic-neutron-agent

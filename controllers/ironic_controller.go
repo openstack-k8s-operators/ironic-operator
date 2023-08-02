@@ -967,6 +967,7 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		Secret:                     instance.Spec.Secret,
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
+		RabbitMqClusterName:        instance.Spec.RabbitMqClusterName,
 	}
 	deployment := &ironicv1.IronicNeutronAgent{
 		ObjectMeta: metav1.ObjectMeta{
