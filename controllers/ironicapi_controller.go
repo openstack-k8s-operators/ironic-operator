@@ -513,37 +513,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 	// run check TransportURL secret - end
 
-	//
-	// check for required Ironic config maps that should have been created by parent Ironic CR
-	//
-
-	parentIronicName := ironicv1.GetOwningIronicName(instance)
-
-	configMaps := []string{
-		fmt.Sprintf("%s-scripts", parentIronicName),     //ScriptsConfigMap
-		fmt.Sprintf("%s-config-data", parentIronicName), //ConfigMap
-	}
-
-	_, err = configmap.GetConfigMaps(ctx, helper, instance, configMaps, instance.Namespace, &configMapVars)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("could not find all config maps for parent Ironic CR %s", parentIronicName)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-	// run check parent Ironic CR config maps - end
 
 	//
 	// Create ConfigMaps required as input for the Service and calculate an overall hash of hashes
@@ -746,15 +716,45 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 
 	customData[common.CustomServiceConfigFileName] = instance.Spec.CustomServiceConfig
 
+	templateParameters := make(map[string]interface{})
+	// Initialize ConductorGroup key to ensure template rendering does not fail
+	templateParameters["ConductorGroup"] = nil
+
+	if !instance.Spec.Standalone {
+		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneVars["keystoneInternalURL"]
+		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneVars["keystonePublicURL"]
+		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+	} else {
+		templateParameters["IronicPublicURL"] = ""
+	}
+	templateParameters["Standalone"] = instance.Spec.Standalone
+	templateParameters["LogPath"] = ironic.LogPath
+
 	cms := []util.Template{
+		// Scripts ConfigMap
+		{
+			Name:         fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeScripts,
+			InstanceType: instance.Kind,
+			AdditionalTemplate: map[string]string{
+				"common.sh": "/common/bin/common.sh",
+				"init.sh":   "/common/bin/ironic-init.sh",
+			},
+			Labels: cmLabels,
+		},
 		// Custom ConfigMap
 		{
-			Name:         fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeConfig,
-			InstanceType: instance.Kind,
-			CustomData:   customData,
-			Labels:       cmLabels,
+			Name:          fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:     instance.Namespace,
+			Type:          util.TemplateTypeConfig,
+			InstanceType:  instance.Kind,
+			CustomData:    customData,
+			ConfigOptions: templateParameters,
+			AdditionalTemplate: map[string]string{
+				"ironic.conf": "/common/config/ironic.conf",
+			},
+			Labels: cmLabels,
 		},
 	}
 

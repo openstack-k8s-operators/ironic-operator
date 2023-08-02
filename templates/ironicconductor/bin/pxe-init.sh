@@ -15,9 +15,6 @@
 # under the License.
 set -ex
 
-# Get the statefulset pod index
-export PODINDEX=$(echo ${HOSTNAME##*-})
-
 # Create TFTP, HTTP serving directories
 mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
@@ -44,12 +41,3 @@ for dir in httpboot tftpboot; do
     # Ensure all files are readable
     chmod -R +r /var/lib/ironic/$dir
 done
-
-
-export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
-sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
-    -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
-    -i ${DNSMASQ_CFG}
-sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/d" \
-    -e "/BLOCK_PODINDEX_${PODINDEX}_END/d" \
-    -i ${DNSMASQ_CFG}

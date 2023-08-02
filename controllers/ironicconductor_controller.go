@@ -446,37 +446,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	}
 	// run check TransportURL secret - end
 
-	//
-	// check for required Ironic config maps that should have been created by parent Ironic CR
-	//
-
-	parentIronicName := ironicv1.GetOwningIronicName(instance)
-
-	configMaps := []string{
-		fmt.Sprintf("%s-scripts", parentIronicName),     //ScriptsConfigMap
-		fmt.Sprintf("%s-config-data", parentIronicName), //ConfigMap
-	}
-
-	_, err = configmap.GetConfigMaps(ctx, helper, instance, configMaps, instance.Namespace, &configMapVars)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("could not find all config maps for parent Ironic CR %s", parentIronicName)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-	// run check parent Ironic CR config maps - end
 
 	//
 	// Create ConfigMaps required as input for the Service and calculate an overall hash of hashes
@@ -672,7 +642,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	envVars *map[string]env.Setter,
 ) error {
 	//
-	// create custom Configmap for ironic-api-specific config input
+	// create custom Configmap for ironic-conductor-specific config input
 	// - %-config-data configmap holding custom config for the service's ironic.conf
 	//
 
@@ -716,6 +686,18 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["LogPath"] = ironicconductor.LogPath
 
 	cms := []util.Template{
+		// Scripts ConfigMap
+		{
+			Name:         fmt.Sprintf("%s-scripts", instance.Name),
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeScripts,
+			InstanceType: instance.Kind,
+			AdditionalTemplate: map[string]string{
+				"common.sh":  "/common/bin/common.sh",
+				"get_net_ip": "/common/bin/get_net_ip",
+			},
+			Labels: cmLabels,
+		},
 		// Custom ConfigMap
 		{
 			Name:          fmt.Sprintf("%s-config-data", instance.Name),

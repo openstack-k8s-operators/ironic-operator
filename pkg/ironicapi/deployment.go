@@ -147,7 +147,7 @@ func Deployment(
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName, instance.Name)
+	deployment.Spec.Template.Spec.Volumes = GetVolumes(instance.Name)
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.

@@ -10,7 +10,7 @@ import (
 )
 
 // GetVolumes -
-func GetVolumes(parentName string, instance *ironicv1.IronicConductor) []corev1.Volume {
+func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
 	pvcName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
 	if instance.Spec.ConductorGroup != "" {
@@ -38,13 +38,13 @@ func GetVolumes(parentName string, instance *ironicv1.IronicConductor) []corev1.
 		},
 	}
 
-	return append(ironic.GetVolumes(parentName), conductorVolumes...)
+	return append(ironic.GetVolumes(instance.Name), conductorVolumes...)
 }
 
 // GetInitVolumeMounts - Ironic Conductor init task VolumeMounts
 func GetInitVolumeMounts() []corev1.VolumeMount {
 
-	initVolumdMounts := []corev1.VolumeMount{
+	initVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "config-data-custom",
 			MountPath: "/var/lib/config-data/custom",
@@ -57,7 +57,7 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 		},
 	}
 
-	return append(ironic.GetInitVolumeMounts(), initVolumdMounts...)
+	return append(ironic.GetInitVolumeMounts(), initVolumeMounts...)
 }
 
 // GetVolumeMounts - Ironic Conductor VolumeMounts

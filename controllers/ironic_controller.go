@@ -460,7 +460,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-api
-	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance)
+	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance, keystoneVars)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			ironicv1.IronicAPIReadyCondition,
@@ -754,7 +754,10 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 	return deployment, op, err
 }
 
-func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {
+func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
+	instance *ironicv1.Ironic,
+	keystoneVars map[string]string,
+) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {
 	IronicAPISpec := ironicv1.IronicAPISpec{
 		IronicAPITemplate:  instance.Spec.IronicAPI,
 		ContainerImage:     instance.Spec.Images.API,
@@ -765,6 +768,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(instance *ironicv1.Ironic
 		ServiceUser:        instance.Spec.ServiceUser,
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
+		KeystoneVars:       keystoneVars,
 	}
 
 	deployment := &ironicv1.IronicAPI{
@@ -832,15 +836,15 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	templateParameters["LogPath"] = ironic.LogPath
 
 	cms := []util.Template{
-		// ScriptsConfigMap
+		// Scripts ConfigMap
 		{
 			Name:         fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
 			AdditionalTemplate: map[string]string{
-				"common.sh":  "/common/bin/common.sh",
-				"get_net_ip": "/common/bin/get_net_ip",
+				"common.sh": "/common/bin/common.sh",
+				"init.sh":   "/common/bin/ironic-init.sh",
 			},
 			Labels: cmLabels,
 		},

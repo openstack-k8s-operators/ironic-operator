@@ -15,6 +15,15 @@
 # under the License.
 set -ex
 
+# Get the statefulset pod index
+export PODINDEX=$(echo ${HOSTNAME##*-})
+
+# expect that the common.sh is in the same dir as the calling script
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+. ${SCRIPTPATH}/common.sh --source-only
+
+common_ironic_config
+
 if [ -n "${ProvisionNetwork}" ]; then
     export ProvisionNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${ProvisionNetwork})
     crudini --set ${SVC_CFG_MERGED} DEFAULT my_ip $ProvisionNetworkIP
@@ -27,6 +36,14 @@ crudini --set ${SVC_CFG_MERGED} conductor deploy_kernel ${DEPLOY_HTTP_URL}ironic
 crudini --set ${SVC_CFG_MERGED} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
 crudini --set ${SVC_CFG_MERGED} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
 crudini --set ${SVC_CFG_MERGED} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+
+export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
+sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
+    -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
+    -i ${DNSMASQ_CFG}
+sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/d" \
+    -e "/BLOCK_PODINDEX_${PODINDEX}_END/d" \
+    -i ${DNSMASQ_CFG}
 
 if [ ! -d "/var/lib/ironic/tmp" ]; then
     mkdir /var/lib/ironic/tmp

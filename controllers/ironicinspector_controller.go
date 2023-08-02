@@ -1165,7 +1165,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
 	cms := []util.Template{
-		// ScriptsConfigMap
+		// Scripts ConfigMap
 		{
 			Name:         fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:    instance.Namespace,
