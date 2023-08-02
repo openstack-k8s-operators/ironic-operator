@@ -30,3 +30,4 @@ status:
     null_conductor_group_null: 1
     auckland: 1
     stockholm: 1
+  ironicNeutronAgentReadyCount: 1
