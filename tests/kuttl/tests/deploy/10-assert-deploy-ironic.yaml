@@ -5,6 +5,7 @@
 # IronicAPI
 # IronicConductor
 # IronicInspector
+# IronicNeutronAgent
 #
 
 apiVersion: ironic.openstack.org/v1beta1
@@ -32,6 +33,11 @@ spec:
     preserveJobs: true
     replicas: 1
     serviceUser: ironic-inspector
+  ironicNeutronAgent:
+    customServiceConfig: "# add your customization here"
+    debug:
+      service: false
+    replicas: 1
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -46,6 +52,7 @@ status:
   ironicAPIReadyCount: 1
   ironicConductorReadyCount:
     null_conductor_group_null: 1
+  ironicNeutronAgentReadyCount: 1
 ---
 apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
@@ -146,4 +153,33 @@ spec:
   standalone: false
 status:
   databaseHostname: openstack
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicNeutronAgent
+metadata:
+  finalizers:
+  - IronicNeutronAgent
+  name: ironic-ironic-neutron-agent
+  namespace: openstack
+  ownerReferences:
+  - apiVersion: ironic.openstack.org/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Ironic
+    name: ironic
+spec:
+  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
+  customServiceConfig: "# add your customization here"
+  debug:
+    service: false
+  passwordSelectors:
+    database: IronicDatabasePassword
+    service: IronicPassword
+  rabbitMqClusterName: rabbitmq
+  replicas: 1
+  resources: {}
+  secret: osp-secret
+  serviceUser: ironic
+status:
   readyCount: 1
