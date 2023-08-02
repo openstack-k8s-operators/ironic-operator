@@ -102,8 +102,8 @@ type IronicConductorSpec struct {
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
-	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-	// requires oslo.messaging transport when not in standalone mode.
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic requires
+	// oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional

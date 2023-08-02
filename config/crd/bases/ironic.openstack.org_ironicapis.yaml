@@ -212,7 +212,7 @@ spec:
                 default: json-rpc
                 description: RPC transport type - Which RPC transport implementation
                   to use between conductor and API services. 'oslo' to use oslo.messaging
-                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic
                   requires oslo.messaging transport when not in standalone mode.
                 type: string
               secret:

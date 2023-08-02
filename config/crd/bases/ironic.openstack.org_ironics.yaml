@@ -752,8 +752,9 @@ spec:
                 default: json-rpc
                 description: RPC transport type - Which RPC transport implementation
                   to use between conductor and API services. 'oslo' to use oslo.messaging
-                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-                  requires oslo.messaging transport when not in standalone mode.
+                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic
+                  and ironic-inspector require oslo.messaging transport when not in
+                  standalone mode.
                 type: string
               secret:
                 description: Secret containing OpenStack password information for

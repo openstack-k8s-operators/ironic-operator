@@ -215,7 +215,7 @@ spec:
               rabbitMqClusterName:
                 default: rabbitmq
                 description: RabbitMQ instance name Needed to request a transportURL
-                  that is created and used in Ironic
+                  that is created and used in Ironic Inspector
                 type: string
               replicas:
                 default: 1
