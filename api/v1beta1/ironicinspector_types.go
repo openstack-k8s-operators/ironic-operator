@@ -144,7 +144,7 @@ type IronicInspectorSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
-	// Needed to request a transportURL that is created and used in Ironic
+	// Needed to request a transportURL that is created and used in Ironic Inspector
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
 	// +kubebuilder:validation:Optional
