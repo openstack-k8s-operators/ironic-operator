@@ -66,9 +66,9 @@ type IronicAPISpec struct {
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// DatabaseHostname - Ironic Database Hostname
-	DatabaseHostname string `json:"databaseHostname,omitempty"`
+	DatabaseHostname string `json:"databaseHostname"`
 
 	// +kubebuilder:validation:Optional
 	// Secret containing RabbitMq transport URL
