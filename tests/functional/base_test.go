@@ -17,6 +17,7 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/gomega"
@@ -31,11 +32,16 @@ import (
 )
 
 const (
-	timeout              = 10 * time.Second
-	interval             = 10 * time.Millisecond
-	SecretName           = "test-secret"
-	MessageBusSecretName = "rabbitmq-secret"
-	ContainerImage       = "test://ironic"
+	timeout                = 10 * time.Second
+	interval               = 10 * time.Millisecond
+	DatabaseHostname       = "databasehost.example.org"
+	DatabaseInstance       = "openstack"
+	SecretName             = "test-secret"
+	MessageBusSecretName   = "rabbitmq-secret"
+	ContainerImage         = "test://ironic"
+	PxeContainerImage      = "test://pxe-image"
+	IronicPythonAgentImage = "test://ipa-image"
+	ConductorInputHash     = "n75h57bh9h5b8h5fchcbh55h5fhd5h6dh57bhd5h547h696h5f9h79hffh58fh55fh66bh5b6h68dh9dh5ch694hf5h55bh84h9bh5bch5c5h545q"
 )
 
 type IronicNames struct {
@@ -44,6 +50,9 @@ type IronicNames struct {
 	ServiceAccountName        types.NamespacedName
 	APIName                   types.NamespacedName
 	ConductorName             types.NamespacedName
+	ConductorServiceAccount   types.NamespacedName
+	ConductorRole             types.NamespacedName
+	ConductorRoleBinding      types.NamespacedName
 	InspectorName             types.NamespacedName
 	InspectorTransportURLName types.NamespacedName
 	InspectorServiceAccount   types.NamespacedName
@@ -93,6 +102,18 @@ func GetIronicNames(
 		ConductorName: types.NamespacedName{
 			Namespace: ironicConductor.Namespace,
 			Name:      ironicConductor.Name,
+		},
+		ConductorServiceAccount: types.NamespacedName{
+			Namespace: ironicConductor.Namespace,
+			Name:      "ironicconductor-" + ironicConductor.Name,
+		},
+		ConductorRole: types.NamespacedName{
+			Namespace: ironicConductor.Namespace,
+			Name:      "ironicconductor-" + ironicConductor.Name + "-role",
+		},
+		ConductorRoleBinding: types.NamespacedName{
+			Namespace: ironicConductor.Namespace,
+			Name:      "ironicconductor-" + ironicConductor.Name + "-rolebinding",
 		},
 		InspectorName: types.NamespacedName{
 			Namespace: ironicInspector.Namespace,
@@ -145,19 +166,19 @@ func CreateIronicSecret(namespace string, name string) *corev1.Secret {
 	)
 }
 
-// func CreateMessageBusSecret(
-// 	namespace string,
-// 	name string,
-// ) *corev1.Secret {
-// 	s := th.CreateSecret(
-// 		types.NamespacedName{Namespace: namespace, Name: name},
-// 		map[string][]byte{
-// 			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
-// 		},
-// 	)
-// 	logger.Info("Secret created", "name", name)
-// 	return s
-// }
+func CreateMessageBusSecret(
+	namespace string,
+	name string,
+) *corev1.Secret {
+	s := th.CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
+			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
+		},
+	)
+	logger.Info("Secret created", "name", name)
+	return s
+}
 
 func CreateIronic(
 	name types.NamespacedName,
@@ -237,6 +258,24 @@ func GetIronicConductor(
 	return instance
 }
 
+func IronicConductorConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetIronicConductor(name)
+	return instance.Status.Conditions
+}
+
+func GetDefaultIronicConductorSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"databaseHostname":       DatabaseHostname,
+		"databaseInstance":       DatabaseInstance,
+		"secret":                 SecretName,
+		"containerImage":         ContainerImage,
+		"pxeContainerImage":      PxeContainerImage,
+		"ironicPythonAgentImage": IronicPythonAgentImage,
+		"serviceAccount":         "ironic",
+		"storageRequest":         "10G",
+	}
+}
+
 func CreateIronicInspector(
 	name types.NamespacedName,
 	spec map[string]interface{},
@@ -265,7 +304,7 @@ func GetIronicInspector(
 
 func GetDefaultIronicInspectorSpec() map[string]interface{} {
 	return map[string]interface{}{
-		"databaseInstance": "openstack",
+		"databaseInstance": DatabaseInstance,
 		"secret":           SecretName,
 		"containerImage":   ContainerImage,
 		"serviceAccount":   "ironic",
