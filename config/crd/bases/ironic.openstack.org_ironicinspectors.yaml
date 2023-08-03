@@ -278,6 +278,9 @@ spec:
                   to use between conductor and API services. 'oslo' to use oslo.messaging
                   transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
                   requires oslo.messaging transport when not in standalone mode.
+                enum:
+                - oslo
+                - json-rpc
                 type: string
               secret:
                 description: Secret containing OpenStack password information for

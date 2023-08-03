@@ -75,6 +75,7 @@ type IronicAPISpec struct {
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum:=oslo;json-rpc
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
