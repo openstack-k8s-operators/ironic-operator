@@ -116,7 +116,7 @@ func (r *Ironic) ValidateCreate() error {
 func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
+	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
@@ -169,7 +169,7 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
-	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
+	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
@@ -218,8 +218,8 @@ func validateInspectorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorLi
 func validateConductorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
-	// validateConductoGroupsUnique
-	if err := validateConductoGroupsUnique(spec, basePath); err != nil {
+	// validateConductorGroupsUnique
+	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
@@ -236,8 +236,8 @@ func validateConductorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorLi
 	return allErrs
 }
 
-// validateConductoGroupsUnique implements validation of IronicConductor ConductorGroup
-func validateConductoGroupsUnique(spec *IronicSpec, basePath *field.Path) *field.Error {
+// validateConductorGroupsUnique implements validation of IronicConductor ConductorGroup
+func validateConductorGroupsUnique(spec *IronicSpec, basePath *field.Path) *field.Error {
 	fieldPath := basePath.Child("ironicConductors")
 	var groupName string
 	seenGrps := make(map[string]int)
