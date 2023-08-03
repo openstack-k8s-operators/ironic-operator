@@ -132,6 +132,10 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 		allErrs = append(allErrs, err...)
 	}
 
+	if err := validateNeutronAgentSpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
 	return allErrs
 }
 
@@ -178,6 +182,10 @@ func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) fie
 	}
 
 	if err := validateDHCPRangesOverlap(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
+	if err := validateNeutronAgentSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -264,6 +272,21 @@ func validateConductoGroupsUnique(spec *IronicSpec, basePath *field.Path) *field
 	}
 
 	return nil
+}
+
+// validateNeutronAgentSpec
+func validateNeutronAgentSpec(spec *IronicSpec, basePath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if spec.Standalone && *spec.IronicNeutronAgent.Replicas > 0 {
+		allErrs = append(allErrs, field.Invalid(
+			basePath.Child("ironicNeutronAgent").Child("replicas"),
+			*spec.IronicNeutronAgent.Replicas,
+			"IronicNeutronAgent is not supported with standalone mode",
+		))
+	}
+
+	return allErrs
 }
 
 func validateDHCPRange(
