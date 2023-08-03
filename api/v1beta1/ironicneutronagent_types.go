@@ -30,7 +30,7 @@ type IronicNeutronAgentTemplate struct {
 	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty"`
 }
 
 // IronicNeutronAgentSpec defines the desired state of ML2 baremetal - ironic-neutron-agent agents

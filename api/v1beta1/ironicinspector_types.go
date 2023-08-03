@@ -148,12 +148,13 @@ type IronicInspectorSpec struct {
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum:=oslo;json-rpc
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
-	RPCTransport string `json:"rpcTransport"`
+	RPCTransport string `json:"rpcTransport,omitempty"`
 }
 
 // IronicInspectorStatus defines the observed state of IronicInspector

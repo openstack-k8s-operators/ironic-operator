@@ -124,15 +124,16 @@ type IronicSpec struct {
 	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum:=oslo;json-rpc
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic and ironic-inspector
 	// require oslo.messaging transport when not in standalone mode.
-	RPCTransport string `json:"rpcTransport"`
+	RPCTransport string `json:"rpcTransport,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting
