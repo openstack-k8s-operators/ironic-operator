@@ -13,7 +13,6 @@ metadata:
   finalizers:
   - Ironic
   name: ironic
-  namespace: openstack
 spec:
   customServiceConfig: |
     [DEFAULT]
@@ -53,7 +52,6 @@ metadata:
   finalizers:
   - IronicAPI
   name: ironic-api
-  namespace: openstack
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -84,7 +82,6 @@ metadata:
   finalizers:
   - IronicConductor
   name: ironic-conductor
-  namespace: openstack
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
     blockOwnerDeletion: true
@@ -118,7 +115,6 @@ metadata:
   finalizers:
   - IronicInspector
   name: ironic-inspector
-  namespace: openstack
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
     blockOwnerDeletion: true
