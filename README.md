@@ -94,13 +94,15 @@ spec:
   ...
   ironicAPI:
     ...
-    externalEndpoints:
-      - endpoint: internal
-        ipAddressPool: osp-internalapi
-        loadBalancerIPs:
-        - "172.17.0.202"
-        sharedIP: true
-        sharedIPKey: ""
+    override:
+      service:
+        metadata:
+          annotations:
+            metallb.universe.tf/address-pool: internalapi
+            metallb.universe.tf/allow-shared-ip: internalapi
+            metallb.universe.tf/loadBalancerIPs: 172.17.0.202
+        spec:
+          type: LoadBalancer
     ...
 ...
 ```

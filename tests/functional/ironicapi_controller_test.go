@@ -18,7 +18,6 @@ package functional_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -170,18 +169,6 @@ var _ = Describe("IronicAPI controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(
 					k8sClient.Get(ctx, name, &corev1.Service{}),
-				).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
-		})
-		It("Creates a Route for public", func() {
-			name := types.NamespacedName{
-				Namespace: ironicNames.Namespace,
-				Name:      "ironic-public",
-			}
-			// Verify Route created
-			Eventually(func(g Gomega) {
-				g.Expect(
-					k8sClient.Get(ctx, name, &routev1.Route{}),
 				).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 		})

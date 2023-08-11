@@ -6,7 +6,7 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Service - Service for conductor pod services
