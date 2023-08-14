@@ -16,9 +16,9 @@
 
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
+namespace: ironic-kuttl-tests
 reportFormat: JSON
 reportName: kuttl-test-ironic
-namespace: openstack
 timeout: 750
 parallel: 1
 suppress:

@@ -4,4 +4,3 @@ delete:
 - apiVersion: ironic.openstack.org/v1beta1
   kind: Ironic
   name: ironic
-  namespace: openstack
