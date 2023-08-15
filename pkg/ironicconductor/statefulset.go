@@ -162,17 +162,14 @@ func StatefulSet(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	dnsmasqEnvVars := map[string]env.Setter{}
-	dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
 	dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	httpbootEnvVars := map[string]env.Setter{}
-	httpbootEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(HttpbootKollaConfig)
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
@@ -187,7 +184,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		VolumeMounts:   GetVolumeMounts(),
+		VolumeMounts:   GetVolumeMounts("ironic-conductor"),
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: readinessProbe,
 		LivenessProbe:  livenessProbe,
@@ -204,7 +201,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   GetVolumeMounts(),
+		VolumeMounts:   GetVolumeMounts("httpboot"),
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: httpbootReadinessProbe,
 		LivenessProbe:  httpbootLivenessProbe,
@@ -235,7 +232,7 @@ func StatefulSet(
 				},
 			},
 			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-			VolumeMounts:   GetVolumeMounts(),
+			VolumeMounts:   GetVolumeMounts("dnsmasq"),
 			Resources:      instance.Spec.Resources,
 			ReadinessProbe: dnsmasqReadinessProbe,
 			LivenessProbe:  dnsmasqLivenessProbe,

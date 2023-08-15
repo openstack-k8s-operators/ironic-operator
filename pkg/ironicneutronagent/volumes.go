@@ -93,6 +93,12 @@ func GetVolumeMounts() []corev1.VolumeMount {
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
 		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   "ironic-neutron-agent-config.json",
+			ReadOnly:  true,
+		},
 	}
 
 }
