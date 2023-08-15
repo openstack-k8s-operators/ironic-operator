@@ -145,7 +145,6 @@ func StatefulSet(
 	containers := []corev1.Container{}
 
 	inspectorEnvVars := map[string]env.Setter{}
-	inspectorEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfig)
 	inspectorEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	inspectorEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	inspectorContainer := corev1.Container{
@@ -157,7 +156,7 @@ func StatefulSet(
 		Args:            args,
 		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
-		VolumeMounts:    GetVolumeMounts(),
+		VolumeMounts:    GetVolumeMounts("ironic-inspector"),
 		Resources:       instance.Spec.Resources,
 		ReadinessProbe:  readinessProbe,
 		LivenessProbe:   livenessProbe,
@@ -165,7 +164,6 @@ func StatefulSet(
 	containers = append(containers, inspectorContainer)
 
 	httpbootEnvVars := map[string]env.Setter{}
-	httpbootEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(HttpbootKollaConfig)
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	httpbootContainer := corev1.Container{
@@ -179,7 +177,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   GetVolumeMounts(),
+		VolumeMounts:   GetVolumeMounts("httpboot"),
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: httpbootReadinessProbe,
 		LivenessProbe:  httpbootLivenessProbe,
@@ -190,7 +188,6 @@ func StatefulSet(
 	if instance.Spec.InspectionNetwork != "" {
 		// Only include dnsmasq container if there is an inspection network
 		dnsmasqEnvVars := map[string]env.Setter{}
-		dnsmasqEnvVars["KOLLA_CONFIG_FILE"] = env.SetValue(DnsmasqKollaConfig)
 		dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 		dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 		dnsmasqContainer := corev1.Container{
@@ -209,7 +206,7 @@ func StatefulSet(
 				},
 			},
 			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-			VolumeMounts:   GetVolumeMounts(),
+		    VolumeMounts:   GetVolumeMounts("dnsmasq"),
 			Resources:      instance.Spec.Resources,
 			ReadinessProbe: dnsmasqReadinessProbe,
 			LivenessProbe:  dnsmasqLivenessProbe,

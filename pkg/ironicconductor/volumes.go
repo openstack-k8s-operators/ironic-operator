@@ -61,13 +61,19 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 }
 
 // GetVolumeMounts - Ironic Conductor VolumeMounts
-func GetVolumeMounts() []corev1.VolumeMount {
-	conductorVolumeMounts := []corev1.VolumeMount{
+func GetVolumeMounts(serviceName string) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   serviceName + "-config.json",
+			ReadOnly:  true,
+		},
 		{
 			Name:      "var-lib-ironic",
 			MountPath: "/var/lib/ironic",
 			ReadOnly:  false,
 		},
 	}
-	return append(ironic.GetVolumeMounts(), conductorVolumeMounts...)
+	return append(ironic.GetVolumeMounts(), volumeMounts...)
 }

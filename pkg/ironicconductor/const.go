@@ -16,12 +16,6 @@ limitations under the License.
 package ironicconductor
 
 const (
-	// KollaConfig -
-	KollaConfig = "/var/lib/config-data/merged/ironic-conductor-config.json"
-	// DnsmasqKollaConfig -
-	DnsmasqKollaConfig = "/var/lib/config-data/merged/dnsmasq-config.json"
-	// HttpbootKollaConfig -
-	HttpbootKollaConfig = "/var/lib/config-data/merged/httpboot-config.json"
 	// LogPath
 	LogPath = "/dev/stdout"
 )

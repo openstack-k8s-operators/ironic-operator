@@ -23,9 +23,6 @@ const (
 	// ServiceType -
 	ServiceType = "baremetal"
 
-	// KollaConfig -
-	KollaConfig = "/var/lib/config-data/merged/ironic-neutron-agent-config.json"
-
 	// ServiceCommand -
 	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 )

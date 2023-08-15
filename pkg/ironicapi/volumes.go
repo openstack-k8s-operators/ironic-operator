@@ -44,16 +44,27 @@ func GetLogVolumeMount() corev1.VolumeMount {
 // GetInitVolumeMounts - Ironic API init task VolumeMounts
 func GetInitVolumeMounts() []corev1.VolumeMount {
 
-	initVolumeMounts := corev1.VolumeMount{
-		Name:      "config-data-custom",
-		MountPath: "/var/lib/config-data/custom",
-		ReadOnly:  true,
+	initVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		},
 	}
 
-	return append(ironic.GetInitVolumeMounts(), initVolumeMounts)
+	return append(ironic.GetInitVolumeMounts(), initVolumeMounts...)
 }
 
 // GetVolumeMounts - Ironic API VolumeMounts
 func GetVolumeMounts() []corev1.VolumeMount {
-	return append(ironic.GetVolumeMounts(), GetLogVolumeMount())
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   "ironic-api-config.json",
+			ReadOnly:  true,
+		},
+	}
+
+	return append(ironic.GetVolumeMounts(), volumeMounts...)
 }

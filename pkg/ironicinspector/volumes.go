@@ -102,8 +102,8 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 
 }
 
-// GetVolumeMounts - Ironic Inspector VolumeMounts
-func GetVolumeMounts() []corev1.VolumeMount {
+// GetVolumeMounts - Common VolumeMounts
+func GetVolumeMounts(serviceName string) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "scripts",
@@ -114,6 +114,12 @@ func GetVolumeMounts() []corev1.VolumeMount {
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
+		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   serviceName + "-config.json",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "var-lib-ironic",

@@ -26,8 +26,6 @@ const (
 	IronicPublicPort int32 = 6385
 	// IronicInternalPort -
 	IronicInternalPort int32 = 6385
-	// KollaConfigDbSync -
-	KollaConfigDbSync = "/var/lib/config-data/merged/db-sync-config.json"
 	// ConductorComponent -
 	ConductorComponent = "conductor"
 	// HttpbootComponent -
