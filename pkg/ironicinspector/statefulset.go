@@ -206,7 +206,7 @@ func StatefulSet(
 				},
 			},
 			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-		    VolumeMounts:   GetVolumeMounts("dnsmasq"),
+			VolumeMounts:   GetVolumeMounts("dnsmasq"),
 			Resources:      instance.Spec.Resources,
 			ReadinessProbe: dnsmasqReadinessProbe,
 			LivenessProbe:  dnsmasqLivenessProbe,
