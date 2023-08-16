@@ -444,7 +444,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Conductor deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
 		}
 		// Mirror IronicConductor status' ReadyCount to this parent CR
 		condGrp := conductorSpec.ConductorGroup
@@ -471,7 +471,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		return ctrl.Result{}, err
 	}
 	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicAPI.Name, string(op)))
 	}
 
 	// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
@@ -500,7 +500,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
 		}
 
 		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
@@ -532,7 +532,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	// deploy ironic-neutron-agent (ML2 baremetal agent)
 	if *(instance.Spec.IronicNeutronAgent.Replicas) != 0 {
-		ironicNeutronAgenet, op, err := r.ironicNeutronAgentDeploymentCreateOrUpdate(instance)
+		ironicNeutronAgent, op, err := r.ironicNeutronAgentDeploymentCreateOrUpdate(instance)
 		if err != nil {
 			instance.Status.Conditions.Set(
 				condition.FalseCondition(
@@ -544,12 +544,12 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", instance.Name, string(op)))
+			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicNeutronAgent.Name, string(op)))
 		}
 		// Mirror IronicNeutronAgent status ReadyCount to this parent CR
-		instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgenet.Status.ReadyCount
+		instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgent.Status.ReadyCount
 		// Mirror IronicNeutronAgent's condition status
-		c = ironicNeutronAgenet.Status.Conditions.Mirror(ironicv1.IronicNeutronAgentReadyCondition)
+		c = ironicNeutronAgent.Status.Conditions.Mirror(ironicv1.IronicNeutronAgentReadyCondition)
 		if c != nil {
 			instance.Status.Conditions.Set(c)
 		}
