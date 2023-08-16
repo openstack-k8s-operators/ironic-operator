@@ -57,10 +57,6 @@ spec:
                     default: false
                     description: DBSync enable debug
                     type: boolean
-                  service:
-                    default: false
-                    description: Service enable debug
-                    type: boolean
                 type: object
               defaultConfigOverwrite:
                 additionalProperties:
@@ -85,6 +81,10 @@ spec:
                     description: Inspector - Ironic Inspector Container Image (will
                       be set to environmental default if empty)
                     type: string
+                  ironicPythonAgent:
+                    description: IronicPythonAgent - Image containing the ironic-python-agent
+                      kernel and ramdisk
+                    type: string
                   neutronAgent:
                     description: NeutronAgent - ML2 baremtal - Ironic Neutron Agent
                       Image (will be set to environmental default if empty)
@@ -98,9 +98,6 @@ spec:
                 description: IronicAPI - Spec definition for the API service of this
                   Ironic deployment
                 properties:
-                  containerImage:
-                    description: ContainerImage - Ironic API Container Image
-                    type: string
                   customServiceConfig:
                     default: '# add your customization here'
                     description: CustomServiceConfig - customize the service config
@@ -109,18 +106,11 @@ spec:
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
                     type: string
-                  databaseHostname:
-                    description: DatabaseHostname - Ironic Database Hostname
-                    type: string
                   debug:
                     description: Debug - enable debug for different deploy stages.
                       If an init container is used, it runs and the actual action
                       pod gets started with sleep infinity
                     properties:
-                      dbSync:
-                        default: false
-                        description: DBSync enable debug
-                        type: boolean
                       service:
                         default: false
                         description: Service enable debug
@@ -191,29 +181,12 @@ spec:
                       this service. Setting here overrides any global NodeSelector
                       settings within the Ironic CR
                     type: object
-                  passwordSelectors:
-                    default:
-                      database: IronicDatabasePassword
-                      service: IronicPassword
-                    description: PasswordSelectors - Selectors to identify the DB
-                      and ServiceUser password and TransportURL from the Secret
-                    properties:
-                      database:
-                        default: IronicDatabasePassword
-                        description: 'Database - Selector to get the ironic Database
-                          user password from the Secret TODO: not used, need change
-                          in mariadb-operator'
-                        type: string
-                      service:
-                        default: IronicPassword
-                        description: Database - Selector to get the ironic service
-                          password from the Secret
-                        type: string
-                    type: object
                   replicas:
                     default: 1
-                    description: Replicas - Ironic API Replicas
+                    description: Replicas -
                     format: int32
+                    maximum: 32
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service
@@ -264,47 +237,16 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  rpcTransport:
-                    default: json-rpc
-                    description: RPC transport type - Which RPC transport implementation
-                      to use between conductor and API services. 'oslo' to use oslo.messaging
-                      transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-                      requires oslo.messaging transport when not in standalone mode.
-                    type: string
-                  secret:
-                    description: Secret containing OpenStack password information
-                      for IronicDatabasePassword, AdminPassword
-                    type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
-                  serviceUser:
-                    default: ironic
-                    description: ServiceUser - optional username used for this service
-                      to register in ironic
-                    type: string
-                  standalone:
-                    default: false
-                    description: Whether to deploy a standalone Ironic.
-                    type: boolean
-                  transportURLSecret:
-                    description: Secret containing RabbitMq transport URL
-                    type: string
-                required:
-                - serviceAccount
                 type: object
               ironicConductors:
                 description: IronicConductors - Spec definitions for the conductor
                   service of this Ironic deployment
                 items:
-                  description: IronicConductorSpec defines the desired state of IronicConductor
+                  description: IronicConductorTemplate defines the input parameters
+                    for Ironic Conductor service
                   properties:
                     conductorGroup:
                       description: ConductorGroup - Ironic Conductor conductor group.
-                      type: string
-                    containerImage:
-                      description: ContainerImage - Ironic Conductor Container Image
                       type: string
                     customServiceConfig:
                       default: '# add your customization here'
@@ -314,18 +256,11 @@ spec:
                         content gets added to to /etc/<service>/<service>.conf.d directory
                         as custom.conf file.
                       type: string
-                    databaseHostname:
-                      description: DatabaseHostname - Ironic Database Hostname
-                      type: string
                     debug:
                       description: Debug - enable debug for different deploy stages.
                         If an init container is used, it runs and the actual action
                         pod gets started with sleep infinity
                       properties:
-                        dbSync:
-                          default: false
-                          description: DBSync enable debug
-                          type: boolean
                         service:
                           default: false
                           description: Service enable debug
@@ -374,12 +309,6 @@ spec:
                         - start
                         type: object
                       type: array
-                    keystoneVars:
-                      additionalProperties:
-                        type: string
-                      description: keystoneVars - Internally used map of Keystone
-                        API endpoints
-                      type: object
                     networkAttachments:
                       description: NetworkAttachments is a list of NetworkAttachment
                         resource names to expose the services to the given network
@@ -393,37 +322,16 @@ spec:
                         this service. Setting here overrides any global NodeSelector
                         settings within the Ironic CR
                       type: object
-                    passwordSelectors:
-                      default:
-                        database: IronicDatabasePassword
-                        service: IronicPassword
-                      description: PasswordSelectors - Selectors to identify the DB
-                        and ServiceUser password and TransportURL from the Secret
-                      properties:
-                        database:
-                          default: IronicDatabasePassword
-                          description: 'Database - Selector to get the ironic Database
-                            user password from the Secret TODO: not used, need change
-                            in mariadb-operator'
-                          type: string
-                        service:
-                          default: IronicPassword
-                          description: Database - Selector to get the ironic service
-                            password from the Secret
-                          type: string
-                      type: object
                     provisionNetwork:
                       description: ProvisionNetwork - Additional network to attach
                         to expose boot DHCP, TFTP, HTTP services.
                       type: string
-                    pxeContainerImage:
-                      description: PxeContainerImage - Ironic DHCP/TFTP/HTTP Container
-                        Image
-                      type: string
                     replicas:
                       default: 1
-                      description: Replicas - Ironic Conductor Replicas
+                      description: Replicas -
                       format: int32
+                      maximum: 32
+                      minimum: 0
                       type: integer
                     resources:
                       description: Resources - Compute Resources required by this
@@ -475,31 +383,6 @@ spec:
                             https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                           type: object
                       type: object
-                    rpcTransport:
-                      default: json-rpc
-                      description: RPC transport type - Which RPC transport implementation
-                        to use between conductor and API services. 'oslo' to use oslo.messaging
-                        transport or 'json-rpc' to use JSON RPC transport. NOTE ->
-                        ironic-inspector requires oslo.messaging transport when not
-                        in standalone mode.
-                      type: string
-                    secret:
-                      description: Secret containing OpenStack password information
-                        for IronicDatabasePassword, AdminPassword
-                      type: string
-                    serviceAccount:
-                      description: ServiceAccount - service account name used internally
-                        to provide the default SA name
-                      type: string
-                    serviceUser:
-                      default: ironic
-                      description: ServiceUser - optional username used for this service
-                        to register in ironic
-                      type: string
-                    standalone:
-                      default: false
-                      description: Whether to deploy a standalone Ironic.
-                      type: boolean
                     storageClass:
                       default: ""
                       description: StorageClass
@@ -507,12 +390,7 @@ spec:
                     storageRequest:
                       description: StorageRequest
                       type: string
-                    transportURLSecret:
-                      description: TransportURLSecret - Secret containing RabbitMQ
-                        transportURL
-                      type: string
                   required:
-                  - serviceAccount
                   - storageClass
                   - storageRequest
                   type: object
@@ -521,9 +399,6 @@ spec:
                 description: IronicInspector - Spec definition for the inspector service
                   of this Ironic deployment
                 properties:
-                  containerImage:
-                    description: ContainerImage - Ironic Inspector Container Image
-                    type: string
                   customServiceConfig:
                     default: '# add your customization here'
                     description: CustomServiceConfig - customize the service config
@@ -531,11 +406,6 @@ spec:
                       rendered information using raw OpenStack config format. The
                       content gets added to to /etc/<service>/<service>.conf.d directory
                       as custom.conf file.
-                    type: string
-                  databaseInstance:
-                    description: MariaDB instance name. Right now required by the
-                      maridb-operator to get the credentials from the instance to
-                      create the DB. Might not be required in future.
                     type: string
                   debug:
                     description: Debug - enable debug for different deploy stages.
@@ -660,18 +530,18 @@ spec:
                       database: IronicInspectorDatabasePassword
                       service: IronicInspectorPassword
                     description: PasswordSelectors - Selectors to identify the DB
-                      and ServiceUser password and TransportURL from the Secret
+                      and ServiceUser password from the Secret
                     properties:
                       database:
-                        default: IronicDatabasePassword
-                        description: 'Database - Selector to get the ironic Database
-                          user password from the Secret TODO: not used, need change
-                          in mariadb-operator'
+                        default: IronicInspectorDatabasePassword
+                        description: 'Database - Selector to get the ironic-inspector
+                          Database user password from the Secret TODO: not used, need
+                          change in mariadb-operator'
                         type: string
                       service:
-                        default: IronicPassword
-                        description: Database - Selector to get the ironic service
-                          password from the Secret
+                        default: IronicInspectorPassword
+                        description: Service - Selector to get the ironic-inspector
+                          service password from the Secret
                         type: string
                     type: object
                   preserveJobs:
@@ -679,20 +549,12 @@ spec:
                     description: PreserveJobs - do not delete jobs after they finished
                       e.g. to check logs
                     type: boolean
-                  pxeContainerImage:
-                    description: PxeContainerImage - Ironic Inspector DHCP/TFTP/HTTP
-                      Container Image
-                    type: string
-                  rabbitMqClusterName:
-                    default: rabbitmq
-                    description: RabbitMQ instance name Needed to request a transportURL
-                      that is created and used in Ironic
-                    type: string
                   replicas:
                     default: 1
                     description: Replicas - Ironic Inspector Replicas
                     format: int32
                     maximum: 1
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service
@@ -743,48 +605,19 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  rpcTransport:
-                    default: json-rpc
-                    description: RPC transport type - Which RPC transport implementation
-                      to use between conductor and API services. 'oslo' to use oslo.messaging
-                      transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-                      requires oslo.messaging transport when not in standalone mode.
-                    type: string
-                  secret:
-                    description: Secret containing OpenStack password information
-                      for IronicInspectorDatabasePassword, AdminPassword
-                    type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
                   serviceUser:
                     default: ironic-inspector
                     description: ServiceUser - optional username used for this service
                       to register in ironic-inspector
                     type: string
-                  standalone:
-                    default: false
-                    description: Standalone - Whether to deploy a standalone Ironic
-                      Inspector.
-                    type: boolean
                   storageClass:
                     description: StorageClass
                     type: string
-                  transportURLSecret:
-                    description: TransportURLSecret - Secret containing RabbitMQ transportURL
-                    type: string
-                required:
-                - serviceAccount
                 type: object
               ironicNeutronAgent:
                 description: IronicNeutronAgent - Spec definition for the ML2 baremetal
                   ironic-neutron-agent service of this Ironic deployment
                 properties:
-                  containerImage:
-                    description: ContainerImage - ML2 baremtal - Ironic Neutron Agent
-                      Image
-                    type: string
                   customServiceConfig:
                     default: '# add your customization here'
                     description: CustomServiceConfig - customize the service config
@@ -803,23 +636,20 @@ spec:
                         description: Service enable debug
                         type: boolean
                     type: object
+                  defaultConfigOverwrite:
+                    additionalProperties:
+                      type: string
+                    description: 'ConfigOverwrite - interface to overwrite default
+                      config files like e.g. policy.json. But can also be used to
+                      add additional files. Those get added to the service config
+                      dir in /etc/<service> . TODO: -> implement'
+                    type: object
                   nodeSelector:
                     additionalProperties:
                       type: string
                     description: NodeSelector to target subset of worker nodes running
-                      this service.
-                    type: object
-                  passwordSelectors:
-                    default:
-                      service: IronicPassword
-                    description: PasswordSelectors - Selectors to identify the ServiceUser
-                      password from the Secret
-                    properties:
-                      service:
-                        default: IronicPassword
-                        description: Service - Selector to get the ironic service
-                          password from the Secret
-                        type: string
+                      this service. Setting here overrides any global NodeSelector
+                      settings within the Ironic CR
                     type: object
                   rabbitMqClusterName:
                     default: rabbitmq
@@ -828,8 +658,10 @@ spec:
                     type: string
                   replicas:
                     default: 1
-                    description: Replicas - ML2 baremetal - Ironic Neutron Agent Replicas
+                    description: Replicas -
                     format: int32
+                    maximum: 32
+                    minimum: 0
                     type: integer
                   resources:
                     description: Resources - Compute Resources required by this service
@@ -880,22 +712,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
-                  secret:
-                    description: Secret containing OpenStack password information
-                      for IronicPassword
-                    type: string
-                  serviceAccount:
-                    description: ServiceAccount - service account name used internally
-                      to provide the default SA name
-                    type: string
-                  serviceUser:
-                    default: ironic
-                    description: ServiceUser - optional username used for this service
-                      to register in ironic
-                    type: string
-                required:
-                - secret
-                - serviceAccount
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -909,7 +725,7 @@ spec:
                   database: IronicDatabasePassword
                   service: IronicPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password and TransportURL from the Secret
+                  ServiceUser password from the Secret
                 properties:
                   database:
                     default: IronicDatabasePassword
@@ -918,7 +734,7 @@ spec:
                     type: string
                   service:
                     default: IronicPassword
-                    description: Database - Selector to get the ironic service password
+                    description: Service - Selector to get the ironic service password
                       from the Secret
                     type: string
                 type: object
@@ -936,12 +752,16 @@ spec:
                 default: json-rpc
                 description: RPC transport type - Which RPC transport implementation
                   to use between conductor and API services. 'oslo' to use oslo.messaging
-                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
-                  requires oslo.messaging transport when not in standalone mode.
+                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic
+                  and ironic-inspector require oslo.messaging transport when not in
+                  standalone mode.
+                enum:
+                - oslo
+                - json-rpc
                 type: string
               secret:
                 description: Secret containing OpenStack password information for
-                  ironic IronicDatabasePassword, AdminPassword
+                  ironic IronicDatabasePassword, IronicPassword
                 type: string
               serviceUser:
                 default: ironic

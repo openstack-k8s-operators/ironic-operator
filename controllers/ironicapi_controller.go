@@ -721,8 +721,8 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	templateParameters["ConductorGroup"] = nil
 
 	if !instance.Spec.Standalone {
-		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneVars["keystoneInternalURL"]
-		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneVars["keystonePublicURL"]
+		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneEndpoints.Internal
+		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	} else {
 		templateParameters["IronicPublicURL"] = ""

@@ -72,11 +72,20 @@ spec:
                     description: Service enable debug
                     type: boolean
                 type: object
+              defaultConfigOverwrite:
+                additionalProperties:
+                  type: string
+                description: 'ConfigOverwrite - interface to overwrite default config
+                  files like e.g. policy.json. But can also be used to add additional
+                  files. Those get added to the service config dir in /etc/<service>
+                  . TODO: -> implement'
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string
                 description: NodeSelector to target subset of worker nodes running
-                  this service.
+                  this service. Setting here overrides any global NodeSelector settings
+                  within the Ironic CR
                 type: object
               passwordSelectors:
                 default:
@@ -84,6 +93,11 @@ spec:
                 description: PasswordSelectors - Selectors to identify the ServiceUser
                   password from the Secret
                 properties:
+                  database:
+                    default: IronicDatabasePassword
+                    description: 'Database - Selector to get the ironic Database user
+                      password from the Secret TODO: not used, need change in mariadb-operator'
+                    type: string
                   service:
                     default: IronicPassword
                     description: Service - Selector to get the ironic service password
@@ -97,8 +111,10 @@ spec:
                 type: string
               replicas:
                 default: 1
-                description: Replicas - ML2 baremetal - Ironic Neutron Agent Replicas
+                description: Replicas -
                 format: int32
+                maximum: 32
+                minimum: 0
                 type: integer
               resources:
                 description: Resources - Compute Resources required by this service
@@ -152,18 +168,11 @@ spec:
                 description: Secret containing OpenStack password information for
                   IronicPassword
                 type: string
-              serviceAccount:
-                description: ServiceAccount - service account name used internally
-                  to provide the default SA name
-                type: string
               serviceUser:
                 default: ironic
                 description: ServiceUser - optional username used for this service
                   to register in ironic
                 type: string
-            required:
-            - secret
-            - serviceAccount
             type: object
           status:
             description: IronicNeutronAgentStatus defines the observed state of ML2

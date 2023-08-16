@@ -122,10 +122,15 @@ spec:
                   - ipAddressPool
                   type: object
                 type: array
-              keystoneVars:
-                additionalProperties:
-                  type: string
-                description: keystoneVars - Internally used map of Keystone API endpoints
+              keystoneEndpoints:
+                description: KeystoneEndpoints - Internally used Keystone API endpoints
+                properties:
+                  internal:
+                    description: Internal endpoint URL
+                    type: string
+                  public:
+                    description: Public endpoint URL
+                    type: string
                 type: object
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource

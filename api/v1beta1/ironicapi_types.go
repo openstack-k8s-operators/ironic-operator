@@ -84,8 +84,8 @@ type IronicAPISpec struct {
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional
-	// keystoneVars - Internally used map of Keystone API endpoints
-	KeystoneVars map[string]string `json:"keystoneVars,omitempty"`
+	// KeystoneEndpoints - Internally used Keystone API endpoints
+	KeystoneEndpoints KeystoneEndpoints `json:"keystoneEndpoints"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
