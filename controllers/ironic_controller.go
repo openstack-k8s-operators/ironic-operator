@@ -329,17 +329,17 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// run check OpenStack secret - end
 
 	// Get Keystone endpoints
-	keystoneVars := make(map[string]string)
+	keystoneEndpoints := ironicv1.KeystoneEndpoints{}
 	if !instance.Spec.Standalone {
 		keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, helper, instance.Namespace, map[string]string{})
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		keystoneVars["keystoneInternalURL"], err = keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
+		keystoneEndpoints.Internal, err = keystoneAPI.GetEndpoint(endpoint.EndpointInternal)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		keystoneVars["keystonePublicURL"], err = keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
+		keystoneEndpoints.Public, err = keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -355,7 +355,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// - %-config configmap holding minimal ironic config required to get the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, keystoneVars)
+	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, &keystoneEndpoints)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -432,7 +432,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		ironicConductor, op, err := r.conductorDeploymentCreateOrUpdate(
 			instance,
 			conductorSpec,
-			keystoneVars,
+			&keystoneEndpoints,
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -460,7 +460,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-api
-	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance, keystoneVars)
+	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance, &keystoneEndpoints)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			ironicv1.IronicAPIReadyCondition,
@@ -707,7 +707,7 @@ func (r *IronicReconciler) reconcileUpgrade(
 func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 	conductorSpec ironicv1.IronicConductorTemplate,
-	keystoneVars map[string]string,
+	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 ) (*ironicv1.IronicConductor, controllerutil.OperationResult, error) {
 	name := fmt.Sprintf("%s-%s", instance.Name, ironic.ConductorComponent)
 	if conductorSpec.ConductorGroup != "" {
@@ -726,7 +726,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		ServiceUser:             instance.Spec.ServiceUser,
 		DatabaseHostname:        instance.Status.DatabaseHostname,
 		TransportURLSecret:      instance.Status.TransportURLSecret,
-		KeystoneVars:            keystoneVars,
+		KeystoneEndpoints:       *keystoneEndpoints,
 	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -756,7 +756,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 
 func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
-	keystoneVars map[string]string,
+	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 ) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {
 	IronicAPISpec := ironicv1.IronicAPISpec{
 		IronicAPITemplate:  instance.Spec.IronicAPI,
@@ -768,7 +768,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		ServiceUser:        instance.Spec.ServiceUser,
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
-		KeystoneVars:       keystoneVars,
+		KeystoneEndpoints:  *keystoneEndpoints,
 	}
 
 	deployment := &ironicv1.IronicAPI{
@@ -801,7 +801,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	instance *ironicv1.Ironic,
 	h *helper.Helper,
 	envVars *map[string]env.Setter,
-	keystoneVars map[string]string,
+	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 ) error {
 	//
 	// create Configmap/Secret required for ironic input
@@ -826,8 +826,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	templateParameters["ConductorGroup"] = nil
 
 	if !instance.Spec.Standalone {
-		templateParameters["KeystoneInternalURL"] = keystoneVars["keystoneInternalURL"]
-		templateParameters["KeystonePublicURL"] = keystoneVars["keystonePublicURL"]
+		templateParameters["KeystoneInternalURL"] = keystoneEndpoints.Internal
+		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	} else {
 		templateParameters["IronicPublicURL"] = ""

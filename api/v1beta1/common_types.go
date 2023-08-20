@@ -94,3 +94,12 @@ type IronicServiceDebug struct {
 	// Service enable debug
 	Service bool `json:"service"`
 }
+// KeystoneEndpoints defines keystone endpoint parameters for service
+type KeystoneEndpoints struct {
+	// +kubebuilder:validation:Optional
+	// Internal endpoint URL
+	Internal string `json:"internal"`
+	// +kubebuilder:validation:Optional
+	// Public endpoint URL
+	Public string `json:"public"`
+}

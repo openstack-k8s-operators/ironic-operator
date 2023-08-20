@@ -70,10 +70,6 @@ spec:
                   an init container is used, it runs and the actual action pod gets
                   started with sleep infinity
                 properties:
-                  dbSync:
-                    default: false
-                    description: DBSync enable debug
-                    type: boolean
                   service:
                     default: false
                     description: Service enable debug
@@ -122,10 +118,19 @@ spec:
                   - start
                   type: object
                 type: array
-              keystoneVars:
-                additionalProperties:
-                  type: string
-                description: keystoneVars - Internally used map of Keystone API endpoints
+              ironicPythonAgentImage:
+                description: IronicPythonAgentImage - Image containing the ironic-python-agent
+                  kernel and ramdisk
+                type: string
+              keystoneEndpoints:
+                description: KeystoneEndpoints - Internally used Keystone API endpoints
+                properties:
+                  internal:
+                    description: Internal endpoint URL
+                    type: string
+                  public:
+                    description: Public endpoint URL
+                    type: string
                 type: object
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
@@ -145,7 +150,7 @@ spec:
                   database: IronicDatabasePassword
                   service: IronicPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password and TransportURL from the Secret
+                  ServiceUser password from the Secret
                 properties:
                   database:
                     default: IronicDatabasePassword
@@ -154,7 +159,7 @@ spec:
                     type: string
                   service:
                     default: IronicPassword
-                    description: Database - Selector to get the ironic service password
+                    description: Service - Selector to get the ironic service password
                       from the Secret
                     type: string
                 type: object
@@ -167,8 +172,10 @@ spec:
                 type: string
               replicas:
                 default: 1
-                description: Replicas - Ironic Conductor Replicas
+                description: Replicas -
                 format: int32
+                maximum: 32
+                minimum: 0
                 type: integer
               resources:
                 description: Resources - Compute Resources required by this service
@@ -222,16 +229,15 @@ spec:
                 default: json-rpc
                 description: RPC transport type - Which RPC transport implementation
                   to use between conductor and API services. 'oslo' to use oslo.messaging
-                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
+                  transport or 'json-rpc' to use JSON RPC transport. NOTE -> ironic
                   requires oslo.messaging transport when not in standalone mode.
+                enum:
+                - oslo
+                - json-rpc
                 type: string
               secret:
                 description: Secret containing OpenStack password information for
                   IronicDatabasePassword, AdminPassword
-                type: string
-              serviceAccount:
-                description: ServiceAccount - service account name used internally
-                  to provide the default SA name
                 type: string
               serviceUser:
                 default: ironic
@@ -253,7 +259,7 @@ spec:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             required:
-            - serviceAccount
+            - databaseHostname
             - storageClass
             - storageRequest
             type: object
