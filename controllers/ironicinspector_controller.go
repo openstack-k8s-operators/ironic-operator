@@ -44,7 +44,6 @@ import (
 	k8s_types "k8s.io/apimachinery/pkg/types"
 
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -60,6 +59,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -70,7 +70,6 @@ import (
 type IronicInspectorReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
 
@@ -83,6 +82,11 @@ var (
 		},
 	}
 )
+
+// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *IronicInspectorReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("IronicInspector")
+}
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/status,verbs=get;update;patch
@@ -113,7 +117,7 @@ func (r *IronicInspectorReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (result ctrl.Result, _err error) {
-	_ = log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the IronicInspector instance
 	instance := &ironicv1.IronicInspector{}
@@ -136,7 +140,7 @@ func (r *IronicInspectorReconciler) Reconcile(
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -254,10 +258,11 @@ func (r *IronicInspectorReconciler) Reconcile(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicInspectorReconciler) SetupWithManager(
-	mgr ctrl.Manager,
-) error {
+	mgr ctrl.Manager, ctx context.Context) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(o client.Object) []reconcile.Request {
+		Log := r.GetLogger(ctx)
+
 		result := []reconcile.Request{}
 
 		// get all API CRs
@@ -266,11 +271,11 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 			client.InNamespace(o.GetNamespace()),
 		}
 		if err := r.Client.List(
-			context.Background(),
+			ctx,
 			apis,
 			listOpts...); err != nil {
 
-			r.Log.Error(err, "Unable to retrieve API CRs %v")
+			Log.Error(err, "Unable to retrieve API CRs %v")
 			return nil
 		}
 
@@ -288,7 +293,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 						Namespace: o.GetNamespace(),
 						Name:      cr.Name,
 					}
-					r.Log.Info(fmt.Sprintf(
+					Log.Info(fmt.Sprintf(
 						"ConfigMap object %s and CR %s marked with label: %s",
 						o.GetName(), cr.Name, l))
 					result = append(
@@ -322,6 +327,8 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
+
 	if instance.Spec.RPCTransport == "oslo" {
 		//
 		// Create RabbitMQ transport URL CR and get the actual URL from the
@@ -347,7 +354,7 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 		}
 
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf(
+			Log.Info(fmt.Sprintf(
 				"TransportURL %s successfully reconciled - operation: %s",
 				transportURL.Name, string(op)))
 		}
@@ -355,7 +362,7 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 		instance.Status.TransportURLSecret = transportURL.Status.SecretName
 
 		if instance.Status.TransportURLSecret == "" {
-			r.Log.Info(fmt.Sprintf(
+			Log.Info(fmt.Sprintf(
 				"Waiting for TransportURL %s secret to be created",
 				transportURL.Name))
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -560,7 +567,9 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic Inspector")
 
 	if ironicv1.GetOwningIronicName(instance) == "" {
 		// Service account, role, binding
@@ -676,7 +685,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	r.Log.Info("Reconciled Ironic Inspector successfully")
+	Log.Info("Reconciled Ironic Inspector successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -745,7 +754,9 @@ func (r *IronicInspectorReconciler) reconcileDelete(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector delete")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic Inspector delete")
 
 	ctrlResult, err := r.reconcileDeleteKeystoneServices(ctx, instance, helper)
 	if err != nil {
@@ -763,7 +774,7 @@ func (r *IronicInspectorReconciler) reconcileDelete(
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Ironic Inspector delete successfully")
+	Log.Info("Reconciled Ironic Inspector delete successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -842,6 +853,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBsync(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
+	Log := r.GetLogger(ctx)
 	dbSyncHash := instance.Status.Hash[ironicv1.DbSyncHash]
 	jobDef := ironicinspector.DbSyncJob(instance, serviceLabels)
 	dbSyncjob := job.NewJob(
@@ -874,7 +886,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBsync(
 	}
 	if dbSyncjob.HasChanged() {
 		instance.Status.Hash[ironicv1.DbSyncHash] = dbSyncjob.GetHash()
-		r.Log.Info(fmt.Sprintf(
+		Log.Info(fmt.Sprintf(
 			"Job %s hash added - %s",
 			jobDef.Name,
 			instance.Status.Hash[ironicv1.DbSyncHash]))
@@ -1089,7 +1101,9 @@ func (r *IronicInspectorReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector init")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic Inspector init")
 
 	ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -1119,7 +1133,7 @@ func (r *IronicInspectorReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 
-	r.Log.Info("Reconciled Ironic Inspector init successfully")
+	Log.Info("Reconciled Ironic Inspector init successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -1128,7 +1142,9 @@ func (r *IronicInspectorReconciler) reconcileUpdate(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector Service update")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic Inspector Service update")
 
 	// TODO: should have minor update tasks if required
 	// - delete dbsync hash from status to rerun it?
@@ -1141,7 +1157,8 @@ func (r *IronicInspectorReconciler) reconcileUpgrade(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic Inspector Service upgrade")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Ironic Inspector Service upgrade")
 
 	// TODO: should have major version upgrade tasks
 	// -delete dbsync hash from status to rerun it?
@@ -1170,7 +1187,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		instance,
 		labels.GetGroupLabel(ironic.ServiceName),
 		map[string]string{})
-
+	Log := r.GetLogger(ctx)
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/ironic-inspector/inspector.conf.d
 	// all other files get placed into /etc/ironic-inspector to allow
@@ -1215,7 +1232,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	}
 	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
 	if err != nil {
-		r.Log.Error(err, "unable to get Prefix or Netmask from IP network Prefix (CIDR)")
+		Log.Error(err, "unable to get Prefix or Netmask from IP network Prefix (CIDR)")
 	}
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
@@ -1257,6 +1274,7 @@ func (r *IronicInspectorReconciler) createHashOfInputHashes(
 	instance *ironicv1.IronicInspector,
 	envVars map[string]env.Setter,
 ) (string, bool, error) {
+	Log := r.GetLogger(ctx)
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -1266,7 +1284,7 @@ func (r *IronicInspectorReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
 }
@@ -1277,7 +1295,9 @@ func (r *IronicInspectorReconciler) reconcileServices(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Inspector Services")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Inspector Services")
 
 	podList, err := ironicinspector.InspectorPods(
 		ctx, instance, helper, serviceLabels)
@@ -1309,13 +1329,13 @@ func (r *IronicInspectorReconciler) reconcileServices(
 				inspectorService,
 			)
 			if err != nil && k8s_errors.IsNotFound(err) {
-				r.Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", inspectorService.Name))
+				Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", inspectorService.Name))
 				err = r.Create(ctx, inspectorService)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
 			} else {
-				r.Log.Info(fmt.Sprintf("Service port %s exists, updating it", inspectorService.Name))
+				Log.Info(fmt.Sprintf("Service port %s exists, updating it", inspectorService.Name))
 				err = r.Update(ctx, inspectorService)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -1345,13 +1365,13 @@ func (r *IronicInspectorReconciler) reconcileServices(
 				inspectorRoute,
 			)
 			if err != nil && k8s_errors.IsNotFound(err) {
-				r.Log.Info(fmt.Sprintf("Route %s does not exist, creating it", inspectorRoute.Name))
+				Log.Info(fmt.Sprintf("Route %s does not exist, creating it", inspectorRoute.Name))
 				err = r.Create(ctx, inspectorRoute)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
 			} else {
-				r.Log.Info(fmt.Sprintf("Route %s exists, updating it", inspectorRoute.Name))
+				Log.Info(fmt.Sprintf("Route %s exists, updating it", inspectorRoute.Name))
 				err = r.Update(ctx, inspectorRoute)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -1365,6 +1385,6 @@ func (r *IronicInspectorReconciler) reconcileServices(
 	// TODO: rework this
 	//
 
-	r.Log.Info("Reconciled Inspector Services successfully")
+	Log.Info("Reconciled Inspector Services successfully")
 	return ctrl.Result{}, nil
 }

@@ -26,7 +26,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/go-logr/logr"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -57,8 +57,12 @@ import (
 type IronicNeutronAgentReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *IronicNeutronAgentReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
 }
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents,verbs=get;list;watch;create;update;patch;delete
@@ -85,7 +89,7 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (result ctrl.Result, _err error) {
-	_ = log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the IronicNeutronAgent instance
 	instance := &ironicv1.IronicNeutronAgent{}
@@ -106,7 +110,7 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -218,6 +222,8 @@ func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	// Create RabbitMQ transport URL CR and get the actual URL from the
 	// associted secret that is created
 	//
+	Log := r.GetLogger(ctx)
+
 	transportURL, op, err := ironic.TransportURLCreateOrUpdate(
 		instance.Name,
 		instance.Namespace,
@@ -236,13 +242,13 @@ func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 		return ctrl.Result{}, err
 	}
 	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf(
+		Log.Info(fmt.Sprintf(
 			"TransportURL %s successfully reconciled - operation: %s",
 			transportURL.Name, string(op)))
 	}
 	instance.Status.TransportURLSecret = transportURL.Status.SecretName
 	if instance.Status.TransportURLSecret == "" {
-		r.Log.Info(fmt.Sprintf(
+		Log.Info(fmt.Sprintf(
 			"Waiting for TransportURL %s secret to be created",
 			transportURL.Name))
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -383,7 +389,8 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling IronicNeutronAgent")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling IronicNeutronAgent")
 
 	if ironicv1.GetOwningIronicName(instance) == "" {
 		// Service account, role, binding
@@ -462,7 +469,7 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	r.Log.Info("Reconciled IronicNeutronAgent Service successfully")
+	Log.Info("Reconciled IronicNeutronAgent Service successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -472,8 +479,10 @@ func (r *IronicNeutronAgentReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling IronicNeutronAgent init")
-	r.Log.Info("Reconciled IronicNeutronAgent init successfully")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling IronicNeutronAgent init")
+	Log.Info("Reconciled IronicNeutronAgent init successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -483,10 +492,12 @@ func (r *IronicNeutronAgentReconciler) reconcileDelete(
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling IronicNeutronAgent delete")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling IronicNeutronAgent delete")
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled IronicNeutronAgent delete successfully")
+	Log.Info("Reconciled IronicNeutronAgent delete successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -496,8 +507,10 @@ func (r *IronicNeutronAgentReconciler) reconcileUpdate(
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling IronicNeutronAgent update")
-	r.Log.Info("Reconciled IronicNeutronAgent update successfully")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling IronicNeutronAgent update")
+	Log.Info("Reconciled IronicNeutronAgent update successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -507,8 +520,10 @@ func (r *IronicNeutronAgentReconciler) reconcileUpgrade(
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling IronicNeutronAgent upgrade")
-	r.Log.Info("Reconciled IronicNeutronAgent upgrade successfully")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling IronicNeutronAgent upgrade")
+	Log.Info("Reconciled IronicNeutronAgent upgrade successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -587,6 +602,8 @@ func (r *IronicNeutronAgentReconciler) createHashOfInputHashes(
 	instance *ironicv1.IronicNeutronAgent,
 	envVars map[string]env.Setter,
 ) (string, bool, error) {
+	Log := r.GetLogger(ctx)
+
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -596,7 +613,7 @@ func (r *IronicNeutronAgentReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
 }
