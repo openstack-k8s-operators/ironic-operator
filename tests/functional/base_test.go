@@ -42,6 +42,7 @@ const (
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
 	ConductorInputHash     = "n75h57bh9h5b8h5fchcbh55h5fhd5h6dh57bhd5h547h696h5f9h79hffh58fh55fh66bh5b6h68dh9dh5ch694hf5h55bh84h9bh5bch5c5h545q"
+	APIInputHash           = "n58ch588h669h549hddh64dhd6h687h5f5h57bh679h5b6hf6hf8h96h58fh684h589h574h54dh95hf5h64bh696h7h86hd4hf6h9fh545h68ch96q"
 )
 
 type IronicNames struct {
@@ -49,6 +50,9 @@ type IronicNames struct {
 	IronicName                types.NamespacedName
 	ServiceAccountName        types.NamespacedName
 	APIName                   types.NamespacedName
+	APIServiceAccount         types.NamespacedName
+	APIRole                   types.NamespacedName
+	APIRoleBinding            types.NamespacedName
 	ConductorName             types.NamespacedName
 	ConductorServiceAccount   types.NamespacedName
 	ConductorRole             types.NamespacedName
@@ -98,6 +102,18 @@ func GetIronicNames(
 		APIName: types.NamespacedName{
 			Namespace: ironicAPI.Namespace,
 			Name:      ironicAPI.Name,
+		},
+		APIServiceAccount: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironicapi-" + ironicAPI.Name,
+		},
+		APIRole: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironicapi-" + ironicAPI.Name + "-role",
+		},
+		APIRoleBinding: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironicapi-" + ironicAPI.Name + "-rolebinding",
 		},
 		ConductorName: types.NamespacedName{
 			Namespace: ironicConductor.Namespace,
@@ -230,6 +246,20 @@ func GetIronicAPI(
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func IronicAPIConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetIronicAPI(name)
+	return instance.Status.Conditions
+}
+
+func GetDefaultIronicAPISpec() map[string]interface{} {
+	return map[string]interface{}{
+		"secret":           SecretName,
+		"databaseHostname": DatabaseHostname,
+		"containerImage":   ContainerImage,
+		"serviceAccount":   "ironic",
+	}
 }
 
 func CreateIronicConductor(
