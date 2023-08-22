@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	timeout                = 10 * time.Second
-	interval               = 10 * time.Millisecond
+	timeout                = 20 * time.Second
+	interval               = 20 * time.Millisecond
 	DatabaseHostname       = "databasehost.example.org"
 	DatabaseInstance       = "openstack"
 	SecretName             = "test-secret"
@@ -41,6 +41,7 @@ const (
 	ContainerImage         = "test://ironic"
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
+	IronicInputHash        = "n5b8h55ch59ch64ch66dh67bh7h565h687h55bh6hbbhf9h59fh7bhcfh657h68fh5f8h574h654h75h675h695h5f4h588h68dh674h56bh574h5d4h568q"
 	ConductorInputHash     = "n75h57bh9h5b8h5fchcbh55h5fhd5h6dh57bhd5h547h696h5f9h79hffh58fh55fh66bh5b6h68dh9dh5ch694hf5h55bh84h9bh5bch5c5h545q"
 	APIInputHash           = "n58ch588h669h549hddh64dhd6h687h5f5h57bh679h5b6hf6hf8h96h58fh684h589h574h54dh95hf5h64bh696h7h86hd4hf6h9fh545h68ch96q"
 )
@@ -48,6 +49,12 @@ const (
 type IronicNames struct {
 	Namespace                 string
 	IronicName                types.NamespacedName
+	IronicRole                types.NamespacedName
+	IronicRoleBinding         types.NamespacedName
+	IronicServiceAccount      types.NamespacedName
+	IronicTransportURLName    types.NamespacedName
+	IronicDatabaseName        types.NamespacedName
+	IronicDBSyncJobName       types.NamespacedName
 	ServiceAccountName        types.NamespacedName
 	APIName                   types.NamespacedName
 	APIServiceAccount         types.NamespacedName
@@ -98,6 +105,30 @@ func GetIronicNames(
 		IronicName: types.NamespacedName{
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name,
+		},
+		IronicTransportURLName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic.Name + "-transport",
+		},
+		IronicDatabaseName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic.Name,
+		},
+		IronicDBSyncJobName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic_pkg.ServiceName + "-db-sync",
+		},
+		IronicServiceAccount: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      "ironic-" + ironic.Name,
+		},
+		IronicRole: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      "ironic-" + ironic.Name + "-role",
+		},
+		IronicRoleBinding: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      "ironic-" + ironic.Name + "-rolebinding",
 		},
 		APIName: types.NamespacedName{
 			Namespace: ironicAPI.Namespace,
@@ -220,6 +251,30 @@ func GetIronic(
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func IronicConditionGetter(name types.NamespacedName) condition.Conditions {
+	instance := GetIronic(name)
+	return instance.Status.Conditions
+}
+
+func GetDefaultIronicSpec() map[string]interface{} {
+	return map[string]interface{}{
+		"databaseInstance":   DatabaseInstance,
+		"secret":             SecretName,
+		"ironicAPI":          GetDefaultIronicAPISpec(),
+		"ironicConductors":   []map[string]interface{}{GetDefaultIronicConductorSpec()},
+		"ironicInspector":    GetDefaultIronicInspectorSpec(),
+		"ironicNeutronAgent": GetDefaultIronicNeutronAgentSpec(),
+		"images": map[string]interface{}{
+			"api":               ContainerImage,
+			"conductor":         ContainerImage,
+			"inspector":         ContainerImage,
+			"neutronAgent":      ContainerImage,
+			"pxe":               ContainerImage,
+			"ironicPythonAgent": ContainerImage,
+		},
+	}
 }
 
 func CreateIronicAPI(
