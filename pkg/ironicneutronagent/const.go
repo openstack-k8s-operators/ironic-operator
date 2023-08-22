@@ -22,7 +22,4 @@ const (
 
 	// ServiceType -
 	ServiceType = "baremetal"
-
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
 )
