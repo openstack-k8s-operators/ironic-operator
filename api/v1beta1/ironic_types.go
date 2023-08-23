@@ -291,12 +291,12 @@ func (instance Ironic) RbacResourceName() string {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Ironic defaults with them
 	imageDefaults := IronicImages{
-		API:               util.GetEnvVar("IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
-		Conductor:         util.GetEnvVar("IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
-		Inspector:         util.GetEnvVar("IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
-		Pxe:               util.GetEnvVar("IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
-		NeutronAgent:      util.GetEnvVar("IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
-		IronicPythonAgent: util.GetEnvVar("IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
+		API:               util.GetEnvVar("RELATED_IMAGE_IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
+		Conductor:         util.GetEnvVar("RELATED_IMAGE_IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
+		Inspector:         util.GetEnvVar("RELATED_IMAGE_IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
+		Pxe:               util.GetEnvVar("RELATED_IMAGE_IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
+		NeutronAgent:      util.GetEnvVar("RELATED_IMAGE_IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
+		IronicPythonAgent: util.GetEnvVar("RELATED_IMAGE_IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
 	}
 
 	SetupIronicImageDefaults(imageDefaults)

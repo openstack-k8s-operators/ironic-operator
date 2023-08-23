@@ -11,15 +11,15 @@ spec:
       containers:
       - name: manager
         env:
-        - name: IRONIC_API_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_API_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
-        - name: IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-        - name: IRONIC_INSPECTOR_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_INSPECTOR_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
-        - name: IRONIC_PXE_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_PXE_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
-        - name: IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
-        - name: IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT
+        - name: RELATED_IMAGE_IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/ironic-python-agent:current-podified

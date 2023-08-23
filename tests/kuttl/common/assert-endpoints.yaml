@@ -84,3 +84,46 @@ commands:
           fi
       fi
       exit $RETURN_CODE
+---
+# when using image digests the containerImage URLs are SHAs so we verify them with a script
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
+      imageTuples=$(oc get -n openstack-operators deployment ironic-operator-controller-manager -o go-template="$tupleTemplate")
+      for ITEM in $(echo $imageTuples); do
+        # it is an image
+        if echo $ITEM | grep 'RELATED_IMAGE' &> /dev/null; then
+          NAME=$(echo $ITEM | sed -e 's|^RELATED_IMAGE_IRONIC_\(.*\)_IMAGE.*|\1|')
+          IMG_FROM_ENV=$(echo $ITEM | sed -e 's|^.*#\(.*\)|\1|')
+          template='{{.spec.containerImage}}'
+          case $NAME in
+            API)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicapi ironic-api -o go-template="$template")
+              ;;
+            CONDUCTOR)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicconductor ironic-conductor -o go-template="$template")
+              ;;
+            INSPECTOR)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicinspector ironic-inspector -o go-template="$template")
+              ;;
+            PXE)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicconductor ironic-conductor -o go-template="{{.spec.pxeContainerImage}}")
+              ;;
+            NEUTRON_AGENT)
+              # this isn't deployed in all tests
+              continue
+              ;;
+            PYTHON_AGENT)
+              # this doesn't seem to be used ATM
+              continue
+              ;;
+          esac
+          if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then
+            echo "$NAME image does not equal $VALUE"
+            exit 1
+          fi
+        fi
+      done
+      exit 0
