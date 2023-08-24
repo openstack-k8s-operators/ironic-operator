@@ -389,10 +389,11 @@ func GetIronicInspector(
 
 func GetDefaultIronicInspectorSpec() map[string]interface{} {
 	return map[string]interface{}{
-		"databaseInstance": DatabaseInstance,
-		"secret":           SecretName,
-		"containerImage":   ContainerImage,
-		"serviceAccount":   "ironic",
+		"databaseInstance":       DatabaseInstance,
+		"secret":                 SecretName,
+		"containerImage":         ContainerImage,
+		"ironicPythonAgentImage": IronicPythonAgentImage,
+		"serviceAccount":         "ironic",
 	}
 }
 
