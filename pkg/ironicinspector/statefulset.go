@@ -263,19 +263,22 @@ func StatefulSet(
 	}
 
 	initContainerDetails := APIDetails{
-		ContainerImage:       instance.Spec.ContainerImage,
-		PxeContainerImage:    instance.Spec.PxeContainerImage,
-		DatabaseHost:         instance.Status.DatabaseHostname,
-		DatabaseName:         DatabaseName,
-		OSPSecret:            instance.Spec.Secret,
-		TransportURLSecret:   instance.Status.TransportURLSecret,
-		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         GetInitVolumeMounts(),
-		PxeInit:              true,
-		InspectorHTTPURL:     inspectorHTTPURL,
-		IngressDomain:        ingressDomain,
-		InspectionNetwork:    instance.Spec.InspectionNetwork,
+		ContainerImage:         instance.Spec.ContainerImage,
+		PxeContainerImage:      instance.Spec.PxeContainerImage,
+		IronicPythonAgentImage: instance.Spec.IronicPythonAgentImage,
+		ImageDirectory:         ironic.ImageDirectory,
+		DatabaseHost:           instance.Status.DatabaseHostname,
+		DatabaseName:           DatabaseName,
+		OSPSecret:              instance.Spec.Secret,
+		TransportURLSecret:     instance.Status.TransportURLSecret,
+		DBPasswordSelector:     instance.Spec.PasswordSelectors.Database,
+		UserPasswordSelector:   instance.Spec.PasswordSelectors.Service,
+		VolumeMounts:           GetInitVolumeMounts(),
+		PxeInit:                true,
+		IpaInit:                true,
+		InspectorHTTPURL:       inspectorHTTPURL,
+		IngressDomain:          ingressDomain,
+		InspectionNetwork:      instance.Spec.InspectionNetwork,
 	}
 	statefulset.Spec.Template.Spec.InitContainers = InitContainer(initContainerDetails)
 
