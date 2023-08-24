@@ -128,10 +128,6 @@ type IronicInspectorSpec struct {
 	PxeContainerImage string `json:"pxeContainerImage"`
 
 	// +kubebuilder:validation:Optional
-	// IronicPythonAgentImage - Image containing the ironic-python-agent kernel and ramdisk
-	IronicPythonAgentImage string `json:"ironicPythonAgentImage"`
-
-	// +kubebuilder:validation:Optional
 	// MariaDB instance name.
 	// Right now required by the maridb-operator to get the credentials from the instance to create the DB.
 	// Might not be required in future.

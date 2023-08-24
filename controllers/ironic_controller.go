@@ -897,7 +897,6 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		IronicInspectorTemplate: instance.Spec.IronicInspector,
 		ContainerImage:          instance.Spec.Images.Inspector,
 		PxeContainerImage:       instance.Spec.Images.Pxe,
-		IronicPythonAgentImage:  instance.Spec.Images.IronicPythonAgent,
 		Standalone:              instance.Spec.Standalone,
 		RPCTransport:            instance.Spec.RPCTransport,
 		DatabaseInstance:        instance.Spec.DatabaseInstance,
