@@ -20,15 +20,12 @@ export PODINDEX=$(echo ${HOSTNAME##*-})
 
 # Create TFTP, HTTP serving directories
 mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
-if [ ! -d "/var/lib/ironic/httpboot" ]; then
-    mkdir /var/lib/ironic/httpboot
-fi
+mkdir -p /var/lib/ironic/httpboot
 
 # DHCP server configuration
 export InspectorNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${InspectionNetwork})
 export INSPECTOR_HTTP_URL=$(python3 -c 'import os; print(os.environ["InspectorHTTPURL"] % os.environ)')
 
-export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
 export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
 sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
     -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
