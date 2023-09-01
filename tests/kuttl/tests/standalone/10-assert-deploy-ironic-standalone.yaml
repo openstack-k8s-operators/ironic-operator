@@ -59,7 +59,6 @@ metadata:
     kind: Ironic
     name: ironic
 spec:
-  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
@@ -90,7 +89,6 @@ metadata:
     name: ironic
 spec:
   conductorGroup: ""
-  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
   debug:
@@ -98,7 +96,6 @@ spec:
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
-  pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
   replicas: 1
   resources: {}
   rpcTransport: json-rpc
@@ -122,7 +119,6 @@ metadata:
     kind: Ironic
     name: ironic
 spec:
-  containerImage: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
   customServiceConfig: '# add your customization here'
   databaseInstance: openstack
   debug:
@@ -132,7 +128,6 @@ spec:
     database: IronicInspectorDatabasePassword
     service: IronicInspectorPassword
   preserveJobs: true
-  pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
   rabbitMqClusterName: rabbitmq
   replicas: 1
   resources: {}
