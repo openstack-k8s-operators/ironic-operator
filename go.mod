@@ -8,27 +8,31 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.1.0
-	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-20230722140433-eba71851e2ff
-	github.com/openstack-k8s-operators/keystone-operator/api v0.1.0
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.0
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.1.0
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.1
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.0
+	github.com/openstack-k8s-operators/infra-operator/apis v0.1.1-0.20230829092744-a3dd5edba332
+	github.com/openstack-k8s-operators/ironic-operator/api v0.1.1-0.20230901035810-610538e222c9
+	github.com/openstack-k8s-operators/keystone-operator/api v0.1.1-0.20230830083045-d73d07cca617
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230824094610-976b18ca2875
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.1.1-0.20230824094610-976b18ca2875
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.1.2-0.20230824094610-976b18ca2875
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.1.1-0.20230823144333-b9363c5be8d2
 	k8s.io/api v0.26.7
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.26.7
-	k8s.io/utils v0.0.0-20230711102312-30195339c3c7
+	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/controller-runtime v0.14.6
 )
 
 require golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 
-require golang.org/x/mod v0.10.0 // indirect
+require (
+	github.com/cert-manager/cert-manager v1.11.4 // indirect
+	golang.org/x/mod v0.10.0 // indirect
+	sigs.k8s.io/gateway-api v0.6.0 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
@@ -55,7 +59,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.1.0 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.1.1-0.20230824094610-976b18ca2875 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -65,7 +69,7 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.25.0
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
+	golang.org/x/oauth2 v0.4.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
@@ -79,7 +83,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiextensions-apiserver v0.26.7 // indirect
 	k8s.io/component-base v0.26.7 // indirect
-	k8s.io/klog/v2 v2.90.1 // indirect
+	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
@@ -92,15 +96,6 @@ replace github.com/openstack-k8s-operators/ironic-operator/api => ./api
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20230414143018-3367bc7e6ac7 //allow-merging
 
-// This is need when updating to new version of lib-common.  For some reason, "go get -u" on the database and openstack
-// lib-common modules breaks because they try to find this "v0.0.0-00010101000000-000000000000" common module version
-// which does not exist.  So if you update the lib-common dependencies, uncomment the line below and change the common
-// module version to the latest.  You can then comment this line out again once the database and openstack modules
-// have been added.
-// replace github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-00010101000000-000000000000 => github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220909175216-e774739df18a
-
-// 1. push your code to github.com/fork/somelib @ dev branch
-// 2. modify your go.mod file, add a line replace github.com/original/somelib => github.com/fork/somelib dev
-// 3. execute go mod tidy command. After done these, go will auto replace the dev in go.mod to a suitiable pseudo-version.
-// replace github.com/openstack-k8s-operators/lib-common => github.com/<account>/lib-common v0.0.0-20220610121238-abedf5879ca4
-// replace github.com/openstack-k8s-operators/lib-common => /path/to/local/repo
+// needed to to cert-manager v1.11.4 see https://github.com/cert-manager/cert-manager/blob/v1.11.4/go.mod#L263C1-L264C104
+// remove this once we bump to cert-manager v1.12.x
+replace github.com/Venafi/vcert/v4 => github.com/jetstack/vcert/v4 v4.9.6-0.20230519122548-219f317ae107 //allow-merging
