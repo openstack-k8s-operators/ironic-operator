@@ -43,8 +43,8 @@ var _ = Describe("IronicInspector controller", func() {
 				),
 			)
 			DeferCleanup(
-				th.DeleteKeystoneAPI,
-				th.CreateKeystoneAPI(ironicNames.Namespace))
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicInspectorSpec()
 			spec["rpcTransport"] = "oslo"
 			DeferCleanup(
@@ -173,8 +173,8 @@ var _ = Describe("IronicInspector controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			th.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			th.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
@@ -189,8 +189,8 @@ var _ = Describe("IronicInspector controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			th.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			th.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
@@ -211,8 +211,8 @@ var _ = Describe("IronicInspector controller", func() {
 			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			th.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			th.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),

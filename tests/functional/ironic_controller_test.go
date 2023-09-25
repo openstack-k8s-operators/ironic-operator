@@ -52,8 +52,8 @@ var _ = Describe("Ironic controller", func() {
 				),
 			)
 			DeferCleanup(
-				th.DeleteKeystoneAPI,
-				th.CreateKeystoneAPI(ironicNames.Namespace))
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
 			spec["rpcTransport"] = "oslo"
 			spec["transportURLSecret"] = MessageBusSecretName

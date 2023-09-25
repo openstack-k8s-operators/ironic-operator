@@ -50,8 +50,8 @@ var _ = Describe("IronicAPI controller", func() {
 				),
 			)
 			DeferCleanup(
-				th.DeleteKeystoneAPI,
-				th.CreateKeystoneAPI(ironicNames.Namespace))
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicAPISpec()
 			spec["rpcTransport"] = "oslo"
 			spec["transportURLSecret"] = MessageBusSecretName
@@ -139,8 +139,8 @@ var _ = Describe("IronicAPI controller", func() {
 			)
 		})
 		It("Creates Deployment and set status fields - Deployment is Ready", func() {
-			th.SimulateKeystoneEndpointReady(ironicNames.IronicName)
-			th.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.ExpectCondition(
 				ironicNames.APIName,
@@ -173,8 +173,8 @@ var _ = Describe("IronicAPI controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 		It("Sets ReadyCondition and replica count", func() {
-			th.SimulateKeystoneServiceReady(ironicNames.IronicName)
-			th.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.ExpectCondition(
 				ironicNames.APIName,
