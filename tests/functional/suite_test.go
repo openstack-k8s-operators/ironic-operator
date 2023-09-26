@@ -46,8 +46,9 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
+	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	"github.com/openstack-k8s-operators/lib-common/modules/test"
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	common_test "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -61,7 +62,8 @@ var (
 	ctx         context.Context
 	cancel      context.CancelFunc
 	logger      logr.Logger
-	th          *TestHelper
+	th          *common_test.TestHelper
+	keystone    *keystone_test.TestHelper
 	ironicNames IronicNames
 )
 
@@ -138,7 +140,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	th = NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	th = common_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	Expect(th).NotTo(BeNil())
+	keystone = keystone_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(th).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine

@@ -37,7 +37,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				ctx,
 				CreateIronicSecret(ironicNames.Namespace, SecretName),
 			)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 		})
 		It("initializes Status fields", func() {
@@ -100,7 +100,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 			th.GetTransportURL(ironicNames.INATransportURLName)
 			th.SimulateTransportURLReady(ironicNames.INATransportURLName)
-			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
 		})
 		It("is missing secret", func() {
 			th.ExpectConditionWithDetails(
