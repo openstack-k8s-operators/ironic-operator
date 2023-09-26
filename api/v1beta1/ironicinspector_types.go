@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -96,10 +97,6 @@ type IronicInspectorTemplate struct {
 	NetworkAttachments []string `json:"networkAttachments,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
-	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// InspectionNetwork - Additional network to attach to expose boot DHCP, TFTP, HTTP services.
 	InspectionNetwork string `json:"inspectionNetwork,omitempty"`
 
@@ -107,6 +104,16 @@ type IronicInspectorTemplate struct {
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// Override, provides the ability to override the generated manifest of several child resources.
+	Override InspectorOverrideSpec `json:"override,omitempty"`
+}
+
+// InspectorOverrideSpec to override the generated manifest of several child resources.
+type InspectorOverrideSpec struct {
+	// Override configuration for the Service created to serve traffic to the cluster.
+	// The key must be the endpoint type (public, internal)
+	Service map[service.Endpoint]service.RoutedOverrideSpec `json:"service,omitempty"`
 }
 
 // IronicInspectorSpec defines the desired state of IronicInspector

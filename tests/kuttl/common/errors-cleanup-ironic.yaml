@@ -5,7 +5,6 @@
 # No Deployment for IronicAPI CR
 # No Pods in ironic Deployment
 # No Ironic Services
-# No Ironic Routes
 #
 apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
@@ -32,7 +31,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    internal: "true"
+    endpoint: internal
     service: ironic
   name: ironic-internal
 ---
@@ -40,14 +39,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    public: "true"
+    endpoint: public
     service: ironic
   name: ironic-public
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: ironic-public
-  labels:
-    public: "true"
-    service: ironic
+  namespace: openstack
