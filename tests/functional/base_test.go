@@ -43,7 +43,7 @@ const (
 	IronicPythonAgentImage = "test://ipa-image"
 	IronicInputHash        = "n5b8h55ch59ch64ch66dh67bh7h565h687h55bh6hbbhf9h59fh7bhcfh657h68fh5f8h574h654h75h675h695h5f4h588h68dh674h56bh574h5d4h568q"
 	ConductorInputHash     = "n75h57bh9h5b8h5fchcbh55h5fhd5h6dh57bhd5h547h696h5f9h79hffh58fh55fh66bh5b6h68dh9dh5ch694hf5h55bh84h9bh5bch5c5h545q"
-	APIInputHash           = "n58ch588h669h549hddh64dhd6h687h5f5h57bh679h5b6hf6hf8h96h58fh684h589h574h54dh95hf5h64bh696h7h86hd4hf6h9fh545h68ch96q"
+	APIInputHash           = "n74h54hd6hcdh558h579h678h5d9hbfh5bbh5cfh5f7h579h565hcbh6fh5bbh65h5c4h55fh564hcch5b9hb6hb9h8dhf6h58bhb7h5c6h5d8h67dq"
 )
 
 type IronicNames struct {

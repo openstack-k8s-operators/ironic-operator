@@ -27,6 +27,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// ServiceCommand -
+	ServiceCommand = "/usr/local/bin/kolla_start"
+)
+
 // Deployment func
 func Deployment(
 	instance *ironicv1.IronicNeutronAgent,
