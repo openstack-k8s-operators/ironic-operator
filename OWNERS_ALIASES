@@ -6,7 +6,8 @@ aliases:
   - juliakreger
   - steveb
   ci-approvers:
-  - Sandeepyadav93
+  - lewisdenny
+  - frenzyfriday
   - viroel
   openstack-approvers:
   - abays
