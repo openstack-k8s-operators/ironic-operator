@@ -49,6 +49,7 @@ import (
 	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
 	"github.com/openstack-k8s-operators/lib-common/modules/test"
 	common_test "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -64,6 +65,7 @@ var (
 	logger      logr.Logger
 	th          *common_test.TestHelper
 	keystone    *keystone_test.TestHelper
+	mariadb     *mariadb_test.TestHelper
 	ironicNames IronicNames
 )
 
@@ -143,7 +145,9 @@ var _ = BeforeSuite(func() {
 	th = common_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(th).NotTo(BeNil())
 	keystone = keystone_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
-	Expect(th).NotTo(BeNil())
+	Expect(keystone).NotTo(BeNil())
+	mariadb = mariadb_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	Expect(mariadb).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine
 	webhookInstallOptions := &testEnv.WebhookInstallOptions

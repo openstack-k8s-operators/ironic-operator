@@ -42,8 +42,8 @@ var _ = Describe("Ironic controller", func() {
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					ironicNames.Namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -156,8 +156,8 @@ var _ = Describe("Ironic controller", func() {
 		It("Creates service database instance", func() {
 			th.GetTransportURL(ironicNames.IronicTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),
@@ -168,8 +168,8 @@ var _ = Describe("Ironic controller", func() {
 		It("Runs service database DBsync", func() {
 			th.GetTransportURL(ironicNames.IronicTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
@@ -181,8 +181,8 @@ var _ = Describe("Ironic controller", func() {
 		It("Creates deployment for API, Conductor, Inspector and INA", func() {
 			th.GetTransportURL(ironicNames.IronicTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			Eventually(func(g Gomega) {
 				g.Expect(th.K8sClient.Get(th.Ctx, types.NamespacedName{
