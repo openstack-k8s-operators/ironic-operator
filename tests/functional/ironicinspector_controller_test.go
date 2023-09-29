@@ -33,8 +33,8 @@ var _ = Describe("IronicInspector controller", func() {
 				CreateIronicSecret(ironicNames.Namespace, SecretName),
 			)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					ironicNames.Namespace,
 					"openstack",
 					corev1.ServiceSpec{
@@ -131,8 +131,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Creates service database instance", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
@@ -143,8 +143,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Runs service database DBsync", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
@@ -156,8 +156,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Exposes services", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
@@ -169,8 +169,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Creates StatefulSet and set status fields - Deployment is Ready", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
@@ -185,8 +185,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Creates keystone service, users and endpoints", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
@@ -207,8 +207,8 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Sets ReadyCondition and replica count", func() {
 			th.GetTransportURL(ironicNames.InspectorTransportURLName)
 			th.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			th.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			th.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)

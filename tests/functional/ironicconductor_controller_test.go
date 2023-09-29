@@ -41,8 +41,8 @@ var _ = Describe("IronicConductor controller", func() {
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					ironicNames.Namespace,
 					"openstack",
 					corev1.ServiceSpec{
