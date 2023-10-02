@@ -47,8 +47,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			Expect(instance.Status.TransportURLSecret).To(BeEmpty())
 		})
 		It("creates Transport URL and sets TransportURLSecret status field", func() {
-			th.GetTransportURL(ironicNames.INATransportURLName)
-			th.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			th.ExpectCondition(
 				ironicNames.INAName,
 				ConditionGetterFunc(INAConditionGetter),
@@ -59,8 +59,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			Expect(instance.Status.TransportURLSecret).To(Equal("rabbitmq-secret"))
 		})
 		It("Creates ConfigMaps and gets Secrets (input)", func() {
-			th.GetTransportURL(ironicNames.INATransportURLName)
-			th.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			th.ExpectCondition(
 				ironicNames.INAName,
 				ConditionGetterFunc(INAConditionGetter),
@@ -75,8 +75,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			)
 		})
 		It("Creates Deployment and set status fields - is Ready", func() {
-			th.GetTransportURL(ironicNames.INATransportURLName)
-			th.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 			th.ExpectCondition(
 				ironicNames.INAName,
@@ -98,8 +98,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 	When("IronicNeutronAgent is created pointing to non existent Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
-			th.GetTransportURL(ironicNames.INATransportURLName)
-			th.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
 		})
 		It("is missing secret", func() {
@@ -135,8 +135,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 				DeferCleanup(k8sClient.Delete, ctx, secret)
-				th.GetTransportURL(ironicNames.INATransportURLName)
-				th.SimulateTransportURLReady(ironicNames.INATransportURLName)
+				infra.GetTransportURL(ironicNames.INATransportURLName)
+				infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			})
 			It("is missing secret", func() {
 				th.ExpectConditionWithDetails(

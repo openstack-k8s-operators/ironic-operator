@@ -121,8 +121,8 @@ var _ = Describe("Ironic controller", func() {
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
 		})
 		It("creates Transport URL and sets TransportURLSecret status field", func() {
-			th.GetTransportURL(ironicNames.IronicTransportURLName)
-			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),
@@ -133,8 +133,8 @@ var _ = Describe("Ironic controller", func() {
 			Expect(instance.Status.TransportURLSecret).To(Equal("rabbitmq-secret"))
 		})
 		It("Creates ConfigMaps and gets Secrets (input) and set Hash of inputs", func() {
-			th.GetTransportURL(ironicNames.IronicTransportURLName)
-			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),
@@ -154,8 +154,8 @@ var _ = Describe("Ironic controller", func() {
 			)
 		})
 		It("Creates service database instance", func() {
-			th.GetTransportURL(ironicNames.IronicTransportURLName)
-			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.ExpectCondition(
@@ -166,8 +166,8 @@ var _ = Describe("Ironic controller", func() {
 			)
 		})
 		It("Runs service database DBsync", func() {
-			th.GetTransportURL(ironicNames.IronicTransportURLName)
-			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
@@ -179,8 +179,8 @@ var _ = Describe("Ironic controller", func() {
 			)
 		})
 		It("Creates deployment for API, Conductor, Inspector and INA", func() {
-			th.GetTransportURL(ironicNames.IronicTransportURLName)
-			th.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
