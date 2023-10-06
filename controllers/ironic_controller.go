@@ -36,7 +36,6 @@ import (
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
@@ -221,7 +220,7 @@ func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironic
 	r.Log.Info("Reconciling Ironic delete")
 
 	// remove db finalizer first
-	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -584,7 +583,7 @@ func (r *IronicReconciler) reconcileInit(
 	//
 	// create service DB instance
 	//
-	db := database.NewDatabase(
+	db := mariadbv1.NewDatabase(
 		instance.Name,
 		instance.Name,
 		instance.Spec.Secret,

@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironicinspector "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	configmap "github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
@@ -37,7 +38,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	database "github.com/openstack-k8s-operators/lib-common/modules/database"
 
 	routev1 "github.com/openshift/api/route/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -727,7 +727,7 @@ func (r *IronicInspectorReconciler) reconcileDeleteDatabase(
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	// remove db finalizer first
-	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -775,7 +775,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
 	databaseName := strings.Replace(instance.Name, "-", "_", -1)
-	db := database.NewDatabase(
+	db := mariadbv1.NewDatabase(
 		databaseName,
 		databaseName,
 		instance.Spec.Secret,
