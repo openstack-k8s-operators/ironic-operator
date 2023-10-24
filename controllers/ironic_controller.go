@@ -52,14 +52,19 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // IronicReconciler reconciles a Ironic object
 type IronicReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
+}
+
+// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *IronicReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("Ironic")
 }
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironics,verbs=get;list;watch;create;update;patch;delete
@@ -102,7 +107,7 @@ type IronicReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	_ = r.Log.WithValues("ironic", req.NamespacedName)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the Ironic instance
 	instance := &ironicv1.Ironic{}
@@ -123,7 +128,7 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -217,7 +222,9 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic delete")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic delete")
 
 	// remove db finalizer first
 	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
@@ -233,13 +240,15 @@ func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironic
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Ironic delete successfully")
+	Log.Info("Reconciled Ironic delete successfully")
 
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Service")
 
 	// Service account, role, binding
 	rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, getCommonRbacRules())
@@ -279,13 +288,13 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		}
 
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
+			Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
 		}
 
 		instance.Status.TransportURLSecret = transportURL.Status.SecretName
 
 		if instance.Status.TransportURLSecret == "" {
-			r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
+			Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.RabbitMqTransportURLReadyCondition,
 				condition.RequestedReason,
@@ -443,7 +452,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
+			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
 		}
 		// Mirror IronicConductor status' ReadyCount to this parent CR
 		condGrp := conductorSpec.ConductorGroup
@@ -470,7 +479,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		return ctrl.Result{}, err
 	}
 	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicAPI.Name, string(op)))
+		Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicAPI.Name, string(op)))
 	}
 
 	// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
@@ -499,7 +508,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
+			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
 		}
 
 		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
@@ -543,7 +552,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 		if op != controllerutil.OperationResultNone {
-			r.Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicNeutronAgent.Name, string(op)))
+			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicNeutronAgent.Name, string(op)))
 		}
 		// Mirror IronicNeutronAgent status ReadyCount to this parent CR
 		instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgent.Status.ReadyCount
@@ -568,7 +577,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		instance.Status.Conditions.MarkTrue(ironicv1.IronicNeutronAgentReadyCondition, "")
 	}
 
-	r.Log.Info("Reconciled Ironic successfully")
+	Log.Info("Reconciled Ironic successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -578,7 +587,9 @@ func (r *IronicReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic init")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic init")
 
 	//
 	// create service DB instance
@@ -639,14 +650,14 @@ func (r *IronicReconciler) reconcileInit(
 
 	// create service DB - end
 
-	r.Log.Info("Reconciled Ironic init successfully")
+	Log.Info("Reconciled Ironic init successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
-	// r.Log.Info("Reconciling Ironic update")
+	// Log.Info("Reconciling Ironic update")
 
-	// r.Log.Info("Reconciled Ironic update successfully")
+	// Log.Info("Reconciled Ironic update successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -656,7 +667,9 @@ func (r *IronicReconciler) reconcileUpgrade(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Ironic upgrade")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Ironic upgrade")
 
 	//
 	// run ironic db sync
@@ -693,13 +706,13 @@ func (r *IronicReconciler) reconcileUpgrade(
 	}
 	if dbSyncjob.HasChanged() {
 		instance.Status.Hash[ironicv1.DbSyncHash] = dbSyncjob.GetHash()
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[ironicv1.DbSyncHash]))
+		Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[ironicv1.DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	// run ironic db sync - end
 
-	r.Log.Info("Reconciled Ironic upgrade successfully")
+	Log.Info("Reconciled Ironic upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -874,6 +887,8 @@ func (r *IronicReconciler) createHashOfInputHashes(
 	instance *ironicv1.Ironic,
 	envVars map[string]env.Setter,
 ) (string, bool, error) {
+	Log := r.GetLogger(ctx)
+
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -883,7 +898,7 @@ func (r *IronicReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
 }

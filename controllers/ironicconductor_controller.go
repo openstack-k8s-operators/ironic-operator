@@ -24,6 +24,7 @@ import (
 
 	k8s_types "k8s.io/apimachinery/pkg/types"
 
+	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/go-logr/logr"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironicconductor "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicconductor"
@@ -62,8 +62,12 @@ import (
 type IronicConductorReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
+}
+
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *IronicConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("IronicConductor")
 }
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors,verbs=get;list;watch;create;update;patch;delete
@@ -90,7 +94,7 @@ type IronicConductorReconciler struct {
 
 // Reconcile -
 func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	_ = log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the IronicConductor instance
 	instance := &ironicv1.IronicConductor{}
@@ -111,7 +115,7 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -199,18 +203,19 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(o client.Object) []reconcile.Request {
 		result := []reconcile.Request{}
+		Log := r.GetLogger(ctx)
 
 		// get all API CRs
 		apis := &ironicv1.IronicConductorList{}
 		listOpts := []client.ListOption{
 			client.InNamespace(o.GetNamespace()),
 		}
-		if err := r.Client.List(context.Background(), apis, listOpts...); err != nil {
-			r.Log.Error(err, "Unable to retrieve API CRs %v")
+		if err := r.Client.List(ctx, apis, listOpts...); err != nil {
+			Log.Error(err, "Unable to retrieve API CRs %v")
 			return nil
 		}
 
@@ -225,7 +230,7 @@ func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 						Namespace: o.GetNamespace(),
 						Name:      cr.Name,
 					}
-					r.Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
+					Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
 					result = append(result, reconcile.Request{NamespacedName: name})
 				}
 			}
@@ -253,11 +258,13 @@ func (r *IronicConductorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Conductor delete")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Conductor delete")
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Conductor delete successfully")
+	Log.Info("Reconciled Conductor delete successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -268,7 +275,9 @@ func (r *IronicConductorReconciler) reconcileServices(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Conductor Services")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Conductor Services")
 
 	podList, err := ironicconductor.ConductorPods(ctx, instance, helper, serviceLabels)
 	if err != nil {
@@ -302,13 +311,13 @@ func (r *IronicConductorReconciler) reconcileServices(
 				conductorService,
 			)
 			if err != nil && k8s_errors.IsNotFound(err) {
-				r.Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", conductorService.Name))
+				Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", conductorService.Name))
 				err = r.Create(ctx, conductorService)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
 			} else {
-				r.Log.Info(fmt.Sprintf("Service port %s exists, updating it", conductorService.Name))
+				Log.Info(fmt.Sprintf("Service port %s exists, updating it", conductorService.Name))
 				err = r.Update(ctx, conductorService)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -345,13 +354,13 @@ func (r *IronicConductorReconciler) reconcileServices(
 				conductorRoute,
 			)
 			if err != nil && k8s_errors.IsNotFound(err) {
-				r.Log.Info(fmt.Sprintf("Route %s does not exist, creating it", conductorRoute.Name))
+				Log.Info(fmt.Sprintf("Route %s does not exist, creating it", conductorRoute.Name))
 				err = r.Create(ctx, conductorRoute)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
 			} else {
-				r.Log.Info(fmt.Sprintf("Route %s exists, updating it", conductorRoute.Name))
+				Log.Info(fmt.Sprintf("Route %s exists, updating it", conductorRoute.Name))
 				err = r.Update(ctx, conductorRoute)
 				if err != nil {
 					return ctrl.Result{}, err
@@ -365,12 +374,14 @@ func (r *IronicConductorReconciler) reconcileServices(
 	// TODO: rework this
 	//
 
-	r.Log.Info("Reconciled Conductor Services successfully")
+	Log.Info("Reconciled Conductor Services successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Conductor")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Conductor")
 
 	if ironicv1.GetOwningIronicName(instance) == "" {
 		// Service account, role, binding
@@ -615,21 +626,21 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
 
-	r.Log.Info("Reconciled Conductor successfully")
+	Log.Info("Reconciled Conductor successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	// r.Log.Info("Reconciling Service update")
+	// Log.Info("Reconciling Service update")
 
-	// r.Log.Info("Reconciled Service update successfully")
+	// Log.Info("Reconciled Service update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
-	// r.Log.Info("Reconciling Service upgrade")
+	// Log.Info("Reconciling Service upgrade")
 
-	// r.Log.Info("Reconciled Service upgrade successfully")
+	// Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -645,7 +656,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	// create custom Configmap for ironic-conductor-specific config input
 	// - %-config-data configmap holding custom config for the service's ironic.conf
 	//
-
+	Log := r.GetLogger(ctx)
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
 	// customData hold any customization for the service.
@@ -678,7 +689,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	}
 	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
 	if err != nil {
-		r.Log.Error(err, "Failed to get Prefix or Netmask from IP network Prefix (CIDR)")
+		Log.Error(err, "Failed to get Prefix or Netmask from IP network Prefix (CIDR)")
 	}
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
@@ -726,6 +737,8 @@ func (r *IronicConductorReconciler) createHashOfInputHashes(
 	instance *ironicv1.IronicConductor,
 	envVars map[string]env.Setter,
 ) (string, bool, error) {
+	Log := r.GetLogger(ctx)
+
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -735,7 +748,7 @@ func (r *IronicConductorReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
 }

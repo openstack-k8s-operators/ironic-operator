@@ -175,7 +175,6 @@ var _ = BeforeSuite(func() {
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("IronicNeutronAgent"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -183,31 +182,27 @@ var _ = BeforeSuite(func() {
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("IronicInspector"),
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(k8sManager, context.Background())
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.IronicConductorReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("IronicConductor"),
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.IronicAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("IronicAPI"),
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.IronicReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
-		Log:     ctrl.Log.WithName("controllers").WithName("Ironic"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

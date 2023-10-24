@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -35,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/go-logr/logr"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironicapi "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicapi"
@@ -59,7 +59,6 @@ import (
 type IronicAPIReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
 
@@ -72,6 +71,11 @@ var (
 		},
 	}
 )
+
+// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *IronicAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("Ironic")
+}
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis/status,verbs=get;update;patch
@@ -95,7 +99,7 @@ var (
 
 // Reconcile -
 func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	_ = log.FromContext(ctx)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the IronicAPI instance
 	instance := &ironicv1.IronicAPI{}
@@ -116,7 +120,7 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -198,9 +202,11 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(o client.Object) []reconcile.Request {
+		Log := r.GetLogger(ctx)
+
 		result := []reconcile.Request{}
 
 		// get all API CRs
@@ -209,7 +215,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			client.InNamespace(o.GetNamespace()),
 		}
 		if err := r.Client.List(context.Background(), apis, listOpts...); err != nil {
-			r.Log.Error(err, "Unable to retrieve API CRs %v")
+			Log.Error(err, "Unable to retrieve API CRs %v")
 			return nil
 		}
 
@@ -224,7 +230,7 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 						Namespace: o.GetNamespace(),
 						Name:      cr.Name,
 					}
-					r.Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
+					Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
 					result = append(result, reconcile.Request{NamespacedName: name})
 				}
 			}
@@ -252,7 +258,9 @@ func (r *IronicAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling API delete")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling API delete")
 
 	for _, ksSvc := range keystoneServices {
 		// Remove the finalizer from our KeystoneEndpoint CR
@@ -290,7 +298,7 @@ func (r *IronicAPIReconciler) reconcileDelete(ctx context.Context, instance *iro
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled API delete successfully")
+	Log.Info("Reconciled API delete successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -301,7 +309,9 @@ func (r *IronicAPIReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling API init")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling API init")
 
 	//
 	// expose the service (create service and return the created endpoint URLs)
@@ -423,7 +433,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 	if !instance.Spec.Standalone {
 
 		for _, ksSvc := range keystoneServices {
-			r.Log.Info("Reconciled API init successfully")
+			Log.Info("Reconciled API init successfully")
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{
 				ServiceType:        ksSvc["type"],
 				ServiceName:        ksSvc["name"],
@@ -481,12 +491,14 @@ func (r *IronicAPIReconciler) reconcileInit(
 		}
 	}
 
-	r.Log.Info("Reconciled API init successfully")
+	Log.Info("Reconciled API init successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service")
+	Log := r.GetLogger(ctx)
+
+	Log.Info("Reconciling Service")
 
 	if ironicv1.GetOwningIronicName(instance) == "" {
 		// Service account, role, binding
@@ -721,21 +733,21 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 	// create Deployment - end
 
-	r.Log.Info("Reconciled API successfully")
+	Log.Info("Reconciled API successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	// r.Log.Info("Reconciling API update")
+	// Log.Info("Reconciling API update")
 
-	// r.Log.Info("Reconciled API update successfully")
+	// Log.Info("Reconciled API update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
-	// r.Log.Info("Reconciling API upgrade")
+	// Log.Info("Reconciling API upgrade")
 
-	// r.Log.Info("Reconciled API upgrade successfully")
+	// Log.Info("Reconciled API upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -819,6 +831,8 @@ func (r *IronicAPIReconciler) createHashOfInputHashes(
 	instance *ironicv1.IronicAPI,
 	envVars map[string]env.Setter,
 ) (string, bool, error) {
+	Log := r.GetLogger(ctx)
+
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -828,7 +842,7 @@ func (r *IronicAPIReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
 }
