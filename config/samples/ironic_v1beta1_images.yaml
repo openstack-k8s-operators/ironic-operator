@@ -1,8 +1,0 @@
-- op: replace
-  path: /spec/images
-  value:
-    api: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
-    conductor: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-    pxe: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
-    inspector: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
-    neutronAgent: quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified
