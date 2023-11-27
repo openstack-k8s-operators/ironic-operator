@@ -42,7 +42,7 @@ const (
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
 	IronicInputHash        = "n5b8h55ch59ch64ch66dh67bh7h565h687h55bh6hbbhf9h59fh7bhcfh657h68fh5f8h574h654h75h675h695h5f4h588h68dh674h56bh574h5d4h568q"
-	ConductorInputHash     = "n75h57bh9h5b8h5fchcbh55h5fhd5h6dh57bhd5h547h696h5f9h79hffh58fh55fh66bh5b6h68dh9dh5ch694hf5h55bh84h9bh5bch5c5h545q"
+	ConductorInputHash     = "n64bh548h5cfhf6h5cfh68fh97h67ch595h567h88h9h97h8dh565h57h65dh9h575h64bh59bh667h575hbfhf4h598h5f5h5ddh5dch587h5b6h556q"
 	APIInputHash           = "n58ch588h669h549hddh64dhd6h687h5f5h57bh679h5b6hf6hf8h96h58fh684h589h574h54dh95hf5h64bh696h7h86hd4hf6h9fh545h68ch96q"
 )
 
