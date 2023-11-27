@@ -41,8 +41,8 @@ envsubst < ${INSPECTOR_IPXE} | tee ${INSPECTOR_IPXE}
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos
-elif [ -d "/boot/efi/EFI/rhel" ]; then
-    efi_dir=rhel
+elif [ -d "/boot/efi/EFI/redhat" ]; then
+    efi_dir=redhat
 else
     echo "No EFI directory detected"
     exit 1
