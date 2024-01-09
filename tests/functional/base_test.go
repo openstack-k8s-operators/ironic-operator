@@ -41,9 +41,9 @@ const (
 	ContainerImage         = "test://ironic"
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
-	IronicInputHash        = "n5b6h585hf7h555h5ffh66ch5bdh55h695h97h558h7fh5bchbch5cch5dfh68bh667hd5h68h689hbch5b9h584h565hdfh56fh57h64fh58fh77h7fq"
-	ConductorInputHash     = "n5fbh587h74h4h78h5d6h676h677h77hd9hd6h68fh8dh74h5c8hc9hf6h75h64h65dhf8h8fh646h596h8dhf5h74h54chbchb6h558h68q"
-	APIInputHash           = "n6fh657h688h85h547h5d4h7fh5dch9h8h648hf8h8h695hd6h599hch558h5b9h5f5hd6h667h88h584h689h66h59h677hb7h8bh5f8h6dq"
+	IronicInputHash        = "n665h595h685hch649h579h9dh55h678hbch5d6h57ch564hd7hbdh5ddhd9h5c6h644h658h677hf9h5bch64bh574h654h5ddh59bh54ch579h56chc9q"
+	ConductorInputHash     = "n58dh5d4h58fh586h566h697h679h5fh68fhddh5c6h594h5f7h7fh594h5f7h88h588hf9hc4h5b6h5dh65ch95h77h5ddh7dh8fh599h579h55dh5fbq"
+	APIInputHash           = "n64fh5cfh9chfdh667hf9h654hd8h56dh568h675h5cfh8dh57h66bhbch5dfhdh5b4h54ch96h94h574h9h54fh649hf4h56bh566h694h664hfdq"
 )
 
 type IronicNames struct {

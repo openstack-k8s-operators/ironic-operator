@@ -95,9 +95,4 @@ function common_ironic_config {
     crudini --set ${SVC_CFG_MERGED} nova password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} swift password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} inspector password $IRONICPASSWORD
-    # TODO: nova password
-    #crudini --set ${SVC_CFG_MERGED} nova password $NOVAPASSWORD
-    # TODO: service token
-    #crudini --set ${SVC_CFG_MERGED} service_user password $IronicPassword
-
 }
