@@ -46,6 +46,10 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
 	BUNDLE_GEN_FLAGS += --use-image-digests
 endif
 
+# Set the Operator SDK version to use. By default, what is installed on the system is used.
+# This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
+OPERATOR_SDK_VERSION ?= v1.31.0
+
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -59,7 +63,6 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
-# This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
@@ -176,30 +179,30 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-
-
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.11.1
-OPERATOR_SDK_VERSION ?= v1.26.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
 $(KUSTOMIZE): $(LOCALBIN)
-	rm -f $(LOCALBIN)/kustomize || true
-	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
+		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/kustomize; \
+	fi
+	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: envtest
@@ -207,14 +210,30 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(ENVTEST) || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
+.PHONY: operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (, $(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
+endif
+endif
+
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
 	test -s $(LOCALBIN)/ginkgo || GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo
 
-
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
@@ -306,11 +325,6 @@ golangci: get-ci-tools
 golint: get-ci-tools
 	GOWORK=off PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh
 	GOWORK=off PATH=$(GOBIN):$(PATH); $(CI_TOOLS_REPO_DIR)/test-runner/golint.sh ./api
-
-.PHONY: operator-sdk
-operator-sdk: $(OPERATOR_SDK) ## Download operator-sdk locally if necessary.
-$(OPERATOR_SDK): $(LOCALBIN)
-	test -s $(OPERATOR_SDK) || curl -o $(LOCALBIN)/operator-sdk -L https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64 && chmod +x $(LOCALBIN)/operator-sdk
 
 .PHONY: gowork
 gowork: ## Generate go.work file to support our multi module repository
