@@ -13,7 +13,7 @@ require (
 	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240117115727-432678553b37
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240117103205-2bd91a3da216
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20240117103205-2bd91a3da216
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.1-0.20240124160436-36095347284f
 	k8s.io/api v0.26.12
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.26.12
