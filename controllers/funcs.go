@@ -20,6 +20,38 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
+// fields to index to reconcile when change
+const (
+	passwordSecretField     = ".spec.secret"
+	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
+	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
+	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
+)
+
+var (
+	ironicWatchFields = []string{
+		passwordSecretField,
+	}
+	ironicAPIWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+		tlsAPIInternalField,
+		tlsAPIPublicField,
+	}
+	ironicConductorWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+	}
+	ironicInspectorWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+	}
+	ironicNeutronAgentWatchFields = []string{
+		passwordSecretField,
+		caBundleSecretNameField,
+	}
+)
+
 func getCommonRbacRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{

@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
@@ -141,11 +140,10 @@ var _ = Describe("Ironic controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
-			instance := GetIronic(ironicNames.IronicName)
-			Expect(instance.Status.Hash).To(Equal(
-				map[string]string{
-					common.InputHashName: IronicInputHash,
-				}))
+			Eventually(func(g Gomega) {
+				instance := GetIronic(ironicNames.IronicName)
+				g.Expect(instance.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),

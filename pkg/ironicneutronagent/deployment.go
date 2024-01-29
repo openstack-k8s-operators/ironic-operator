@@ -80,6 +80,17 @@ func Deployment(
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	volumes := GetVolumes(instance.Name)
+	volumeMounts := GetVolumeMounts()
+	initVolumeMounts := GetInitVolumeMounts()
+
+	// Add the CA bundle
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
 	terminationGracePeriod := int64(60)
 
@@ -111,18 +122,19 @@ func Deployment(
 								RunAsUser: &runAsUser,
 							},
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   GetVolumeMounts(),
+							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
 							ReadinessProbe: readinessProbe,
 							LivenessProbe:  livenessProbe,
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
+					Volumes:                       volumes,
 				},
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetVolumes(instance.Name)
+
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.
@@ -142,7 +154,7 @@ func Deployment(
 		OSPSecret:            instance.Spec.Secret,
 		TransportURLSecret:   instance.Status.TransportURLSecret,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         GetInitVolumeMounts(),
+		VolumeMounts:         initVolumeMounts,
 	}
 	deployment.Spec.Template.Spec.InitContainers = InitContainer(initContainerDetails)
 

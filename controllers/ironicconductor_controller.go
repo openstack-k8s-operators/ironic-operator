@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
 	k8s_types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -33,10 +35,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -55,6 +59,7 @@ import (
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 )
 
@@ -158,6 +163,7 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
 			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
+			condition.UnknownCondition(condition.TLSInputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
 			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
@@ -241,6 +247,30 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 		return nil
 	}
 
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicConductor{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicConductor)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
+	// index caBundleSecretNameField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicConductor{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicConductor)
+		if cr.Spec.TLS.CaBundleSecretName == "" {
+			return nil
+		}
+		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicConductor{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -254,7 +284,45 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 		// watch the config CMs we don't own
 		Watches(&source.Kind{Type: &corev1.ConfigMap{}},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *IronicConductorReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicConductor")
+
+	for _, field := range ironicConductorWatchFields {
+		crList := &ironicv1.IronicConductorList{}
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
+			Namespace:     src.GetNamespace(),
+		}
+		err := r.List(context.TODO(), crList, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
 }
 
 func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
@@ -458,6 +526,38 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	// run check TransportURL secret - end
 
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+
+	//
+	// TLS input validation
+	//
+	// Validate the CA cert secret if provided
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		hash, ctrlResult, err := tls.ValidateCACertSecret(
+			ctx,
+			helper.GetClient(),
+			types.NamespacedName{
+				Name:      instance.Spec.TLS.CaBundleSecretName,
+				Namespace: instance.Namespace,
+			},
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+
+		if hash != "" {
+			configMapVars[tls.CABundleKey] = env.SetValue(hash)
+		}
+	}
+	// all cert input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
 	//
 	// Create ConfigMaps required as input for the Service and calculate an overall hash of hashes

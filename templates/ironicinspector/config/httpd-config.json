@@ -2,19 +2,7 @@
     "command": "/usr/sbin/httpd -DFOREGROUND",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/ironic.conf",
-            "dest": "/etc/ironic/ironic.conf",
-            "owner": "ironic",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/merged/custom.conf",
-            "dest": "/etc/ironic/ironic.conf.d/custom.conf",
-            "owner": "ironic",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/merged/ironic-api-httpd.conf",
+            "source": "/var/lib/config-data/merged/httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
             "owner": "root",
             "perm": "0644"
@@ -44,8 +32,13 @@
     ],
     "permissions": [
         {
-            "path": "/var/log/ironic",
-            "owner": "ironic:ironic",
+            "path": "/var/log/ironic-inspector",
+            "owner": "ironic-inspector:ironic-inspector",
+            "recurse": true
+        },
+        {
+            "path": "/var/lib/ironic-inspector",
+            "owner": "ironic-inspector:ironic-inspector",
             "recurse": true
         }
     ]

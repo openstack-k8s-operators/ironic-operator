@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,9 +51,7 @@ type IronicConductorTemplate struct {
 	// +kubebuilder:validation:Optional
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
-
 }
-
 
 // IronicConductorSpec defines the desired state of IronicConductor
 type IronicConductorSpec struct {
@@ -110,6 +109,11 @@ type IronicConductorSpec struct {
 	// +kubebuilder:validation:Optional
 	// KeystoneEndpoints - Internally used Keystone API endpoints
 	KeystoneEndpoints KeystoneEndpoints `json:"keystoneEndpoints"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.Ca `json:"tls,omitempty"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor

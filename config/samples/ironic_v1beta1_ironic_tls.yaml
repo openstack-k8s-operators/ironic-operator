@@ -1,0 +1,31 @@
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  name: ironic
+spec:
+  serviceUser: ironic
+  secret: osp-secret
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  storageClass: local-storage
+  ironicAPI:
+    tls:
+      api:
+        internal:
+          secretName: cert-ironic-internal-svc
+        public:
+          secretName: cert-ironic-public-svc
+      caBundleSecretName: combined-ca-bundle
+  ironicConductors:
+  - storageRequest: 10G
+  ironicInspector:
+    tls:
+      api:
+        internal:
+          secretName: cert-ironic-inspector-internal-svc
+        public:
+          secretName: cert-ironic-inspector-public-svc
+      caBundleSecretName: combined-ca-bundle
+  ironicNeutronAgent: {}

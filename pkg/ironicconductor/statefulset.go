@@ -173,6 +173,21 @@ func StatefulSet(
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	volumes := GetVolumes(instance)
+	conductorVolumeMounts := GetVolumeMounts("ironic-conductor")
+	httpbootVolumeMounts := GetVolumeMounts("httpboot")
+	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
+	initVolumeMounts := GetInitVolumeMounts()
+
+	// Add the CA bundle
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		conductorVolumeMounts = append(conductorVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		httpbootVolumeMounts = append(httpbootVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		dnsmasqVolumeMounts = append(dnsmasqVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
 	conductorContainer := corev1.Container{
 		Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
 		Command: []string{
@@ -184,7 +199,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		VolumeMounts:   GetVolumeMounts("ironic-conductor"),
+		VolumeMounts:   conductorVolumeMounts,
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: readinessProbe,
 		LivenessProbe:  livenessProbe,
@@ -201,7 +216,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   GetVolumeMounts("httpboot"),
+		VolumeMounts:   httpbootVolumeMounts,
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: httpbootReadinessProbe,
 		LivenessProbe:  httpbootLivenessProbe,
@@ -232,7 +247,7 @@ func StatefulSet(
 				},
 			},
 			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-			VolumeMounts:   GetVolumeMounts("dnsmasq"),
+			VolumeMounts:   dnsmasqVolumeMounts,
 			Resources:      instance.Spec.Resources,
 			ReadinessProbe: dnsmasqReadinessProbe,
 			LivenessProbe:  dnsmasqLivenessProbe,
@@ -267,11 +282,12 @@ func StatefulSet(
 					ServiceAccountName:            instance.RbacResourceName(),
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
+					Volumes:                       volumes,
 				},
 			},
 		},
 	}
-	statefulset.Spec.Template.Spec.Volumes = GetVolumes(instance)
+
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.
@@ -304,7 +320,7 @@ func StatefulSet(
 		TransportURLSecret:     instance.Spec.TransportURLSecret,
 		DBPasswordSelector:     instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector:   instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:           GetInitVolumeMounts(),
+		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,
 		ConductorInit:          true,
 		DeployHTTPURL:          deployHTTPURL,

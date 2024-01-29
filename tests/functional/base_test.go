@@ -41,9 +41,6 @@ const (
 	ContainerImage         = "test://ironic"
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
-	IronicInputHash        = "n665h595h685hch649h579h9dh55h678hbch5d6h57ch564hd7hbdh5ddhd9h5c6h644h658h677hf9h5bch64bh574h654h5ddh59bh54ch579h56chc9q"
-	ConductorInputHash     = "n58dh5d4h58fh586h566h697h679h5fh68fhddh5c6h594h5f7h7fh594h5f7h88h588hf9hc4h5b6h5dh65ch95h77h5ddh7dh8fh599h579h55dh5fbq"
-	APIInputHash           = "n64fh5cfh9chfdh667hf9h654hd8h56dh568h675h5cfh8dh57h66bhbch5dfhdh5b4h54ch96h94h574h9h54fh649hf4h56bh566h694h664hfdq"
 )
 
 type IronicNames struct {
@@ -60,6 +57,7 @@ type IronicNames struct {
 	APIServiceAccount         types.NamespacedName
 	APIRole                   types.NamespacedName
 	APIRoleBinding            types.NamespacedName
+	APIConfigDataName         types.NamespacedName
 	ConductorName             types.NamespacedName
 	ConductorServiceAccount   types.NamespacedName
 	ConductorRole             types.NamespacedName
@@ -71,9 +69,13 @@ type IronicNames struct {
 	InspectorRoleBinding      types.NamespacedName
 	InspectorDatabaseName     types.NamespacedName
 	InspectorDBSyncJobName    types.NamespacedName
+	InspectorConfigDataName   types.NamespacedName
 	INAName                   types.NamespacedName
 	INATransportURLName       types.NamespacedName
 	KeystoneServiceName       types.NamespacedName
+	InternalCertSecretName    types.NamespacedName
+	PublicCertSecretName      types.NamespacedName
+	CaBundleSecretName        types.NamespacedName
 }
 
 func GetIronicNames(
@@ -146,6 +148,10 @@ func GetIronicNames(
 			Namespace: ironicAPI.Namespace,
 			Name:      "ironicapi-" + ironicAPI.Name + "-rolebinding",
 		},
+		APIConfigDataName: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironic-api-config-data",
+		},
 		ConductorName: types.NamespacedName{
 			Namespace: ironicConductor.Namespace,
 			Name:      ironicConductor.Name,
@@ -190,6 +196,10 @@ func GetIronicNames(
 			Namespace: ironicInspector.Namespace,
 			Name:      ironic_pkg.ServiceName + "-" + ironic_pkg.InspectorComponent + "-db-sync",
 		},
+		InspectorConfigDataName: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironic-inspector-config-data",
+		},
 		INAName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name,
@@ -198,6 +208,15 @@ func GetIronicNames(
 			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name + "-transport",
 		},
+		InternalCertSecretName: types.NamespacedName{
+			Namespace: ironicName.Namespace,
+			Name:      "internal-tls-certs"},
+		PublicCertSecretName: types.NamespacedName{
+			Namespace: ironicName.Namespace,
+			Name:      "public-tls-certs"},
+		CaBundleSecretName: types.NamespacedName{
+			Namespace: ironicName.Namespace,
+			Name:      "combined-ca-bundle"},
 	}
 }
 

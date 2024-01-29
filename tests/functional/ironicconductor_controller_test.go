@@ -16,11 +16,12 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
@@ -120,11 +121,10 @@ var _ = Describe("IronicConductor controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
-			instance := GetIronicConductor(ironicNames.ConductorName)
-			Expect(instance.Status.Hash).To(Equal(
-				map[string]string{
-					common.InputHashName: ConductorInputHash,
-				}))
+			Eventually(func(g Gomega) {
+				instance := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(instance.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
@@ -182,6 +182,105 @@ var _ = Describe("IronicConductor controller", func() {
 			)
 			instance := GetIronicConductor(ironicNames.ConductorName)
 			Expect(instance.Status.ReadyCount).To(Equal(int32(1)))
+		})
+	})
+
+	When("IronicConductor is created with TLS cert secrets", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicConductorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["tls"] = map[string]interface{}{
+				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a StatefulSet for ironic-conductor service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+
+			depl := th.GetStatefulSet(ironicNames.ConductorName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(7))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(ironicNames.CaBundleSecretName.Name, depl.Spec.Template.Spec.Volumes)
+
+			// cert volumeMounts
+			container := depl.Spec.Template.Spec.Containers[1]
+			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
+		})
+
+		It("reconfigures the deployment when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+
+			depl := th.GetStatefulSet(ironicNames.ConductorName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(7))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				depl.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(ironicNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })

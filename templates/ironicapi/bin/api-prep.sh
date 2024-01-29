@@ -15,9 +15,6 @@
 # under the License.
 set -ex
 
-# Ensure localhost.crt is generated for mod_ssl
-/usr/local/bin/kolla_httpd_setup
-
 # TODO(sbaker): remove when https://review.opendev.org/c/openstack/tripleo-common/+/854459 is in the image
 mkdir -p /var/www/cgi-bin/ironic
 cp -a /usr/bin/ironic-api-wsgi /var/www/cgi-bin/ironic/app

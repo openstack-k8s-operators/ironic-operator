@@ -255,6 +255,14 @@ spec:
               storageRequest:
                 description: StorageRequest
                 type: string
+              tls:
+                description: TLS - Parameters related to the TLS
+                properties:
+                  caBundleSecretName:
+                    description: CaBundleSecretName - holding the CA certs in a pre-created
+                      bundle file
+                    type: string
+                type: object
               transportURLSecret:
                 description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string

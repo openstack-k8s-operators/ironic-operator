@@ -173,6 +173,14 @@ spec:
                 description: ServiceUser - optional username used for this service
                   to register in ironic
                 type: string
+              tls:
+                description: TLS - Parameters related to the TLS
+                properties:
+                  caBundleSecretName:
+                    description: CaBundleSecretName - holding the CA certs in a pre-created
+                      bundle file
+                    type: string
+                type: object
             type: object
           status:
             description: IronicNeutronAgentStatus defines the observed state of ML2

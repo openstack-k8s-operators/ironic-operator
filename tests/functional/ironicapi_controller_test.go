@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	corev1 "k8s.io/api/core/v1"
@@ -120,11 +119,10 @@ var _ = Describe("IronicAPI controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
-			instance := GetIronicAPI(ironicNames.APIName)
-			Expect(instance.Status.Hash).To(Equal(
-				map[string]string{
-					common.InputHashName: APIInputHash,
-				}))
+			Eventually(func(g Gomega) {
+				instance := GetIronicAPI(ironicNames.APIName)
+				g.Expect(instance.Status.Hash).Should(HaveKeyWithValue("input", Not(BeEmpty())))
+			}, timeout, interval).Should(Succeed())
 			th.ExpectCondition(
 				ironicNames.APIName,
 				ConditionGetterFunc(IronicAPIConditionGetter),
@@ -209,6 +207,203 @@ var _ = Describe("IronicAPI controller", func() {
 			)
 			instance := GetIronicAPI(ironicNames.APIName)
 			Expect(instance.Status.ReadyCount).To(Equal(int32(1)))
+		})
+	})
+
+	When("IronicAPI is created with TLS cert secrets", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicAPISpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["tls"] = map[string]interface{}{
+				"api": map[string]interface{}{
+					"internal": map[string]interface{}{
+						"secretName": ironicNames.InternalCertSecretName.Name,
+					},
+					"public": map[string]interface{}{
+						"secretName": ironicNames.PublicCertSecretName.Name,
+					},
+				},
+				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
+			}
+
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicAPI(ironicNames.APIName, spec))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the internal cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", ironicNames.Namespace),
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("reports that the public cert secret is missing", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
+
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/public-tls-certs not found", ironicNames.Namespace),
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a Deployment for ironic-api service with TLS certs attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
+
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			depl := th.GetDeployment(ironicNames.IronicName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(ironicNames.CaBundleSecretName.Name, depl.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(ironicNames.InternalCertSecretName.Name, depl.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(ironicNames.PublicCertSecretName.Name, depl.Spec.Template.Spec.Volumes)
+
+			// httpd container certs
+			apiContainer := depl.Spec.Template.Spec.Containers[1]
+			th.AssertVolumeMountExists(ironicNames.InternalCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ironicNames.InternalCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ironicNames.PublicCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ironicNames.PublicCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", apiContainer.VolumeMounts)
+
+			Expect(apiContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+			Expect(apiContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+
+			configDataMap := th.GetConfigMap(ironicNames.APIConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("ironic-api-httpd.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))
+			configData := string(configDataMap.Data["ironic-api-httpd.conf"])
+			Expect(configData).Should(ContainSubstring("SSLEngine on"))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/internal.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
+			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+		})
+
+		It("TLS Endpoints are created", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: ironicNames.APIName.Namespace, Name: "ironic"})
+			endpoints := keystoneEndpoint.Spec.Endpoints
+			Expect(endpoints).To(HaveKeyWithValue("public", string("https://ironic-public."+ironicNames.APIName.Namespace+".svc:6385")))
+			Expect(endpoints).To(HaveKeyWithValue("internal", "https://ironic-internal."+ironicNames.APIName.Namespace+".svc:6385"))
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("reconfigures the deployment when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			depl := th.GetDeployment(ironicNames.IronicName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				depl.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(ironicNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })
