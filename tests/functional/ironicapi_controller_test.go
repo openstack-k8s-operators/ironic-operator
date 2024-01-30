@@ -16,6 +16,8 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -129,6 +131,29 @@ var _ = Describe("IronicAPI controller", func() {
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+		It("generated configs successfully", func() {
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+			instance := GetIronicAPI(ironicNames.APIName)
+			apiConfigMapName := types.NamespacedName{
+				Namespace: instance.Namespace,
+				Name:      fmt.Sprintf("%s-config-data", instance.Name),
+			}
+			configDataMap := th.GetConfigMap(apiConfigMapName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			configData := string(configDataMap.Data["ironic.conf"])
+			// as part of additional hardening we now require service_token_roles_required
+			// to be set to true to ensure that the service token is not just a user token
+			// ironic does not currently rely on the service token for enforcement of elevated
+			// privileges but this is a good practice to follow and might be required in the
+			// future
+			Expect(configData).Should(ContainSubstring("service_token_roles_required = true"))
 		})
 		It("Sets NetworkAttachmentsReady", func() {
 			th.ExpectCondition(
