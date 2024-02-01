@@ -1,0 +1,131 @@
+#
+# Check for:
+#
+# Ironic
+# IronicAPI
+# IronicConductor
+# IronicInspector
+# IronicNeutronAgent
+# Registered TLS endpoints for api and inspector
+#
+
+apiVersion: ironic.openstack.org/v1beta1
+kind: Ironic
+metadata:
+  name: ironic
+spec:
+  databaseInstance: openstack
+  ironicAPI:
+    replicas: 1
+    tls:
+      api:
+        internal:
+          secretName: cert-ironic-internal-svc
+        public:
+          secretName: cert-ironic-public-svc
+      caBundleSecretName: combined-ca-bundle
+  ironicConductors:
+  - replicas: 1
+  ironicInspector:
+    replicas: 1
+    tls:
+      api:
+        internal:
+          secretName: cert-ironic-inspector-internal-svc
+        public:
+          secretName: cert-ironic-inspector-public-svc
+      caBundleSecretName: combined-ca-bundle
+  ironicNeutronAgent:
+    replicas: 1
+status:
+  databaseHostname: openstack
+  ironicAPIReadyCount: 1
+  ironicConductorReadyCount:
+    null_conductor_group_null: 1
+  ironicInspectorReadyCount: 1
+  ironicNeutronAgentReadyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicAPI
+metadata:
+  name: ironic-api
+spec:
+  replicas: 1
+  tls:
+    api:
+      internal:
+        secretName: cert-ironic-internal-svc
+      public:
+        secretName: cert-ironic-public-svc
+    caBundleSecretName: combined-ca-bundle
+status:
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicConductor
+metadata:
+  name: ironic-conductor
+spec:
+  replicas: 1
+  tls:
+    caBundleSecretName: combined-ca-bundle
+status:
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicInspector
+metadata:
+  name: ironic-inspector
+spec:
+  replicas: 1
+  tls:
+    api:
+      internal:
+        secretName: cert-ironic-inspector-internal-svc
+      public:
+        secretName: cert-ironic-inspector-public-svc
+    caBundleSecretName: combined-ca-bundle
+status:
+  databaseHostname: openstack
+  readyCount: 1
+---
+apiVersion: ironic.openstack.org/v1beta1
+kind: IronicNeutronAgent
+metadata:
+  name: ironic-ironic-neutron-agent
+spec:
+  replicas: 1
+  tls:
+    caBundleSecretName: combined-ca-bundle
+status:
+  readyCount: 1
+---
+# the actual addresses of the api endpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the two endpoints are defined and their addresses follow the default pattern
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
+      regex="https:\/\/ironic-internal.$NAMESPACE.*:https:\/\/ironic-public.$NAMESPACE.*"
+      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [[ -n "$matches" ]]; then
+        exit 1
+      fi
+---
+# the actual addresses of the api endpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the two endpoints are defined and their addresses follow the default pattern
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
+      regex="https:\/\/ironic-inspector-internal.$NAMESPACE.*:https:\/\/ironic-inspector-public.$NAMESPACE.*"
+      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic-inspector -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [[ -n "$matches" ]]; then
+        exit 1
+      fi

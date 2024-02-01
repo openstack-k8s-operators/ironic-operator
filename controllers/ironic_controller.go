@@ -739,6 +739,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		DatabaseHostname:        instance.Status.DatabaseHostname,
 		TransportURLSecret:      instance.Status.TransportURLSecret,
 		KeystoneEndpoints:       *keystoneEndpoints,
+		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -985,6 +986,7 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		Secret:                     instance.Spec.Secret,
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
+		TLS:                        instance.Spec.IronicAPI.TLS.Ca,
 	}
 	deployment := &ironicv1.IronicNeutronAgent{
 		ObjectMeta: metav1.ObjectMeta{

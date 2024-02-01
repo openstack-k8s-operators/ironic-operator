@@ -21,6 +21,8 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +33,8 @@ import (
 const (
 	// ServiceCommand -
 	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
+	// IronicInspectorHttpdCommand -
+	IronicInspectorHttpdCommand = "/usr/sbin/httpd -DFOREGROUND"
 )
 
 // StatefulSet func
@@ -40,7 +44,7 @@ func StatefulSet(
 	labels map[string]string,
 	ingressDomain string,
 	annotations map[string]string,
-) *appsv1.StatefulSet {
+) (*appsv1.StatefulSet, error) {
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
@@ -52,6 +56,10 @@ func StatefulSet(
 		TimeoutSeconds:      5,
 		PeriodSeconds:       5,
 		InitialDelaySeconds: 3,
+	}
+	startupProbe := &corev1.Probe{
+		FailureThreshold: 6,
+		PeriodSeconds:    10,
 	}
 	dnsmasqLivenessProbe := &corev1.Probe{
 		TimeoutSeconds:      10,
@@ -83,6 +91,11 @@ func StatefulSet(
 			},
 		}
 		readinessProbe.Exec = &corev1.ExecAction{
+			Command: []string{
+				"/bin/true",
+			},
+		}
+		startupProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
@@ -121,6 +134,15 @@ func StatefulSet(
 			Path: "/v1",
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
 		}
+		startupProbe.HTTPGet = &corev1.HTTPGetAction{
+			Path: "/v1",
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
+		}
+		if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		}
 
 		// (TODO): Use http request if we can create a good request path
 		httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
@@ -142,7 +164,64 @@ func StatefulSet(
 		}
 	}
 
+	// create Volume and VolumeMounts
+	volumes := GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
+	httpbootVolumeMounts := GetVolumeMounts("httpboot")
+	httpdVolumeMounts := GetVolumeMounts("httpd")
+	inspectorVolumeMounts := GetVolumeMounts("ironic-inspector")
+	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
+	initVolumeMounts := GetInitVolumeMounts()
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		httpdVolumeMounts = append(httpdVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		inspectorVolumeMounts = append(inspectorVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		httpbootVolumeMounts = append(httpbootVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		dnsmasqVolumeMounts = append(dnsmasqVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
+		if instance.Spec.TLS.API.Enabled(endpt) {
+			var tlsEndptCfg tls.GenericService
+			switch endpt {
+			case service.EndpointPublic:
+				tlsEndptCfg = instance.Spec.TLS.API.Public
+			case service.EndpointInternal:
+				tlsEndptCfg = instance.Spec.TLS.API.Internal
+			}
+
+			svc, err := tlsEndptCfg.ToService()
+			if err != nil {
+				return nil, err
+			}
+			volumes = append(volumes, svc.CreateVolume(endpt.String()))
+			httpdVolumeMounts = append(httpdVolumeMounts, svc.CreateVolumeMounts(endpt.String())...)
+		}
+	}
+
 	containers := []corev1.Container{}
+
+	httpdEnvVars := map[string]env.Setter{}
+	httpdEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	httpdEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+	httpdContainer := corev1.Container{
+		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent + "-httpd",
+		Image: instance.Spec.ContainerImage,
+		Command: []string{
+			"/bin/bash",
+		},
+		Args:            args,
+		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
+		VolumeMounts:    httpdVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  readinessProbe,
+		LivenessProbe:   livenessProbe,
+		StartupProbe:    startupProbe,
+	}
+	containers = append(containers, httpdContainer)
 
 	inspectorEnvVars := map[string]env.Setter{}
 	inspectorEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
@@ -156,10 +235,11 @@ func StatefulSet(
 		Args:            args,
 		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
-		VolumeMounts:    GetVolumeMounts("ironic-inspector"),
+		VolumeMounts:    inspectorVolumeMounts,
 		Resources:       instance.Spec.Resources,
 		ReadinessProbe:  readinessProbe,
 		LivenessProbe:   livenessProbe,
+		StartupProbe:    startupProbe,
 	}
 	containers = append(containers, inspectorContainer)
 
@@ -177,7 +257,7 @@ func StatefulSet(
 			RunAsUser: &runAsUser,
 		},
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   GetVolumeMounts("httpboot"),
+		VolumeMounts:   httpbootVolumeMounts,
 		Resources:      instance.Spec.Resources,
 		ReadinessProbe: httpbootReadinessProbe,
 		LivenessProbe:  httpbootLivenessProbe,
@@ -206,7 +286,7 @@ func StatefulSet(
 				},
 			},
 			Env:            env.MergeEnvs([]corev1.EnvVar{}, dnsmasqEnvVars),
-			VolumeMounts:   GetVolumeMounts("dnsmasq"),
+			VolumeMounts:   dnsmasqVolumeMounts,
 			Resources:      instance.Spec.Resources,
 			ReadinessProbe: dnsmasqReadinessProbe,
 			LivenessProbe:  dnsmasqLivenessProbe,
@@ -237,11 +317,11 @@ func StatefulSet(
 					ServiceAccountName:            instance.RbacResourceName(),
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
+					Volumes:                       volumes,
 				},
 			},
 		},
 	}
-	statefulset.Spec.Template.Spec.Volumes = GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
 
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
@@ -273,7 +353,7 @@ func StatefulSet(
 		TransportURLSecret:     instance.Status.TransportURLSecret,
 		DBPasswordSelector:     instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector:   instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:           GetInitVolumeMounts(),
+		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,
 		IpaInit:                true,
 		InspectorHTTPURL:       inspectorHTTPURL,
@@ -282,5 +362,5 @@ func StatefulSet(
 	}
 	statefulset.Spec.Template.Spec.InitContainers = InitContainer(initContainerDetails)
 
-	return statefulset
+	return statefulset, nil
 }

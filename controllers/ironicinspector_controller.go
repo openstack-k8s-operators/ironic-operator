@@ -37,13 +37,19 @@ import (
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	routev1 "github.com/openshift/api/route/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
 	k8s_types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -61,6 +67,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -203,6 +210,10 @@ func (r *IronicInspectorReconciler) Reconcile(
 				condition.RabbitMqTransportURLReadyCondition,
 				condition.InitReason,
 				condition.RabbitMqTransportURLReadyInitMessage),
+			condition.UnknownCondition(
+				condition.TLSInputReadyCondition,
+				condition.InitReason,
+				condition.InputReadyInitMessage),
 			// service account, role, rolebinding conditions
 			condition.UnknownCondition(
 				condition.ServiceAccountReadyCondition,
@@ -307,6 +318,30 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		return nil
 	}
 
+	// index passwordSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicInspector{}, passwordSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicInspector)
+		if cr.Spec.Secret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
+	// index caBundleSecretNameField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicInspector{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicInspector)
+		if cr.Spec.TLS.CaBundleSecretName == "" {
+			return nil
+		}
+		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicInspector{}).
 		Owns(&corev1.Secret{}).
@@ -315,11 +350,50 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
+		Owns(&appsv1.StatefulSet{}).
 		// watch the config CMs we don't own
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *IronicInspectorReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+	requests := []reconcile.Request{}
+
+	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicInspector")
+
+	for _, field := range ironicInspectorWatchFields {
+		crList := &ironicv1.IronicInspectorList{}
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
+			Namespace:     src.GetNamespace(),
+		}
+		err := r.List(context.TODO(), crList, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		for _, item := range crList.Items {
+			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+			requests = append(requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      item.GetName(),
+						Namespace: item.GetNamespace(),
+					},
+				},
+			)
+		}
+	}
+
+	return requests
 }
 
 func (r *IronicInspectorReconciler) reconcileTransportURL(
@@ -433,6 +507,54 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	// run check OpenStack secret - end
 
 	//
+	// TLS input validation
+	//
+	// Validate the CA cert secret if provided
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		hash, ctrlResult, err := tls.ValidateCACertSecret(
+			ctx,
+			helper.GetClient(),
+			types.NamespacedName{
+				Name:      instance.Spec.TLS.CaBundleSecretName,
+				Namespace: instance.Namespace,
+			},
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, "", err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, "", nil
+		}
+
+		if hash != "" {
+			configMapVars[tls.CABundleKey] = env.SetValue(hash)
+		}
+	}
+
+	// Validate API service certs secrets
+	certsHash, ctrlResult, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.TLSInputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TLSInputErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, "", err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, "", nil
+	}
+	configMapVars[tls.TLSHashName] = env.SetValue(certsHash)
+
+	// all cert input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
+
+	//
 	// Create ConfigMaps and Secrets required as input for the Service and
 	// calculate an overall hash of hashes
 	//
@@ -476,7 +598,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	} else if hashChanged {
 		// Hash changed and instance status should be updated (which will be done by main defer func),
 		// so we need to return and reconcile again
-		return ctrl.Result{}, "", nil
+		return ctrl.Result{RequeueAfter: time.Second * 5}, "", nil
 	}
 
 	instance.Status.Conditions.MarkTrue(
@@ -503,9 +625,18 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	}
 
 	// Define a new StatefulSet object
+	ssDef, err := ironicinspector.StatefulSet(instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
 	ss := statefulset.NewStatefulSet(
-		ironicinspector.StatefulSet(
-			instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations),
+		ssDef,
 		time.Duration(5)*time.Second,
 	)
 
@@ -1004,7 +1135,12 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		}
 		// create service - end
 
-		// TODO: TLS, pass in https as protocol, create TLS cert
+		// if TLS is enabled
+		if instance.Spec.TLS.API.Enabled(endpointType) {
+			// set endpoint protocol to https
+			data.Protocol = ptr.To(service.ProtocolHTTPS)
+		}
+
 		apiEndpoints[string(endpointType)], err = svc.GetAPIEndpoint(
 			svcOverride.EndpointURL, data.Protocol, data.Path)
 		if err != nil {
@@ -1236,6 +1372,21 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	}
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
+
+	// create httpd  vhost template parameters
+	httpdVhostConfig := map[string]interface{}{}
+	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
+		endptConfig := map[string]interface{}{}
+		endptConfig["ServerName"] = fmt.Sprintf("%s-%s-%s.%s.svc", ironic.ServiceName, ironic.InspectorComponent, endpt.String(), instance.Namespace)
+		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
+		if instance.Spec.TLS.API.Enabled(endpt) {
+			endptConfig["TLS"] = true
+			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
+			endptConfig["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
+		}
+		httpdVhostConfig[endpt.String()] = endptConfig
+	}
+	templateParameters["VHosts"] = httpdVhostConfig
 
 	cms := []util.Template{
 		// Scripts ConfigMap

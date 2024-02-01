@@ -1,0 +1,30 @@
+#
+# Check for:
+#
+# - 4 tls cert secrets
+# - 1 tls ca bundle secrets
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-ironic-internal-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-ironic-public-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-ironic-inspector-internal-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-ironic-inspector-public-svc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: combined-ca-bundle

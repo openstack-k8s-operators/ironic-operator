@@ -20,6 +20,8 @@ import (
 	// "encoding/json"
 	// "fmt"
 
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -193,4 +195,83 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 		})
 	})
 
+	When("IronicNeutronAgent is created with TLS cert secrets", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["tls"] = map[string]interface{}{
+				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
+			}
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+		})
+
+		It("reports that the CA secret is missing", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+			)
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("creates a Deployment for ironic-neutronagent service with TLS CA cert attached", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// cert deployment volumes
+			th.AssertVolumeExists(ironicNames.CaBundleSecretName.Name, depl.Spec.Template.Spec.Volumes)
+
+			// cert volumeMounts
+			container := depl.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
+		})
+
+		It("reconfigures the deployment when CA changes", func() {
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			// Check the resulting deployment fields
+			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				depl.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(ironicNames.CaBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
