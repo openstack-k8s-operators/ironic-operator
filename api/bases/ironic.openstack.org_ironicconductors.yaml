@@ -65,16 +65,6 @@ spec:
               databaseHostname:
                 description: DatabaseHostname - Ironic Database Hostname
                 type: string
-              debug:
-                description: Debug - enable debug for different deploy stages. If
-                  an init container is used, it runs and the actual action pod gets
-                  started with sleep infinity
-                properties:
-                  service:
-                    default: false
-                    description: Service enable debug
-                    type: boolean
-                type: object
               defaultConfigOverwrite:
                 additionalProperties:
                   type: string

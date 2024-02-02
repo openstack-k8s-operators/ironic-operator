@@ -70,7 +70,6 @@ var _ = Describe("IronicAPI controller", func() {
 					Service:  "IronicPassword",
 				}))
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
-			Expect(instance.Spec.Debug.Service).Should(BeFalse())
 		})
 		It("initializes Status fields", func() {
 			instance := GetIronicAPI(ironicNames.APIName)

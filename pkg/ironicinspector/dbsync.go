@@ -19,7 +19,6 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 
-	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,12 +37,7 @@ func DbSyncJob(
 ) *batchv1.Job {
 	runAsUser := int64(0)
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.DBSync {
-		args = append(args, common.DebugCommand)
-	} else {
-		args = append(args, DBSyncCommand)
-	}
+	args := []string{"-c", DBSyncCommand}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")

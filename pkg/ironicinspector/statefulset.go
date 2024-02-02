@@ -82,86 +82,46 @@ func StatefulSet(
 		InitialDelaySeconds: 5,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		startupProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, ServiceCommand)
+	args := []string{"-c", ServiceCommand}
 
-		//
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		//
-		livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
-		}
-		readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
-		}
-		startupProbe.HTTPGet = &corev1.HTTPGetAction{
-			Path: "/v1",
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
-		}
-		if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-			startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		}
+	//
+	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+	//
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: "/v1",
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: "/v1",
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
+	}
+	startupProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: "/v1",
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(IronicInspectorInternalPort)},
+	}
+	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+	}
 
-		// (TODO): Use http request if we can create a good request path
-		httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
-		}
-		httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
-		}
+	// (TODO): Use http request if we can create a good request path
+	httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+	}
+	httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+	}
 
-		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-			},
-		}
-		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-			},
-		}
+	dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		},
+	}
+	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		},
 	}
 
 	// create Volume and VolumeMounts
