@@ -16,7 +16,7 @@ spec:
         - name: RELATED_IMAGE_IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
         - name: RELATED_IMAGE_IRONIC_INSPECTOR_IMAGE_URL_DEFAULT
-          value: quay.io/mschuppe/openstack-ironic-inspector:inspector-httpd
+          value: quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified
         - name: RELATED_IMAGE_IRONIC_PXE_IMAGE_URL_DEFAULT
           value: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
         - name: RELATED_IMAGE_IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT
