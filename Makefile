@@ -67,6 +67,9 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Extra vars which will be passed to the Docker-build
+DOCKER_BUILD_ARGS ?=
+
 .PHONY: all
 all: build
 
@@ -143,7 +146,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	podman build -t ${IMG} .
+	podman build -t ${IMG} . ${DOCKER_BUILD_ARGS}
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
