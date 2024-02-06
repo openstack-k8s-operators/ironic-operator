@@ -72,7 +72,6 @@ var _ = Describe("IronicConductor controller", func() {
 				}))
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
-			Expect(instance.Spec.Debug.Service).Should(BeFalse())
 		})
 		It("initializes Status fields", func() {
 			instance := GetIronicConductor(ironicNames.ConductorName)

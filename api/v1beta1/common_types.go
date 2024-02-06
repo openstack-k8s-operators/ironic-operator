@@ -23,11 +23,6 @@ import (
 // IronicServiceTemplate defines the common input parameters for Ironic services
 type IronicServiceTemplate struct {
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug IronicServiceDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=32
 	// +kubebuilder:validation:Minimum=0
@@ -71,29 +66,6 @@ type PasswordSelector struct {
 	Service string `json:"service"`
 }
 
-// IronicDebug defines all debug parameters
-type IronicDebug struct {
-	// Debug parameters for dbsync
-	IronicDBSyncDebug `json:",inline"`
-
-	// Debug parameters for service
-	IronicServiceDebug `json:",inline"`
-}
-
-// IronicDBSyncDebug defines debug parameters for dbsync
-type IronicDBSyncDebug struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// DBSync enable debug
-	DBSync bool `json:"dbSync"`
-}
-// IronicServiceDebug defines debug parameters for service
-type IronicServiceDebug struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Service enable debug
-	Service bool `json:"service"`
-}
 // KeystoneEndpoints defines keystone endpoint parameters for service
 type KeystoneEndpoints struct {
 	// +kubebuilder:validation:Optional

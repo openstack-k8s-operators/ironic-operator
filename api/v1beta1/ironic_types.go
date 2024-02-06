@@ -81,11 +81,6 @@ type IronicSpec struct {
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug IronicDBSyncDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=true
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs"`

@@ -46,34 +46,17 @@ func Deployment(
 		InitialDelaySeconds: 3,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, ServiceCommand)
-
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	args := []string{"-c", ServiceCommand}
+	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/bin/true",
+		},
+	}
+	readinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/bin/true",
+		},
 	}
 
 	envVars := map[string]env.Setter{}

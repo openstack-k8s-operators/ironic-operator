@@ -34,8 +34,6 @@ spec:
     serviceUser: ironic-inspector
   ironicNeutronAgent:
     customServiceConfig: "# add your customization here"
-    debug:
-      service: false
     replicas: 1
   passwordSelectors:
     database: IronicDatabasePassword
@@ -68,8 +66,6 @@ metadata:
 spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
-  debug:
-    service: false
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -98,8 +94,6 @@ spec:
   conductorGroup: ""
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack
-  debug:
-    service: false
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -128,9 +122,6 @@ metadata:
 spec:
   customServiceConfig: '# add your customization here'
   databaseInstance: openstack
-  debug:
-    dbSync: false
-    service: false
   passwordSelectors:
     database: IronicInspectorDatabasePassword
     service: IronicInspectorPassword
@@ -160,8 +151,6 @@ metadata:
     name: ironic
 spec:
   customServiceConfig: "# add your customization here"
-  debug:
-    service: false
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword

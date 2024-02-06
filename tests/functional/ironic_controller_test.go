@@ -72,7 +72,6 @@ var _ = Describe("Ironic controller", func() {
 				}))
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
-			Expect(instance.Spec.Debug.DBSync).Should(BeFalse())
 			Expect(instance.Spec.PreserveJobs).Should(BeTrue())
 			Expect(instance.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
 		})

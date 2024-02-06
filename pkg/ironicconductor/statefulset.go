@@ -74,91 +74,53 @@ func StatefulSet(
 		InitialDelaySeconds: 5,
 	}
 
-	args := []string{"-c"}
-	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
+	args := []string{"-c", ServiceCommand}
+
+	//
+	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+	//
+
+	if instance.Spec.RPCTransport == "json-rpc" {
+		// (TODO) Make a http request to the JSON-RPC port ?
+		livenessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
+		}
+		readinessProbe.TCPSocket = &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
+		}
+	} else {
+		// TODO
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
 		}
-
+		// TODO
 		readinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
 		}
-		httpbootLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	}
 
-		httpbootReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	// (TODO): Use http request if we can create a good request path
+	httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+	}
+	httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+	}
 
-		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-	} else {
-		args = append(args, ServiceCommand)
+	dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		},
+	}
 
-		//
-		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-		//
-
-		if instance.Spec.RPCTransport == "json-rpc" {
-			// (TODO) Make a http request to the JSON-RPC port ?
-			livenessProbe.TCPSocket = &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
-			}
-			readinessProbe.TCPSocket = &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
-			}
-		} else {
-			// TODO
-			livenessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"/bin/true",
-				},
-			}
-			// TODO
-			readinessProbe.Exec = &corev1.ExecAction{
-				Command: []string{
-					"/bin/true",
-				},
-			}
-		}
-
-		// (TODO): Use http request if we can create a good request path
-		httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
-		}
-		httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
-		}
-
-		dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-			},
-		}
-
-		dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-			},
-		}
+	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
+		},
 	}
 
 	envVars := map[string]env.Setter{}
