@@ -39,7 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -68,15 +67,13 @@ type IronicAPIReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-var (
-	keystoneServices = []map[string]string{
-		{
-			"type": ironic.ServiceType,
-			"name": ironic.ServiceName,
-			"desc": "Ironic baremetal provisioning service",
-		},
-	}
-)
+var keystoneServices = []map[string]string{
+	{
+		"type": ironic.ServiceType,
+		"name": ironic.ServiceName,
+		"desc": "Ironic baremetal provisioning service",
+	},
+}
 
 // GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
 func (r *IronicAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
@@ -211,7 +208,7 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
-	configMapFn := func(o client.Object) []reconcile.Request {
+	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
 		Log := r.GetLogger(ctx)
 
 		result := []reconcile.Request{}
@@ -307,17 +304,17 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		// watch the config CMs we don't own
-		Watches(&source.Kind{Type: &corev1.ConfigMap{}},
+		Watches(&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *IronicAPIReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicAPI")
@@ -529,7 +526,6 @@ func (r *IronicAPIReconciler) reconcileInit(
 	// TODO: rework this
 	//
 	if !instance.Spec.Standalone {
-
 		for _, ksSvc := range keystoneServices {
 			Log.Info("Reconciled API init successfully")
 			ksSvcSpec := keystonev1.KeystoneServiceSpec{

@@ -42,7 +42,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -211,7 +210,7 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
-	configMapFn := func(o client.Object) []reconcile.Request {
+	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
 		result := []reconcile.Request{}
 		Log := r.GetLogger(ctx)
 
@@ -282,17 +281,17 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		// watch the config CMs we don't own
-		Watches(&source.Kind{Type: &corev1.ConfigMap{}},
+		Watches(&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *IronicConductorReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicConductor")

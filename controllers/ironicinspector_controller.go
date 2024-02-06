@@ -51,7 +51,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 
@@ -80,15 +79,13 @@ type IronicInspectorReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-var (
-	inspectorKeystoneServices = []map[string]string{
-		{
-			"name": "ironic-inspector",
-			"type": "baremetal-introspection",
-			"desc": "OpenStack Baremetal-Introspection Service",
-		},
-	}
-)
+var inspectorKeystoneServices = []map[string]string{
+	{
+		"name": "ironic-inspector",
+		"type": "baremetal-introspection",
+		"desc": "OpenStack Baremetal-Introspection Service",
+	},
+}
 
 // GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
 func (r *IronicInspectorReconciler) GetLogger(ctx context.Context) logr.Logger {
@@ -269,9 +266,10 @@ func (r *IronicInspectorReconciler) Reconcile(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicInspectorReconciler) SetupWithManager(
-	mgr ctrl.Manager, ctx context.Context) error {
+	mgr ctrl.Manager, ctx context.Context,
+) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
-	configMapFn := func(o client.Object) []reconcile.Request {
+	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
 		Log := r.GetLogger(ctx)
 
 		result := []reconcile.Request{}
@@ -294,7 +292,6 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		// TODO: Just trying to verify that the CM is owned by this CR's managing CR
 		if l, ok := label[labels.GetOwnerNameLabelSelector(
 			labels.GetGroupLabel(ironic.ServiceName))]; ok {
-
 			for _, cr := range apis.Items {
 				// return reconcil event for the CR where the CM owner label
 				// AND the parentIronicName matches
@@ -353,17 +350,17 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Owns(&appsv1.StatefulSet{}).
 		// watch the config CMs we don't own
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
+			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(configMapFn)).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *IronicInspectorReconciler) findObjectsForSrc(src client.Object) []reconcile.Request {
+func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
 	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicInspector")
@@ -415,7 +412,6 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 			instance,
 			helper,
 		)
-
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.RabbitMqTransportURLReadyCondition,
@@ -618,7 +614,6 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 	serviceLabels map[string]string,
 	serviceAnnotations map[string]string,
 ) (ctrl.Result, error) {
-
 	ingressDomain, err := ironic.GetIngressDomain(ctx, helper)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -1330,7 +1325,8 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	// overwrite of e.g. policy.json.
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
+	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
