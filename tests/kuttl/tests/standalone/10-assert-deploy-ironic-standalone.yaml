@@ -41,7 +41,7 @@ spec:
   serviceUser: ironic
   standalone: true
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   ironicAPIReadyCount: 1
   ironicConductorReadyCount:
     null_conductor_group_null: 1
@@ -60,7 +60,7 @@ metadata:
     name: ironic
 spec:
   customServiceConfig: '# add your customization here'
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -88,7 +88,7 @@ metadata:
 spec:
   conductorGroup: ""
   customServiceConfig: '# add your customization here'
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   passwordSelectors:
     database: IronicDatabasePassword
     service: IronicPassword
@@ -129,5 +129,5 @@ spec:
   serviceUser: ironic-inspector
   standalone: true
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   readyCount: 1

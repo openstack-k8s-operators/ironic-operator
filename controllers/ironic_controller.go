@@ -86,6 +86,8 @@ func (r *IronicReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts/finalizers,verbs=update
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 
@@ -212,6 +214,7 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&ironicv1.IronicInspector{}).
 		Owns(&ironicv1.IronicNeutronAgent{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
@@ -275,7 +278,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			instance,
 			helper,
 		)
-
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.RabbitMqTransportURLReadyCondition,

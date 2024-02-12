@@ -3,5 +3,5 @@ kind: IronicConductor
 metadata:
   name: ironicconductor-sample
 spec:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   storageRequest: 10G

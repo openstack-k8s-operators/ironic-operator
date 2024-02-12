@@ -38,7 +38,7 @@ spec:
   ironicNeutronAgent:
     replicas: 1
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   ironicAPIReadyCount: 1
   ironicConductorReadyCount:
     null_conductor_group_null: 1
@@ -86,7 +86,7 @@ spec:
         secretName: cert-ironic-inspector-public-svc
     caBundleSecretName: combined-ca-bundle
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   readyCount: 1
 ---
 apiVersion: ironic.openstack.org/v1beta1

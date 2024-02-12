@@ -3,4 +3,4 @@ kind: IronicAPI
 metadata:
   name: ironicapi-sample
 spec:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
