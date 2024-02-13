@@ -23,7 +23,7 @@ spec:
     replicas: 1
   secret: osp-secret
 status:
-  databaseHostname: openstack
+  databaseHostname: openstack.ironic-kuttl-tests.svc
   ironicAPIReadyCount: 1
   ironicConductorReadyCount:
     null_conductor_group_null: 1

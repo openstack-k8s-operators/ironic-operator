@@ -154,6 +154,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
@@ -166,6 +167,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			th.ExpectCondition(
@@ -179,6 +181,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			Eventually(func(g Gomega) {
