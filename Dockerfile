@@ -50,16 +50,16 @@ ARG IMAGE_TAGS="cn-openstack openstack"
 
 # Labels required by upstream and osbs build system
 LABEL com.redhat.component="${IMAGE_COMPONENT}" \
-      name="${IMAGE_NAME}" \
-      version="${IMAGE_VERSION}" \
-      summary="${IMAGE_SUMMARY}" \
-      io.k8s.name="${IMAGE_NAME}" \
-      io.k8s.description="${IMAGE_DESC}" \
-      io.openshift.tags="${IMAGE_TAGS}"
+	name="${IMAGE_NAME}" \
+	version="${IMAGE_VERSION}" \
+	summary="${IMAGE_SUMMARY}" \
+	io.k8s.name="${IMAGE_NAME}" \
+	io.k8s.description="${IMAGE_DESC}" \
+	io.openshift.tags="${IMAGE_TAGS}"
 ### DO NOT EDIT LINES ABOVE
 
 ENV USER_UID=$USER_ID \
-    OPERATOR_TEMPLATES=/usr/share/ironic-operator/templates/
+	OPERATOR_TEMPLATES=/usr/share/ironic-operator/templates/
 
 WORKDIR /
 

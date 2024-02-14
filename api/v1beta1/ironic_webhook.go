@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -90,11 +91,13 @@ func (r *Ironic) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/validate-ironic-openstack-org-v1beta1-ironic,mutating=false,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=vironic.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/mutate-ironic-openstack-org-v1beta1-ironic,mutating=true,failurePolicy=fail,sideEffects=None,groups=ironic.openstack.org,resources=ironics,verbs=create;update,versions=v1beta1,name=mironic.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Ironic{}
-var _ webhook.Defaulter = &Ironic{}
+var (
+	_ webhook.Validator = &Ironic{}
+	_ webhook.Defaulter = &Ironic{}
+)
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Ironic) ValidateCreate() error {
+func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
 	ironiclog.Info("validate create", "name", r.Name)
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
@@ -103,12 +106,12 @@ func (r *Ironic) ValidateCreate() error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "ironic.openstack.org", Kind: "Ironic"},
 			r.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateCreate - Exported function wrapping non-exported validate functions,
@@ -140,12 +143,12 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Ironic) ValidateUpdate(old runtime.Object) error {
+func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	ironiclog.Info("validate update", "name", r.Name)
 
 	oldIronic, ok := old.(*Ironic)
 	if !ok || oldIronic == nil {
-		return apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
+		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
 	var allErrs field.ErrorList
@@ -156,12 +159,12 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "ironic.openstack.org", Kind: "Ironic"},
 			r.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
@@ -193,11 +196,11 @@ func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) fie
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Ironic) ValidateDelete() error {
+func (r *Ironic) ValidateDelete() (admission.Warnings, error) {
 	ironiclog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
 
 func validateInspectorSpec(spec *IronicSpec, basePath *field.Path) field.ErrorList {
