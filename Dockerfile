@@ -1,5 +1,5 @@
-ARG GOLANG_BUILDER=quay.io/projectquay/golang:1.20
-ARG OPERATOR_BASE_IMAGE=gcr.io/distroless/base
+ARG GOLANG_BUILDER=registry.access.redhat.com/ubi9/go-toolset:1.20
+ARG OPERATOR_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 # Build the manager binary
 FROM $GOLANG_BUILDER AS builder
@@ -12,12 +12,13 @@ ARG REMOTE_SOURCE_DIR=/remote-source
 ARG REMOTE_SOURCE_SUBDIR=
 ARG DEST_ROOT=/dest-root
 
-ARG GO_BUILD_EXTRA_ARGS=
+ARG GO_BUILD_EXTRA_ARGS="-tags strictfipsruntime"
 ARG GO_BUILD_EXTRA_ENV_ARGS="CGO_ENABLED=1 GO111MODULE=on"
 
 COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
 WORKDIR $REMOTE_SOURCE_DIR/$REMOTE_SOURCE_SUBDIR
 
+USER root
 RUN mkdir -p ${DEST_ROOT}/usr/local/bin/
 
 # cache deps before building and copying source so that we don't need to re-download as much
@@ -50,16 +51,16 @@ ARG IMAGE_TAGS="cn-openstack openstack"
 
 # Labels required by upstream and osbs build system
 LABEL com.redhat.component="${IMAGE_COMPONENT}" \
-	name="${IMAGE_NAME}" \
-	version="${IMAGE_VERSION}" \
-	summary="${IMAGE_SUMMARY}" \
-	io.k8s.name="${IMAGE_NAME}" \
-	io.k8s.description="${IMAGE_DESC}" \
-	io.openshift.tags="${IMAGE_TAGS}"
+  name="${IMAGE_NAME}" \
+  version="${IMAGE_VERSION}" \
+  summary="${IMAGE_SUMMARY}" \
+  io.k8s.name="${IMAGE_NAME}" \
+  io.k8s.description="${IMAGE_DESC}" \
+  io.openshift.tags="${IMAGE_TAGS}"
 ### DO NOT EDIT LINES ABOVE
 
 ENV USER_UID=$USER_ID \
-	OPERATOR_TEMPLATES=/usr/share/ironic-operator/templates/
+  OPERATOR_TEMPLATES=/usr/share/ironic-operator/templates/
 
 WORKDIR /
 
