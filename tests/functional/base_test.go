@@ -24,6 +24,8 @@ import (
 
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -528,8 +530,22 @@ func CreateFakeIngressController() {
 		},
 	}
 
+	crd := &unstructured.Unstructured{}
+	crd.SetGroupVersionKind(
+		schema.GroupVersionKind{
+			Group:   "apiextensions.k8s.io",
+			Version: "v1",
+			Kind:    "CustomResourceDefinition",
+		},
+	)
+
 	// Create fake custom resource, namespace and fake ingresscontroller
 	th.CreateUnstructured(fakeCustomResorce)
+	Eventually(func(g Gomega) {
+		g.Expect(th.K8sClient.Get(th.Ctx, client.ObjectKey{
+			Name: "ingresscontrollers.operator.openshift.io",
+		}, crd)).Should(Succeed())
+	}, th.Timeout, th.Interval).Should(Succeed())
 	th.CreateNamespace(name.Namespace)
 	th.CreateUnstructured(fakeIngressController)
 }
