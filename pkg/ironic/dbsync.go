@@ -90,7 +90,6 @@ func DbSyncJob(
 		DatabaseHost:         instance.Status.DatabaseHostname,
 		DatabaseName:         DatabaseName,
 		OSPSecret:            instance.Spec.Secret,
-		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:         initVolumeMounts,
 	}

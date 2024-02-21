@@ -23,7 +23,9 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("IronicInspector controller", func() {
@@ -114,13 +116,13 @@ var _ = Describe("IronicInspector controller", func() {
 			instance := GetIronicInspector(ironicNames.InspectorName)
 			Expect(instance.Status.TransportURLSecret).To(Equal("rabbitmq-secret"))
 		})
-		It("Creates ConfigMaps and gets Secrets (input)", func() {
+		It("Creates Config Secrets and gets Secrets (input)", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
-			cm := th.GetConfigMap(ironicNames.InspectorConfigDataName)
+			cm := th.GetSecret(ironicNames.InspectorConfigSecretName)
 			myCnf := cm.Data["my.cnf"]
 			Expect(myCnf).To(
 				ContainSubstring("[client]\nssl=0"))
@@ -142,7 +144,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
@@ -155,7 +157,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.ExpectCondition(
@@ -169,7 +171,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.ExpectCondition(
@@ -183,7 +185,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -224,7 +226,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -247,7 +249,7 @@ var _ = Describe("IronicInspector controller", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -303,7 +305,7 @@ var _ = Describe("IronicInspector controller", func() {
 
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.InspectorDatabaseName)
 		})
 
@@ -397,7 +399,7 @@ var _ = Describe("IronicInspector controller", func() {
 			Expect(container.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 			Expect(container.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 
-			configDataMap := th.GetConfigMap(ironicNames.InspectorConfigDataName)
+			configDataMap := th.GetSecret(ironicNames.InspectorConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("httpd.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("ssl.conf"))
@@ -472,4 +474,93 @@ var _ = Describe("IronicInspector controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
+	// that exercise standard account create / update patterns that should be
+	// common to all controllers that ensure MariaDBAccount CRs.
+	mariadbSuite := &mariadb_test.MariaDBTestHarness{
+		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
+			harness.Setup(
+				"IronicInspector",
+				ironicNames.Namespace,
+				ironicNames.InspectorDatabaseName.Name,
+				"IronicInspector",
+				mariadb,
+				timeout,
+				interval,
+			)
+		},
+		// Generate a fully running Ironic Inspector service given an accountName
+		// needs to make it all the way to the end where the mariadb finalizers
+		// are removed from unused accounts since that's part of what we are testing
+		SetupCR: func(accountName types.NamespacedName) {
+			spec := GetDefaultIronicInspectorSpec()
+
+			spec["databaseAccount"] = accountName.Name
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			spec["rpcTransport"] = "oslo"
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicInspector(ironicNames.InspectorName, spec))
+
+			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(accountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+
+		},
+		// Change the account name in the service to a new name
+		UpdateAccount: func(newAccountName types.NamespacedName) {
+
+			Eventually(func(g Gomega) {
+				inspector := GetIronicInspector(ironicNames.InspectorName)
+				inspector.Spec.DatabaseAccount = newAccountName.Name
+				g.Expect(th.K8sClient.Update(ctx, inspector)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		// delete the keystone instance to exercise finalizer removal
+		DeleteCR: func() {
+			th.DeleteInstance(GetIronicInspector(ironicNames.InspectorName))
+		},
+	}
+
+	mariadbSuite.RunBasicSuite()
+
+	mariadbSuite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
+		Eventually(func(g Gomega) {
+			configDataMap := th.GetSecret(ironicNames.InspectorConfigSecretName)
+
+			conf := configDataMap.Data["inspector.conf"]
+
+			g.Expect(string(conf)).Should(
+				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/ironic_inspector?read_default_file=/etc/my.cnf",
+					username, password, ironicNames.Namespace)))
+		}).Should(Succeed())
+	})
+
 })

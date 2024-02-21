@@ -72,17 +72,22 @@ type IronicAPISpec struct {
 	ServiceUser string `json:"serviceUser"`
 
 	// +kubebuilder:validation:Optional
-	// Secret containing OpenStack password information for IronicDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for AdminPassword
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
+	// +kubebuilder:default={service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Required
 	// DatabaseHostname - Ironic Database Hostname
 	DatabaseHostname string `json:"databaseHostname"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=ironic
+	// DatabaseAccount - optional MariaDBAccount used for ironic DB, defaults to ironic.
+	DatabaseAccount string `json:"databaseAccount"`
 
 	// +kubebuilder:validation:Optional
 	// Secret containing RabbitMq transport URL

@@ -24,13 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IronicInspectorPasswordSelector to identify the DB and AdminUser password from the Secret
+// IronicInspectorPasswordSelector to identify the AdminUser password from the Secret
 type IronicInspectorPasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="IronicInspectorDatabasePassword"
-	// Database - Selector to get the ironic-inspector Database user password from the Secret
-	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="IronicInspectorPassword"
 	// Service - Selector to get the ironic-inspector service password from the Secret
@@ -52,8 +47,16 @@ type IronicInspectorTemplate struct {
 	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicInspectorDatabasePassword, service: IronicInspectorPassword}
-	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
+	// +kubebuilder:default=ironic-inspector
+	// DatabaseAccount - optional MariaDBAccount used for ironic DB, defaults to ironic-inspector.
+	// this is separate from the account used for ironic, as a MariaDBAccount can only
+	// refer to a single MariaDBDatabase and it appears that ironic inspector uses its
+	// own MariaDBDatabase.
+	DatabaseAccount string `json:"databaseAccount"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={service: IronicInspectorPassword}
+	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
 	PasswordSelectors IronicInspectorPasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
@@ -146,7 +149,7 @@ type IronicInspectorSpec struct {
 	DatabaseInstance string `json:"databaseInstance"`
 
 	// +kubebuilder:validation:Optional
-	// Secret containing OpenStack password information for IronicInspectorDatabasePassword, AdminPassword
+	// Secret containing OpenStack password information for AdminPassword
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional

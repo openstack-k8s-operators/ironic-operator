@@ -30,7 +30,6 @@ type APIDetails struct {
 	DatabaseName           string
 	TransportURLSecret     string
 	OSPSecret              string
-	DBPasswordSelector     string
 	UserPasswordSelector   string
 	VolumeMounts           []corev1.VolumeMount
 	Privileged             bool
@@ -61,17 +60,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["IngressDomain"] = env.SetValue(init.IngressDomain)
 
 	envs := []corev1.EnvVar{
-		{
-			Name: "DatabasePassword",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: init.OSPSecret,
-					},
-					Key: init.DBPasswordSelector,
-				},
-			},
-		},
 		{
 			Name: "IronicPassword",
 			ValueFrom: &corev1.EnvVarSource{

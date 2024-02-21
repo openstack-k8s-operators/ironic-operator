@@ -3,6 +3,8 @@ package ironicinspector
 const (
 	// DatabaseName -
 	DatabaseName = "ironic_inspector"
+	// DatabaseCRName -
+	DatabaseCRName = "ironic-inspector"
 	// IronicInspectorPublicPort -
 	IronicInspectorPublicPort int32 = 5050
 	// IronicInspectorInternalPort -

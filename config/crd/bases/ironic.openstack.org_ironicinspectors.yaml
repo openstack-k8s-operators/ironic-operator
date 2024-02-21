@@ -59,6 +59,14 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
+              databaseAccount:
+                default: ironic-inspector
+                description: DatabaseAccount - optional MariaDBAccount used for ironic
+                  DB, defaults to ironic-inspector. this is separate from the account
+                  used for ironic, as a MariaDBAccount can only refer to a single
+                  MariaDBDatabase and it appears that ironic inspector uses its own
+                  MariaDBDatabase.
+                type: string
               databaseInstance:
                 description: MariaDB instance name. Right now required by the maridb-operator
                   to get the credentials from the instance to create the DB. Might
@@ -304,17 +312,10 @@ spec:
                 type: object
               passwordSelectors:
                 default:
-                  database: IronicInspectorDatabasePassword
                   service: IronicInspectorPassword
-                description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password from the Secret
+                description: PasswordSelectors - Selectors to identify the ServiceUser
+                  password from the Secret
                 properties:
-                  database:
-                    default: IronicInspectorDatabasePassword
-                    description: 'Database - Selector to get the ironic-inspector
-                      Database user password from the Secret TODO: not used, need
-                      change in mariadb-operator'
-                    type: string
                   service:
                     default: IronicInspectorPassword
                     description: Service - Selector to get the ironic-inspector service
@@ -403,7 +404,7 @@ spec:
                 type: string
               secret:
                 description: Secret containing OpenStack password information for
-                  IronicInspectorDatabasePassword, AdminPassword
+                  AdminPassword
                 type: string
               serviceUser:
                 default: ironic-inspector

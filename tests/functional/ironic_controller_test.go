@@ -17,12 +17,15 @@ limitations under the License.
 package functional_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -67,8 +70,7 @@ var _ = Describe("Ironic controller", func() {
 			Expect(instance.Spec.Standalone).Should(BeFalse())
 			Expect(instance.Spec.PasswordSelectors).Should(Equal(
 				ironicv1.PasswordSelector{
-					Database: "IronicDatabasePassword",
-					Service:  "IronicPassword",
+					Service: "IronicPassword",
 				}))
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
@@ -134,9 +136,9 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
-			cm := th.GetConfigMap(ironicNames.IronicConfigDataName)
+			cm := th.GetSecret(ironicNames.IronicConfigSecretName)
 			myCnf := cm.Data["my.cnf"]
 			Expect(myCnf).To(
 				ContainSubstring("[client]\nssl=0"))
@@ -161,7 +163,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.ExpectCondition(
 				ironicNames.IronicName,
@@ -174,7 +176,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			th.ExpectCondition(
@@ -188,7 +190,7 @@ var _ = Describe("Ironic controller", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			Eventually(func(g Gomega) {
@@ -217,4 +219,103 @@ var _ = Describe("Ironic controller", func() {
 			}, th.Timeout, th.Interval).Should(Succeed())
 		})
 	})
+
+	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
+	// that exercise standard account create / update patterns that should be
+	// common to all controllers that ensure MariaDBAccount CRs.
+	mariadbSuite := &mariadb_test.MariaDBTestHarness{
+		PopulateHarness: func(harness *mariadb_test.MariaDBTestHarness) {
+			harness.Setup(
+				"Ironic",
+				ironicNames.Namespace,
+				ironicNames.IronicDatabaseName.Name,
+				"Ironic",
+				mariadb,
+				timeout,
+				interval,
+			)
+		},
+		// Generate a fully running Ironic service given an accountName
+		// needs to make it all the way to the end where the mariadb finalizers
+		// are removed from unused accounts since that's part of what we are testing
+		SetupCR: func(accountName types.NamespacedName) {
+			spec := GetDefaultIronicSpec()
+
+			spec["databaseAccount"] = accountName.Name
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(accountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.DBSyncReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+		},
+		// Change the account name in the service to a new name
+		UpdateAccount: func(newAccountName types.NamespacedName) {
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				ironic.Spec.DatabaseAccount = newAccountName.Name
+				g.Expect(th.K8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+		},
+		// delete the keystone instance to exercise finalizer removal
+		DeleteCR: func() {
+			th.DeleteInstance(GetIronic(ironicNames.IronicName))
+		},
+	}
+
+	mariadbSuite.RunBasicSuite()
+
+	mariadbSuite.RunURLAssertSuite(func(accountName types.NamespacedName, username string, password string) {
+		Eventually(func(g Gomega) {
+			configDataMap := th.GetSecret(ironicNames.IronicConfigSecretName)
+
+			conf := configDataMap.Data["ironic.conf"]
+
+			g.Expect(string(conf)).Should(
+				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://%s:%s@hostname-for-openstack.%s.svc/ironic?read_default_file=/etc/my.cnf",
+					username, password, ironicNames.Namespace)))
+		}).Should(Succeed())
+
+	})
+
 })

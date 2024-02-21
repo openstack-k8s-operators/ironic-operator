@@ -18,6 +18,7 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
+  databaseAccount: ironic
   ironicAPI:
     replicas: 1
   ironicConductors:
@@ -25,14 +26,13 @@ spec:
     storageRequest: 10G
   ironicInspector:
     customServiceConfig: '# add your customization here'
+    databaseAccount: ironic-inspector
     passwordSelectors:
-      database: IronicInspectorDatabasePassword
       service: IronicInspectorPassword
     preserveJobs: true
     replicas: 1
     serviceUser: ironic-inspector
   passwordSelectors:
-    database: IronicDatabasePassword
     service: IronicPassword
   preserveJobs: true
   rabbitMqClusterName: rabbitmq
@@ -61,8 +61,8 @@ metadata:
 spec:
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack.ironic-kuttl-tests.svc
+  databaseAccount: ironic
   passwordSelectors:
-    database: IronicDatabasePassword
     service: IronicPassword
   replicas: 1
   resources: {}
@@ -89,8 +89,8 @@ spec:
   conductorGroup: ""
   customServiceConfig: '# add your customization here'
   databaseHostname: openstack.ironic-kuttl-tests.svc
+  databaseAccount: ironic
   passwordSelectors:
-    database: IronicDatabasePassword
     service: IronicPassword
   replicas: 1
   resources: {}
@@ -117,8 +117,8 @@ metadata:
 spec:
   customServiceConfig: '# add your customization here'
   databaseInstance: openstack
+  databaseAccount: ironic-inspector
   passwordSelectors:
-    database: IronicInspectorDatabasePassword
     service: IronicInspectorPassword
   preserveJobs: true
   rabbitMqClusterName: rabbitmq
