@@ -133,6 +133,13 @@ var _ = Describe("Ironic controller", func() {
 		It("Creates ConfigMaps and gets Secrets (input) and set Hash of inputs", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			cm := th.GetConfigMap(ironicNames.IronicConfigDataName)
+			myCnf := cm.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),

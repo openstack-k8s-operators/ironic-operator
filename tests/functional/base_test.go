@@ -48,6 +48,7 @@ const (
 type IronicNames struct {
 	Namespace                 string
 	IronicName                types.NamespacedName
+	IronicConfigDataName      types.NamespacedName
 	IronicRole                types.NamespacedName
 	IronicRoleBinding         types.NamespacedName
 	IronicServiceAccount      types.NamespacedName
@@ -61,6 +62,7 @@ type IronicNames struct {
 	APIRoleBinding            types.NamespacedName
 	APIConfigDataName         types.NamespacedName
 	ConductorName             types.NamespacedName
+	ConductorConfigDataName   types.NamespacedName
 	ConductorServiceAccount   types.NamespacedName
 	ConductorRole             types.NamespacedName
 	ConductorRoleBinding      types.NamespacedName
@@ -110,6 +112,10 @@ func GetIronicNames(
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name,
 		},
+		IronicConfigDataName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic.Name + "-config-data",
+		},
 		IronicTransportURLName: types.NamespacedName{
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name + "-transport",
@@ -157,6 +163,10 @@ func GetIronicNames(
 		ConductorName: types.NamespacedName{
 			Namespace: ironicConductor.Namespace,
 			Name:      ironicConductor.Name,
+		},
+		ConductorConfigDataName: types.NamespacedName{
+			Namespace: ironicAPI.Namespace,
+			Name:      "ironic-conductor-config-data",
 		},
 		ConductorServiceAccount: types.NamespacedName{
 			Namespace: ironicConductor.Namespace,

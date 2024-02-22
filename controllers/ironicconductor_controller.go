@@ -60,6 +60,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 )
 
 // IronicConductorReconciler reconciles a IronicConductor object
@@ -758,10 +759,22 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	Log := r.GetLogger(ctx)
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
+	db, err := mariadbv1.GetDatabaseByName(ctx, h, ironic.DatabaseName)
+	if err != nil {
+		return err
+	}
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+
 	// customData hold any customization for the service.
 	// custom.conf is going to be merged into /etc/ironic/ironic.conf
 	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	customData := map[string]string{
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
+		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data

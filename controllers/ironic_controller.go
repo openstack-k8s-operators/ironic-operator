@@ -35,6 +35,7 @@ import (
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -356,6 +357,17 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	//
+	// create service DB instance
+	//
+	db, result, err := r.ensureDB(ctx, helper, instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if (result != ctrl.Result{}) {
+		return result, nil
+	}
+	// create service DB - end
+
+	//
 	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
 	//
 
@@ -365,7 +377,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// - %-config configmap holding minimal ironic config required to get the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, &keystoneEndpoints)
+	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, &keystoneEndpoints, db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -406,16 +418,8 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		common.AppSelector: ironic.ServiceName,
 	}
 
-	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err := r.reconcileUpdate(ctx, instance, helper)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -583,79 +587,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicReconciler) reconcileInit(
-	ctx context.Context,
-	instance *ironicv1.Ironic,
-	helper *helper.Helper,
-	serviceLabels map[string]string,
-) (ctrl.Result, error) {
-	Log := r.GetLogger(ctx)
-
-	Log.Info("Reconciling Ironic init")
-
-	//
-	// create service DB instance
-	//
-	db := mariadbv1.NewDatabase(
-		instance.Name,
-		instance.Name,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.DatabaseInstance,
-		},
-	)
-	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDB(
-		ctx,
-		helper,
-	)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
-	}
-
-	// wait for the DB to be setup
-	ctrlResult, err = db.WaitForDBCreated(ctx, helper)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
-		return ctrlResult, err
-	}
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	// update Status.DatabaseHostname, used to bootstrap/config the service
-	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
-	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
-
-	// create service DB - end
-
-	Log.Info("Reconciled Ironic init successfully")
-	return ctrl.Result{}, nil
-}
-
 func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
 	// Log.Info("Reconciling Ironic update")
 
@@ -817,6 +748,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	h *helper.Helper,
 	envVars *map[string]env.Setter,
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
+	db *mariadbv1.Database,
 ) error {
 	//
 	// create Configmap/Secret required for ironic input
@@ -827,11 +759,20 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
+	var tlsCfg *tls.Service
+	if instance.Spec.IronicAPI.TLS.Ca.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
+
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/ironic/ironic.conf.d
 	// all other files get placed into /etc/ironic to allow overwrite of e.g. policy.json
 	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	customData := map[string]string{
+		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
+		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+
+	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
@@ -1045,4 +986,71 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentDelete(
 	instance.Status.Conditions.Remove(ironicv1.IronicNeutronAgentReadyCondition)
 
 	return nil
+}
+
+func (r *IronicReconciler) ensureDB(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.Ironic,
+) (*mariadbv1.Database, ctrl.Result, error) {
+	//
+	// create service DB instance
+	//
+	db := mariadbv1.NewDatabase(
+		ironic.DatabaseName,
+		instance.Name,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": instance.Spec.DatabaseInstance,
+		},
+	)
+
+	// create or patch the DB
+	ctrlResult, err := db.CreateOrPatchDBByName(
+		ctx,
+		h,
+		instance.Spec.DatabaseInstance,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return db, ctrl.Result{}, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return db, ctrlResult, nil
+	}
+	// wait for the DB to be setup
+	// (ksambor) should we use WaitForDBCreatedWithTimeout instead?
+	ctrlResult, err = db.WaitForDBCreated(ctx, h)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return db, ctrlResult, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return db, ctrlResult, nil
+	}
+
+	// update Status.DatabaseHostname, used to config the service
+	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
+	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
+	return db, ctrlResult, nil
 }

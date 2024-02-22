@@ -22,8 +22,10 @@ import (
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -60,6 +62,10 @@ var _ = Describe("IronicConductor controller", func() {
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 		})
 		It("should have the Spec fields initialized", func() {
 			instance := GetIronicConductor(ironicNames.ConductorName)
@@ -130,6 +136,13 @@ var _ = Describe("IronicConductor controller", func() {
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
+			configDataMap := th.GetConfigMap(ironicNames.ConductorConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
+			configData := string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl=0"))
 		})
 		It("Sets NetworkAttachmentsReady", func() {
 			th.ExpectCondition(
@@ -218,6 +231,10 @@ var _ = Describe("IronicConductor controller", func() {
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.IronicDatabaseName)
 		})
 
 		It("reports that the CA secret is missing", func() {
@@ -253,6 +270,14 @@ var _ = Describe("IronicConductor controller", func() {
 			// cert volumeMounts
 			container := depl.Spec.Template.Spec.Containers[1]
 			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
+
+			configDataMap := th.GetConfigMap(ironicNames.ConductorConfigDataName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
+			configData := string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("reconfigures the deployment when CA changes", func() {
