@@ -504,6 +504,7 @@ func (r *Ironic) Default() {
 // Default - Exported function wrapping non-exported defaulter functions,
 // this function can be called externally to default an ironic spec.
 func (spec *IronicSpec) Default() {
+	// only validate default images in this function
 	if spec.Images.API == "" {
 		spec.Images.API = imageDefaults.API
 	}
@@ -522,4 +523,12 @@ func (spec *IronicSpec) Default() {
 	if spec.Images.IronicPythonAgent == "" {
 		spec.Images.IronicPythonAgent = imageDefaults.IronicPythonAgent
 	}
+	spec.IronicSpecCore.Default()
+}
+
+// Default - Exported function wrapping non-exported defaulter functions,
+// this function can be called externally to default an ironic spec.
+// NOTE: this version is called by OpenStackControlplane
+func (spec *IronicSpecCore) Default() {
+	// nothing here yet, core validations go here
 }
