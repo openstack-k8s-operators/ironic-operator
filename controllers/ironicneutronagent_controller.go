@@ -651,7 +651,6 @@ func (r *IronicNeutronAgentReconciler) generateServiceConfigMaps(
 	// custom.conf is going to be merged into /etc/ironic/ironic.conf
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
-	customData[common.CustomServiceConfigFileName] = instance.Spec.CustomServiceConfig
 
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {

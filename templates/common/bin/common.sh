@@ -86,7 +86,7 @@ function common_ironic_config {
         crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
         crudini --set ${SVC_CFG_MERGED} DEFAULT rpc_transport oslo
     fi
-    crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
+    crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}?read_default_file=/etc/my.cnf
     crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} cinder password $IRONICPASSWORD

@@ -117,6 +117,14 @@ var _ = Describe("IronicInspector controller", func() {
 		It("Creates ConfigMaps and gets Secrets (input)", func() {
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			cm := th.GetConfigMap(ironicNames.InspectorConfigDataName)
+			myCnf := cm.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
+
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
@@ -295,6 +303,8 @@ var _ = Describe("IronicInspector controller", func() {
 
 			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.InspectorDatabaseName)
 		})
 
 		It("reports that the CA secret is missing", func() {
@@ -359,8 +369,6 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -399,6 +407,9 @@ var _ = Describe("IronicInspector controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+			configData = string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("TLS Endpoints are created", func() {
@@ -407,8 +418,6 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -434,8 +443,6 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)

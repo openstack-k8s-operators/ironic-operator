@@ -461,6 +461,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
+	db *mariadbv1.Database,
 ) (ctrl.Result, string, error) {
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
@@ -567,7 +568,8 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 		ctx,
 		instance,
 		helper,
-		&configMapVars)
+		&configMapVars,
+		db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -697,6 +699,11 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 
 	Log.Info("Reconciling Ironic Inspector")
 
+	serviceLabels := map[string]string{
+		common.AppSelector:       ironic.ServiceName,
+		common.ComponentSelector: ironic.InspectorComponent,
+	}
+
 	if ironicv1.GetOwningIronicName(instance) == "" {
 		// Service account, role, binding
 		rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, getCommonRbacRules())
@@ -725,7 +732,14 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	ctrlResult, inputHash, err := r.reconcileConfigMapsAndSecrets(ctx, instance, helper)
+	db, ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper, serviceLabels)
+	if err != nil {
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
+
+	ctrlResult, inputHash, err := r.reconcileConfigMapsAndSecrets(ctx, instance, helper, db)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -735,11 +749,6 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
 	//
-
-	serviceLabels := map[string]string{
-		common.AppSelector:       ironic.ServiceName,
-		common.ComponentSelector: ironic.InspectorComponent,
-	}
 
 	// networks to attach to
 	for _, netAtt := range instance.Spec.NetworkAttachments {
@@ -910,7 +919,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
 	serviceLabels map[string]string,
-) (ctrl.Result, error) {
+) (*mariadbv1.Database, ctrl.Result, error) {
 	databaseName := strings.Replace(instance.Name, "-", "_", -1)
 	db := mariadbv1.NewDatabase(
 		databaseName,
@@ -934,7 +943,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return db, ctrl.Result{}, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -942,7 +951,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return db, ctrlResult, nil
 	}
 
 	// wait for the DB to be setup
@@ -954,7 +963,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 			condition.SeverityWarning,
 			condition.DBReadyErrorMessage,
 			err.Error()))
-		return ctrlResult, err
+		return db, ctrlResult, err
 	}
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -962,7 +971,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
+		return db, ctrlResult, nil
 	}
 	// update Status.DatabaseHostname, used to bootstrap/config the service
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
@@ -970,7 +979,7 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 		condition.DBReadyCondition,
 		condition.DBReadyMessage)
 
-	return ctrl.Result{}, nil
+	return db, ctrl.Result{}, nil
 }
 
 func (r *IronicInspectorReconciler) reconcileServiceDBsync(
@@ -1236,14 +1245,7 @@ func (r *IronicInspectorReconciler) reconcileInit(
 
 	Log.Info("Reconciling Ironic Inspector init")
 
-	ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper, serviceLabels)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	ctrlResult, err = r.reconcileServiceDBsync(ctx, instance, helper, serviceLabels)
+	ctrlResult, err := r.reconcileServiceDBsync(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -1304,6 +1306,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	instance *ironicv1.IronicInspector,
 	h *helper.Helper,
 	envVars *map[string]env.Setter,
+	db *mariadbv1.Database,
 ) error {
 	//
 	// create Configmap/Secret required for ironic-inspector input
@@ -1319,6 +1322,10 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		labels.GetGroupLabel(ironic.ServiceName),
 		map[string]string{})
 	Log := r.GetLogger(ctx)
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/ironic-inspector/inspector.conf.d
 	// all other files get placed into /etc/ironic-inspector to allow
@@ -1326,6 +1333,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{
 		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
+		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data

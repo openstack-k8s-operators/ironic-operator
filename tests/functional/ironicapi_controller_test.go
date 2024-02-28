@@ -21,8 +21,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -59,6 +61,10 @@ var _ = Describe("IronicAPI controller", func() {
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronicAPI(ironicNames.APIName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 		})
 		It("should have the Spec fields initialized", func() {
 			instance := GetIronicAPI(ironicNames.APIName)
@@ -136,12 +142,7 @@ var _ = Describe("IronicAPI controller", func() {
 				condition.InputReadyCondition,
 				corev1.ConditionTrue,
 			)
-			instance := GetIronicAPI(ironicNames.APIName)
-			apiConfigMapName := types.NamespacedName{
-				Namespace: instance.Namespace,
-				Name:      fmt.Sprintf("%s-config-data", instance.Name),
-			}
-			configDataMap := th.GetConfigMap(apiConfigMapName)
+			configDataMap := th.GetConfigMap(ironicNames.APIConfigDataName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
 			configData := string(configDataMap.Data["ironic.conf"])
@@ -151,6 +152,11 @@ var _ = Describe("IronicAPI controller", func() {
 			// privileges but this is a good practice to follow and might be required in the
 			// future
 			Expect(configData).Should(ContainSubstring("service_token_roles_required = true"))
+
+			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
+			configData = string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl=0"))
 		})
 		It("Sets NetworkAttachmentsReady", func() {
 			th.ExpectCondition(
@@ -248,6 +254,10 @@ var _ = Describe("IronicAPI controller", func() {
 				},
 				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
 			}
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.IronicDatabaseName)
 
 			DeferCleanup(
 				th.DeleteInstance,
@@ -351,6 +361,11 @@ var _ = Describe("IronicAPI controller", func() {
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/internal.key\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateFile      \"/etc/pki/tls/certs/public.crt\""))
 			Expect(configData).Should(ContainSubstring("SSLCertificateKeyFile   \"/etc/pki/tls/private/public.key\""))
+
+			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
+			configData = string(configDataMap.Data["my.cnf"])
+			Expect(configData).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("TLS Endpoints are created", func() {
