@@ -50,15 +50,20 @@ const (
 
 // IronicSpec defines the desired state of Ironic
 type IronicSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Whether to deploy a standalone Ironic.
-	Standalone bool `json:"standalone"`
+	IronicSpecCore `json:",inline"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={}
 	// Images - Container images for all ironic services
 	Images IronicImages `json:"images"`
+}
+
+// IronicSpec defines the desired state of Ironic
+type IronicSpecCore struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	// Whether to deploy a standalone Ironic.
+	Standalone bool `json:"standalone"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=ironic
