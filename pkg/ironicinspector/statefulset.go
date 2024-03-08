@@ -113,16 +113,13 @@ func StatefulSet(
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
 	}
 
-	dnsmasqLivenessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-		},
+	// dnsmasq only listen on port 67 when DHCPRanges are configured.
+	dnsmasqProbeCommand := []string{"sh", "-c", "ss -lun | grep :69"}
+	if instance.Spec.DHCPRanges != nil && len(instance.Spec.DHCPRanges) > 0 {
+		dnsmasqProbeCommand = []string{"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69"}
 	}
-	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{
-		Command: []string{
-			"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69",
-		},
-	}
+	dnsmasqLivenessProbe.Exec = &corev1.ExecAction{Command: dnsmasqProbeCommand}
+	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{Command: dnsmasqProbeCommand}
 
 	// create Volume and VolumeMounts
 	volumes := GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
