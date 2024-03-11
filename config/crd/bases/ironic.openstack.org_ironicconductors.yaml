@@ -62,6 +62,11 @@ spec:
                   added to to /etc/<service>/<service>.conf.d directory as custom.conf
                   file.
                 type: string
+              databaseAccount:
+                default: ironic
+                description: DatabaseAccount - optional MariaDBAccount used for ironic
+                  DB, defaults to ironic.
+                type: string
               databaseHostname:
                 description: DatabaseHostname - Ironic Database Hostname
                 type: string
@@ -137,16 +142,10 @@ spec:
                 type: object
               passwordSelectors:
                 default:
-                  database: IronicDatabasePassword
                   service: IronicPassword
-                description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser password from the Secret
+                description: PasswordSelectors - Selectors to identify the ServiceUser
+                  password from the Secret
                 properties:
-                  database:
-                    default: IronicDatabasePassword
-                    description: 'Database - Selector to get the ironic Database user
-                      password from the Secret TODO: not used, need change in mariadb-operator'
-                    type: string
                   service:
                     default: IronicPassword
                     description: Service - Selector to get the ironic service password
@@ -228,7 +227,7 @@ spec:
                 type: string
               secret:
                 description: Secret containing OpenStack password information for
-                  IronicDatabasePassword, AdminPassword
+                  AdminPassword
                 type: string
               serviceUser:
                 default: ironic

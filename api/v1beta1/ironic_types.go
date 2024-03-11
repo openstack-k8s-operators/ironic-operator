@@ -76,12 +76,17 @@ type IronicSpecCore struct {
 	// Might not be required in future.
 	DatabaseInstance string `json:"databaseInstance"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=ironic
+	// DatabaseAccount - optional MariaDBAccount used for ironic DB, defaults to ironic.
+	DatabaseAccount string `json:"databaseAccount"`
+
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for ironic IronicDatabasePassword, IronicPassword
+	// Secret containing OpenStack password information for ironic IronicPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: IronicDatabasePassword, service: IronicPassword}
+	// +kubebuilder:default={service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 

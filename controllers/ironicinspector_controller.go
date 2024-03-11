@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,12 +27,12 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
-	configmap "github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -812,12 +811,18 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	} else if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
 	}
+
 	// Handle service init
 	ctrlResult, err = r.reconcileServices(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
+	}
+
+	err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, helper, ironicinspector.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	Log.Info("Reconciled Ironic Inspector successfully")
@@ -871,7 +876,7 @@ func (r *IronicInspectorReconciler) reconcileDeleteDatabase(
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	// remove db finalizer first
-	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, helper, ironicinspector.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -920,22 +925,44 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (*mariadbv1.Database, ctrl.Result, error) {
-	databaseName := strings.Replace(instance.Name, "-", "_", -1)
-	db := mariadbv1.NewDatabase(
-		databaseName,
-		databaseName,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.DatabaseInstance,
-		},
+
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err := mariadbv1.EnsureMariaDBAccount(
+		ctx, helper, instance.Spec.DatabaseAccount,
+		instance.Namespace, false, "ironic_inspector",
+	)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			mariadbv1.MariaDBAccountReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			mariadbv1.MariaDBAccountNotReadyMessage,
+			err.Error()))
+
+		return nil, ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		mariadbv1.MariaDBAccountReadyCondition,
+		mariadbv1.MariaDBAccountReadyMessage,
+	)
+
+	db := mariadbv1.NewDatabaseForAccount(
+		instance.Spec.DatabaseInstance, // mariadb/galera service to target
+		ironicinspector.DatabaseName,   // name used in CREATE DATABASE in mariadb
+		ironicinspector.DatabaseCRName, // CR name for MariaDBDatabase
+		instance.Spec.DatabaseAccount,  // CR name for MariaDBAccount
+		instance.Namespace,             // namespace
 	)
 
 	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDBByName(
-		ctx,
-		helper,
-		instance.Spec.DatabaseInstance,
-	)
+	ctrlResult, err := db.CreateOrPatchAll(ctx, helper)
+
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
@@ -973,7 +1000,9 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 			condition.DBReadyRunningMessage))
 		return db, ctrlResult, nil
 	}
-	// update Status.DatabaseHostname, used to bootstrap/config the service
+
+	// update Status.DatabaseName and Status.DatabaseHostname, used to
+	// bootstrap/config the service
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
 	instance.Status.Conditions.MarkTrue(
 		condition.DBReadyCondition,
@@ -1377,6 +1406,16 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
 
+	databaseAccount := db.GetAccount()
+	dbSecret := db.GetSecret()
+
+	templateParameters["DatabaseConnection"] = fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
+		databaseAccount.Spec.UserName,
+		string(dbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		instance.Status.DatabaseHostname,
+		ironicinspector.DatabaseName,
+	)
+
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
@@ -1416,7 +1455,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the

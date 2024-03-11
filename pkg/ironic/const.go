@@ -22,6 +22,8 @@ const (
 	ServiceType = "baremetal"
 	// DatabaseName -
 	DatabaseName = "ironic"
+	// DatabaseCRName -
+	DatabaseCRName = "ironic"
 	// IronicPublicPort -
 	IronicPublicPort int32 = 6385
 	// IronicInternalPort -

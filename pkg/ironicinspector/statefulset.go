@@ -308,7 +308,6 @@ func StatefulSet(
 		DatabaseName:           DatabaseName,
 		OSPSecret:              instance.Spec.Secret,
 		TransportURLSecret:     instance.Status.TransportURLSecret,
-		DBPasswordSelector:     instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector:   instance.Spec.PasswordSelectors.Service,
 		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,

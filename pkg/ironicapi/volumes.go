@@ -13,11 +13,9 @@ func GetVolumes(name string) []corev1.Volume {
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name + "-config-data",
-					},
+					SecretName:  name + "-config-data",
 				},
 			},
 		},

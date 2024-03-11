@@ -83,11 +83,6 @@ spec:
                 description: PasswordSelectors - Selectors to identify the ServiceUser
                   password from the Secret
                 properties:
-                  database:
-                    default: IronicDatabasePassword
-                    description: 'Database - Selector to get the ironic Database user
-                      password from the Secret TODO: not used, need change in mariadb-operator'
-                    type: string
                   service:
                     default: IronicPassword
                     description: Service - Selector to get the ironic service password

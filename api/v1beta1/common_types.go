@@ -53,13 +53,8 @@ type IronicServiceTemplate struct {
 	DefaultConfigOverwrite map[string]string `json:"defaultConfigOverwrite,omitempty"`
 }
 
-// PasswordSelector to identify the DB and AdminUser password from the Secret
+// PasswordSelector to identify the AdminUser password from the Secret
 type PasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="IronicDatabasePassword"
-	// Database - Selector to get the ironic Database user password from the Secret
-	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="IronicPassword"
 	// Service - Selector to get the ironic service password from the Secret

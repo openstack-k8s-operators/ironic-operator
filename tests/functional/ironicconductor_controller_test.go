@@ -31,6 +31,12 @@ import (
 )
 
 var _ = Describe("IronicConductor controller", func() {
+	BeforeEach(func() {
+		apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+		DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+	})
+
 	When("IronicConductor is created with rpcTransport == oslo", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -63,8 +69,7 @@ var _ = Describe("IronicConductor controller", func() {
 				th.DeleteInstance,
 				CreateIronicConductor(ironicNames.ConductorName, spec))
 			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
 		})
 		It("should have the Spec fields initialized", func() {
@@ -73,8 +78,7 @@ var _ = Describe("IronicConductor controller", func() {
 			Expect(instance.Spec.Standalone).Should(BeFalse())
 			Expect(instance.Spec.PasswordSelectors).Should(Equal(
 				ironicv1.PasswordSelector{
-					Database: "IronicDatabasePassword",
-					Service:  "IronicPassword",
+					Service: "IronicPassword",
 				}))
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
@@ -119,7 +123,7 @@ var _ = Describe("IronicConductor controller", func() {
 			Expect(binding.Subjects).To(HaveLen(1))
 			Expect(binding.Subjects[0].Name).To(Equal(sa.Name))
 		})
-		It("Creates ConfigMaps and gets Secrets (input) and set Hash of inputs", func() {
+		It("Creates config Secrets and gets Secrets (input) and set Hash of inputs", func() {
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
@@ -136,7 +140,7 @@ var _ = Describe("IronicConductor controller", func() {
 				condition.ServiceConfigReadyCondition,
 				corev1.ConditionTrue,
 			)
-			configDataMap := th.GetConfigMap(ironicNames.ConductorConfigDataName)
+			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
@@ -232,8 +236,7 @@ var _ = Describe("IronicConductor controller", func() {
 				th.DeleteInstance,
 				CreateIronicConductor(ironicNames.ConductorName, spec))
 			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
-			mariadb.CreateMariaDBAccount(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBAccountSpec{})
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.IronicDatabaseName)
 		})
 
@@ -271,7 +274,7 @@ var _ = Describe("IronicConductor controller", func() {
 			container := depl.Spec.Template.Spec.Containers[1]
 			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
 
-			configDataMap := th.GetConfigMap(ironicNames.ConductorConfigDataName)
+			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
@@ -307,4 +310,119 @@ var _ = Describe("IronicConductor controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	// FIXME(zzzeek) - build and/or update mariadb harness.go to have a URL
+	// set/update test that handles all MariaDBAccount creation and does not
+	// assume finalizers present
+	When("IronicConductor is created for a particular MariaDBAccount", func() {
+
+		BeforeEach(func() {
+			oldAccountName := types.NamespacedName{
+				Name:      "some-old-account",
+				Namespace: ironicNames.Namespace,
+			}
+			newAccountName := types.NamespacedName{
+				Name:      "some-new-account",
+				Namespace: ironicNames.Namespace,
+			}
+
+			oldMariaDBAccount, oldMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(oldAccountName, mariadbv1.MariaDBAccountSpec{})
+			newMariaDBAccount, newMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(newAccountName, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, oldMariaDBAccount)
+			DeferCleanup(k8sClient.Delete, ctx, oldMariaDBSecret)
+			DeferCleanup(k8sClient.Delete, ctx, newMariaDBAccount)
+			DeferCleanup(k8sClient.Delete, ctx, newMariaDBSecret)
+
+			spec := GetDefaultIronicConductorSpec()
+
+			spec["databaseAccount"] = oldAccountName.Name
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+
+			mariadb.SimulateMariaDBAccountCompleted(oldAccountName)
+			mariadb.SimulateMariaDBAccountCompleted(newAccountName)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+
+		})
+
+		It("Sets the correct mysql URL", func() {
+			accountName := types.NamespacedName{
+				Name:      "some-old-account",
+				Namespace: ironicNames.Namespace,
+			}
+
+			databaseAccount := mariadb.GetMariaDBAccount(accountName)
+			databaseSecret := th.GetSecret(types.NamespacedName{Name: databaseAccount.Spec.Secret, Namespace: ironicNames.Namespace})
+
+			instance := GetIronicConductor(ironicNames.ConductorName)
+			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
+
+			conf := configDataMap.Data["ironic.conf"]
+
+			Expect(string(conf)).Should(
+				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://%s:%s@%s/ironic?read_default_file=/etc/my.cnf",
+					databaseAccount.Spec.UserName, databaseSecret.Data[mariadbv1.DatabasePasswordSelector], instance.Spec.DatabaseHostname)))
+		})
+
+		It("Updates the mysql URL when the account changes", func() {
+
+			newAccountName := types.NamespacedName{
+				Name:      "some-new-account",
+				Namespace: ironicNames.Namespace,
+			}
+
+			Eventually(func(g Gomega) {
+				api := GetIronicConductor(ironicNames.ConductorName)
+				api.Spec.DatabaseAccount = newAccountName.Name
+				g.Expect(th.K8sClient.Update(ctx, api)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			databaseAccount := mariadb.GetMariaDBAccount(newAccountName)
+			databaseSecret := th.GetSecret(types.NamespacedName{Name: databaseAccount.Spec.Secret, Namespace: ironicNames.Namespace})
+
+			instance := GetIronicConductor(ironicNames.ConductorName)
+
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
+
+				conf := configDataMap.Data["ironic.conf"]
+
+				g.Expect(string(conf)).Should(
+					ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://%s:%s@%s/ironic?read_default_file=/etc/my.cnf",
+						databaseAccount.Spec.UserName, databaseSecret.Data[mariadbv1.DatabasePasswordSelector], instance.Spec.DatabaseHostname)))
+			}).Should(Succeed())
+		})
+
+	})
+
 })

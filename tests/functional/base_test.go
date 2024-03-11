@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
+	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,21 +49,22 @@ const (
 type IronicNames struct {
 	Namespace                 string
 	IronicName                types.NamespacedName
-	IronicConfigDataName      types.NamespacedName
+	IronicConfigSecretName    types.NamespacedName
 	IronicRole                types.NamespacedName
 	IronicRoleBinding         types.NamespacedName
 	IronicServiceAccount      types.NamespacedName
 	IronicTransportURLName    types.NamespacedName
 	IronicDatabaseName        types.NamespacedName
+	IronicDatabaseAccount     types.NamespacedName
 	IronicDBSyncJobName       types.NamespacedName
 	ServiceAccountName        types.NamespacedName
 	APIName                   types.NamespacedName
 	APIServiceAccount         types.NamespacedName
 	APIRole                   types.NamespacedName
 	APIRoleBinding            types.NamespacedName
-	APIConfigDataName         types.NamespacedName
+	APIConfigSecretName       types.NamespacedName
 	ConductorName             types.NamespacedName
-	ConductorConfigDataName   types.NamespacedName
+	ConductorConfigSecretName types.NamespacedName
 	ConductorServiceAccount   types.NamespacedName
 	ConductorRole             types.NamespacedName
 	ConductorRoleBinding      types.NamespacedName
@@ -72,8 +74,9 @@ type IronicNames struct {
 	InspectorRole             types.NamespacedName
 	InspectorRoleBinding      types.NamespacedName
 	InspectorDatabaseName     types.NamespacedName
+	InspectorDatabaseAccount  types.NamespacedName
 	InspectorDBSyncJobName    types.NamespacedName
-	InspectorConfigDataName   types.NamespacedName
+	InspectorConfigSecretName types.NamespacedName
 	INAName                   types.NamespacedName
 	INATransportURLName       types.NamespacedName
 	KeystoneServiceName       types.NamespacedName
@@ -112,7 +115,7 @@ func GetIronicNames(
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name,
 		},
-		IronicConfigDataName: types.NamespacedName{
+		IronicConfigSecretName: types.NamespacedName{
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name + "-config-data",
 		},
@@ -121,6 +124,10 @@ func GetIronicNames(
 			Name:      ironic.Name + "-transport",
 		},
 		IronicDatabaseName: types.NamespacedName{
+			Namespace: ironic.Namespace,
+			Name:      ironic_pkg.DatabaseCRName,
+		},
+		IronicDatabaseAccount: types.NamespacedName{
 			Namespace: ironic.Namespace,
 			Name:      ironic.Name,
 		},
@@ -156,7 +163,7 @@ func GetIronicNames(
 			Namespace: ironicAPI.Namespace,
 			Name:      "ironicapi-" + ironicAPI.Name + "-rolebinding",
 		},
-		APIConfigDataName: types.NamespacedName{
+		APIConfigSecretName: types.NamespacedName{
 			Namespace: ironicAPI.Namespace,
 			Name:      "ironic-api-config-data",
 		},
@@ -164,7 +171,7 @@ func GetIronicNames(
 			Namespace: ironicConductor.Namespace,
 			Name:      ironicConductor.Name,
 		},
-		ConductorConfigDataName: types.NamespacedName{
+		ConductorConfigSecretName: types.NamespacedName{
 			Namespace: ironicAPI.Namespace,
 			Name:      "ironic-conductor-config-data",
 		},
@@ -202,13 +209,17 @@ func GetIronicNames(
 		},
 		InspectorDatabaseName: types.NamespacedName{
 			Namespace: ironicInspector.Namespace,
+			Name:      ironic_inspector_pkg.DatabaseCRName,
+		},
+		InspectorDatabaseAccount: types.NamespacedName{
+			Namespace: ironicInspector.Namespace,
 			Name:      ironicInspector.Name,
 		},
 		InspectorDBSyncJobName: types.NamespacedName{
 			Namespace: ironicInspector.Namespace,
 			Name:      ironic_pkg.ServiceName + "-" + ironic_pkg.InspectorComponent + "-db-sync",
 		},
-		InspectorConfigDataName: types.NamespacedName{
+		InspectorConfigSecretName: types.NamespacedName{
 			Namespace: ironicAPI.Namespace,
 			Name:      "ironic-inspector-config-data",
 		},
@@ -557,5 +568,19 @@ func CreateFakeIngressController() {
 		}, crd)).Should(Succeed())
 	}, th.Timeout, th.Interval).Should(Succeed())
 	th.CreateNamespace(name.Namespace)
-	th.CreateUnstructured(fakeIngressController)
+
+	fic := th.CreateUnstructured(fakeIngressController)
+
+	// (zzzeek) if we proceed into the k8sManager.Start(ctx) step before
+	// the above CreateUnstructured call is done, the above call
+	// fails with a 404 error of some kind.  This is based on observing
+	// if the CreateFakeIngressController() call is placed after the
+	// call to k8sManager.Start(ctx), I get the same error.  On CI
+	// (within the make docker-build target that calls the test target) and
+	// sometimes locally, I get the same error without changing their order.
+	// So ensure this operation is fully complete ahead of time
+	Eventually(func(g Gomega) {
+		g.Expect(th.K8sClient.Get(th.Ctx, name, fic)).Should(Succeed())
+	}, th.Timeout, th.Interval).Should(Succeed())
+
 }

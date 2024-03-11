@@ -48,7 +48,6 @@ import (
 	ironicconductor "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicconductor"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -759,7 +758,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	Log := r.GetLogger(ctx)
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
-	db, err := mariadbv1.GetDatabaseByName(ctx, h, ironic.DatabaseName)
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, ironic.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
 	}
@@ -799,6 +798,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		}
 		templateParameters["IronicPublicURL"] = ironicPublicURL
 	}
+
 	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
 	if err != nil {
 		Log.Error(err, "Failed to get Prefix or Netmask from IP network Prefix (CIDR)")
@@ -807,6 +807,16 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
+
+	databaseAccount := db.GetAccount()
+	dbSecret := db.GetSecret()
+
+	templateParameters["DatabaseConnection"] = fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
+		databaseAccount.Spec.UserName,
+		string(dbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		instance.Spec.DatabaseHostname,
+		ironic.DatabaseName,
+	)
 
 	cms := []util.Template{
 		// Scripts ConfigMap
@@ -837,7 +847,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		},
 	}
 
-	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart

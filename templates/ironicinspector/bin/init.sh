@@ -15,10 +15,6 @@
 # under the License.
 
 # Secrets are obtained from ENV variables.
-export DB=${DatabaseName:-"ironic_inspector"}
-export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export DBUSER=${DatabaseName:-"ironic_inspector"}
-export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export INSPECTORPASSWORD=${IronicInspectorPassword:?"Please specify a IronicInspectorPassword variable."}
 export TRANSPORTURL=${TransportURL:-""}
 
@@ -66,7 +62,6 @@ fi
 if [ -n "$TRANSPORTURL" ]; then
     crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
 fi
-crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
 crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $INSPECTORPASSWORD
 crudini --set ${SVC_CFG_MERGED} service_catalog password $INSPECTORPASSWORD
 crudini --set ${SVC_CFG_MERGED} ironic password $INSPECTORPASSWORD

@@ -20,11 +20,9 @@ func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-config-data", instance.Name),
-					},
+					SecretName:  fmt.Sprintf("%s-config-data", instance.Name),
 				},
 			},
 		},

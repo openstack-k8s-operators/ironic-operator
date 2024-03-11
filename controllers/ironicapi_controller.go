@@ -46,7 +46,6 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
@@ -920,7 +919,7 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
-	db, err := mariadbv1.GetDatabaseByName(ctx, h, ironic.DatabaseName)
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, h, ironic.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil {
 		return err
 	}
@@ -956,6 +955,16 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	}
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["LogPath"] = ironic.LogPath
+
+	databaseAccount := db.GetAccount()
+	dbSecret := db.GetSecret()
+
+	templateParameters["DatabaseConnection"] = fmt.Sprintf("mysql+pymysql://%s:%s@%s/%s?read_default_file=/etc/my.cnf",
+		databaseAccount.Spec.UserName,
+		string(dbSecret.Data[mariadbv1.DatabasePasswordSelector]),
+		instance.Spec.DatabaseHostname,
+		ironic.DatabaseName,
+	)
 
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
@@ -1000,7 +1009,7 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		},
 	}
 
-	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart

@@ -36,10 +36,6 @@ function merge_config_dir {
 
 function common_ironic_config {
     # Secrets are obtained from ENV variables.
-    export DB=${DatabaseName:-"ironic"}
-    export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-    export DBUSER=${DatabaseName:-"ironic"}
-    export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
     export IRONICPASSWORD=${IronicPassword:?"Please specify a IronicPassword variable."}
     export TRANSPORTURL=${TransportURL:-""}
     # TODO: nova password
@@ -86,7 +82,6 @@ function common_ironic_config {
         crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
         crudini --set ${SVC_CFG_MERGED} DEFAULT rpc_transport oslo
     fi
-    crudini --set ${SVC_CFG_MERGED} database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}?read_default_file=/etc/my.cnf
     crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD
     crudini --set ${SVC_CFG_MERGED} cinder password $IRONICPASSWORD
