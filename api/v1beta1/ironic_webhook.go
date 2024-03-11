@@ -174,10 +174,10 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
 func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) field.ErrorList {
-	return spec.IronicSpecCore.ValidateUpdate(old, basePath)
+	return spec.IronicSpecCore.ValidateUpdate(old.IronicSpecCore, basePath)
 }
 
-func (spec *IronicSpecCore) ValidateUpdate(old IronicSpec, basePath *field.Path) field.ErrorList {
+func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
