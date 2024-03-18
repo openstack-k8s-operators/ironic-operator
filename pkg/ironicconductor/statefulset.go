@@ -16,6 +16,8 @@ limitations under the License.
 package ironicconductor
 
 import (
+	"net"
+
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -26,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
+	k8snet "k8s.io/utils/net"
 )
 
 const (
@@ -111,10 +114,25 @@ func StatefulSet(
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
 	}
 
-	// dnsmasq only listen on port 67 when DHCPRanges are configured.
+	// dnsmasq only listen on ports 67 and/or 547 when DHCPRanges are configured.
 	dnsmasqProbeCommand := []string{"sh", "-c", "ss -lun | grep :69"}
-	if instance.Spec.DHCPRanges != nil && len(instance.Spec.DHCPRanges) > 0 {
+	ipv6Probe := false
+	ipv4Probe := false
+	for _, dhcpRangeSpec := range instance.Spec.DHCPRanges {
+		_, ipPrefix, _ := net.ParseCIDR(dhcpRangeSpec.Cidr)
+		if k8snet.IsIPv4CIDR(ipPrefix) {
+			ipv4Probe = true
+		}
+		if k8snet.IsIPv6CIDR(ipPrefix) {
+			ipv6Probe = true
+		}
+	}
+	if ipv4Probe && !ipv6Probe {
 		dnsmasqProbeCommand = []string{"sh", "-c", "ss -lun | grep :67 && ss -lun | grep :69"}
+	} else if !ipv4Probe && ipv6Probe {
+		dnsmasqProbeCommand = []string{"sh", "-c", "ss -lun | grep :547 && ss -lun | grep :69"}
+	} else if ipv4Probe && ipv6Probe {
+		dnsmasqProbeCommand = []string{"sh", "-c", "ss -lun | grep :547 && ss -lun | grep :67 && ss -lun | grep :69"}
 	}
 	dnsmasqLivenessProbe.Exec = &corev1.ExecAction{Command: dnsmasqProbeCommand}
 	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{Command: dnsmasqProbeCommand}
