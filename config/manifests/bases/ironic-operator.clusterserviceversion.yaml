@@ -30,16 +30,31 @@ spec:
       displayName: Ironic API
       kind: IronicAPI
       name: ironicapis.ironic.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: IronicConductor is the Schema for the ironicconductors Conductor
       displayName: Ironic Conductor
       kind: IronicConductor
       name: ironicconductors.ironic.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
     - description: Ironic is the Schema for the ironics API
       displayName: Ironic
       kind: Ironic
       name: ironics.ironic.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: ironicAPI.tls
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: ironicInspector.tls
       version: v1beta1
   description: Ironic Operator
   displayName: Ironic Operator
