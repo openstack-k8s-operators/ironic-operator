@@ -129,17 +129,23 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// Always patch the instance status when exiting this function so we can persist any changes.
+	// initialize status if Conditions is nil, but do not reset if it already
+	// exists
+	isNewInstance := instance.Status.Conditions == nil
+	if isNewInstance {
+		instance.Status.Conditions = condition.Conditions{}
+	}
+
+	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// when a condition's state doesn't change.
+	savedConditions := instance.Status.Conditions.DeepCopy()
+
+	// Always patch the instance status when exiting this function so we can
+	// persist any changes.
 	defer func() {
-		// update the Ready condition based on the sub conditions
-		if instance.Status.Conditions.AllSubConditionIsTrue() {
-			instance.Status.Conditions.MarkTrue(
-				condition.ReadyCondition, condition.ReadyMessage)
-		} else {
-			// something is not ready so reset the Ready condition
-			instance.Status.Conditions.MarkUnknown(
-				condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage)
-			// and recalculate it based on the state of the rest of the conditions
+		condition.RestoreLastTransitionTimes(
+			&instance.Status.Conditions, savedConditions)
+		if instance.Status.Conditions.IsUnknown(condition.ReadyCondition) {
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
@@ -150,42 +156,38 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}()
 
-	// If we're not deleting this and the service object doesn't have our finalizer, add it.
-	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) {
-		return ctrl.Result{}, nil
-	}
-
 	//
 	// initialize status
 	//
-	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.Conditions{}
-		// initialize conditions used later as Status=Unknown
-		cl := condition.CreateList(
-			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
-			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
-			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
-			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
-			condition.UnknownCondition(condition.TLSInputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
-			// service account, role, rolebinding conditions
-			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
-			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
-			condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
-		)
+	// initialize conditions used later as Status=Unknown
+	cl := condition.CreateList(
+		condition.UnknownCondition(condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage),
+		condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+		condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
+		condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
+		condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+		condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
+		condition.UnknownCondition(condition.TLSInputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
+		// service account, role, rolebinding conditions
+		condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
+		condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
+		condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
+	)
 
-		if !instance.Spec.Standalone {
-			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
-			cl = append(cl,
-				*condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
-				*condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""))
-		}
+	if !instance.Spec.Standalone {
+		// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+		cl = append(cl,
+			*condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+			*condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""))
+	}
 
-		instance.Status.Conditions.Init(&cl)
+	instance.Status.Conditions.Init(&cl)
 
-		// Register overall status immediately to have an early feedback e.g. in the cli
+	// If we're not deleting this and the service object doesn't have our finalizer, add it.
+	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) || isNewInstance {
 		return ctrl.Result{}, nil
 	}
+
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = make(map[string]string)
 	}
@@ -886,6 +888,12 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 	// create Deployment - end
 
+	// We reached the end of the Reconcile, update the Ready condition based on
+	// the sub conditions
+	if instance.Status.Conditions.AllSubConditionIsTrue() {
+		instance.Status.Conditions.MarkTrue(
+			condition.ReadyCondition, condition.ReadyMessage)
+	}
 	Log.Info("Reconciled API successfully")
 	return ctrl.Result{}, nil
 }
