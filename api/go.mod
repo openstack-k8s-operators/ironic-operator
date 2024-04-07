@@ -3,7 +3,7 @@ module github.com/openstack-k8s-operators/ironic-operator/api
 go 1.20
 
 require (
-	github.com/onsi/ginkgo/v2 v2.16.0
+	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.31.1
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240216173409-86913e6d5885
 	k8s.io/api v0.28.8
