@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -43,6 +44,7 @@ const (
 	errMixedAddressFamily      = "cannot mix IPv4 and IPv6"
 	errInvalidRange            = "Start address: %s > End address %s"
 	errForbiddenAddressOverlap = "%v overlap with %v: %v"
+	errInvalidRPCTransport     = "RPCTransport must be either oslo or json-rpc"
 )
 
 type netIPStartEnd struct {
@@ -123,6 +125,10 @@ func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
 func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
+	if err := validateRPCTransport(spec, basePath); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
@@ -180,6 +186,10 @@ func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) fie
 func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
+	if err := validateRPCTransport(spec, basePath); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
 	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
 	}
@@ -228,6 +238,13 @@ func validateInspectorSpec(spec *IronicSpecCore, basePath *field.Path) field.Err
 // validateConductorSpec
 func validateConductorSpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
+
+	if spec.IronicConductors == nil || len(spec.IronicConductors) == 0 {
+		allErrs = append(allErrs, field.Required(
+			basePath.Child("ironicConductors"),
+			"IonicConductors must be provided",
+		))
+	}
 
 	// validateConductorGroupsUnique
 	if err := validateConductorGroupsUnique(spec, basePath); err != nil {
@@ -498,6 +515,21 @@ func validateStartEndOverlap(
 	return allErrs
 }
 
+// validateRPCTransport
+// Check that rpcTransport is either oslo or json-rpc. If it is done as an kubebuilder enum
+// validation ironic as an optional service can not be omitted from the OpenStackControlPlane CR.
+func validateRPCTransport(spec *IronicSpecCore, basePath *field.Path) *field.Error {
+	rpcTransportPath := basePath.Child("rpcTransport")
+
+	// validate that rpcTransport is either oslo or json-rpc
+	rpcTransportOptions := []string{"oslo", "json-rpc"}
+	if !util.StringInSlice(spec.RPCTransport, rpcTransportOptions) {
+		return field.Invalid(rpcTransportPath, spec.RPCTransport, errInvalidRPCTransport)
+	}
+
+	return nil
+}
+
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Ironic) Default() {
 	ironiclog.Info("webhook - calling defaulter")
@@ -538,5 +570,7 @@ func (spec *IronicSpec) Default() {
 // this function can be called externally to default an ironic spec.
 // NOTE: this version is called by OpenStackControlplane
 func (spec *IronicSpecCore) Default() {
-	// nothing here yet, core validations go here
+	if spec.RPCTransport == "" {
+		spec.RPCTransport = "json-rpc"
+	}
 }
