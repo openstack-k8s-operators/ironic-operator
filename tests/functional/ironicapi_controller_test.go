@@ -167,6 +167,7 @@ var _ = Describe("IronicAPI controller", func() {
 				ContainSubstring("[client]\nssl=0"))
 		})
 		It("Sets NetworkAttachmentsReady", func() {
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.ExpectCondition(
 				ironicNames.APIName,
 				ConditionGetterFunc(IronicAPIConditionGetter),

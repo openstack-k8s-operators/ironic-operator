@@ -152,6 +152,7 @@ var _ = Describe("IronicConductor controller", func() {
 				ContainSubstring("[client]\nssl=0"))
 		})
 		It("Sets NetworkAttachmentsReady", func() {
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
