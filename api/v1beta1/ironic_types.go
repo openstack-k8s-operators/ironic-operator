@@ -112,9 +112,9 @@ type IronicSpecCore struct {
 	// IronicAPI - Spec definition for the API service of this Ironic deployment
 	IronicAPI IronicAPITemplate `json:"ironicAPI"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// IronicConductors - Spec definitions for the conductor service of this Ironic deployment
-	IronicConductors []IronicConductorTemplate `json:"ironicConductors"`
+	IronicConductors []IronicConductorTemplate `json:"ironicConductors,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// IronicInspector - Spec definition for the inspector service of this Ironic deployment
@@ -132,8 +132,6 @@ type IronicSpecCore struct {
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum:=oslo;json-rpc
-	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic and ironic-inspector
