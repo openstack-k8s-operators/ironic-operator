@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/types"
 	k8s_types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -249,7 +248,7 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 	}
 
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicConductor{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicConductor{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicConductor)
 		if cr.Spec.Secret == "" {
@@ -261,7 +260,7 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicConductor{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicConductor{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicConductor)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
@@ -296,7 +295,7 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicConductor")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicConductor")
 
 	for _, field := range ironicConductorWatchFields {
 		crList := &ironicv1.IronicConductorList{}
@@ -304,7 +303,7 @@ func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src c
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -314,7 +313,7 @@ func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src c
 
 			requests = append(requests,
 				reconcile.Request{
-					NamespacedName: types.NamespacedName{
+					NamespacedName: k8s_types.NamespacedName{
 						Name:      item.GetName(),
 						Namespace: item.GetNamespace(),
 					},
@@ -536,7 +535,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		hash, ctrlResult, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
-			types.NamespacedName{
+			k8s_types.NamespacedName{
 				Name:      instance.Spec.TLS.CaBundleSecretName,
 				Namespace: instance.Namespace,
 			},
@@ -605,7 +604,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	//
 
 	// Handle service update
-	ctrlResult, err := r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err := r.reconcileUpdate()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -613,7 +612,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -737,14 +736,14 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicConductorReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileUpdate() (ctrl.Result, error) {
 	// Log.Info("Reconciling Service update")
 
 	// Log.Info("Reconciled Service update successfully")
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicConductorReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicConductor, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicConductorReconciler) reconcileUpgrade() (ctrl.Result, error) {
 	// Log.Info("Reconciling Service upgrade")
 
 	// Log.Info("Reconciled Service upgrade successfully")

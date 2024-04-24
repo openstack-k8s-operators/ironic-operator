@@ -220,7 +220,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		listOpts := []client.ListOption{
 			client.InNamespace(o.GetNamespace()),
 		}
-		if err := r.Client.List(context.Background(), apis, listOpts...); err != nil {
+		if err := r.Client.List(ctx, apis, listOpts...); err != nil {
 			Log.Error(err, "Unable to retrieve API CRs %v")
 			return nil
 		}
@@ -248,7 +248,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	}
 
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicAPI{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicAPI)
 		if cr.Spec.Secret == "" {
@@ -260,7 +260,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicAPI{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicAPI)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
@@ -272,7 +272,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	}
 
 	// index tlsAPIInternalField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicAPI{}, tlsAPIInternalField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, tlsAPIInternalField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicAPI)
 		if cr.Spec.TLS.API.Internal.SecretName == nil {
@@ -284,7 +284,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	}
 
 	// index tlsAPIPublicField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicAPI{}, tlsAPIPublicField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, tlsAPIPublicField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicAPI)
 		if cr.Spec.TLS.API.Public.SecretName == nil {
@@ -319,7 +319,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicAPI")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicAPI")
 
 	for _, field := range ironicAPIWatchFields {
 		crList := &ironicv1.IronicAPIList{}
@@ -327,7 +327,7 @@ func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -807,7 +807,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpdate()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -815,7 +815,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -898,14 +898,14 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicAPIReconciler) reconcileUpdate() (ctrl.Result, error) {
 	// Log.Info("Reconciling API update")
 
 	// Log.Info("Reconciled API update successfully")
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicAPIReconciler) reconcileUpgrade(ctx context.Context, instance *ironicv1.IronicAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicAPIReconciler) reconcileUpgrade() (ctrl.Result, error) {
 	// Log.Info("Reconciling API upgrade")
 
 	// Log.Info("Reconciled API upgrade successfully")

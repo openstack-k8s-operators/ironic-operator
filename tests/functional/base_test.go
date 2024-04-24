@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"

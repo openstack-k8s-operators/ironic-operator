@@ -33,7 +33,6 @@ import (
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -420,7 +419,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Handle service update
-	ctrlResult, err := r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err := r.reconcileUpdate()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -600,7 +599,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	return ctrl.Result{}, nil
 }
 
-func (r *IronicReconciler) reconcileUpdate(ctx context.Context, instance *ironicv1.Ironic, helper *helper.Helper) (ctrl.Result, error) {
+func (r *IronicReconciler) reconcileUpdate() (ctrl.Result, error) {
 	// Log.Info("Reconciling Ironic update")
 
 	// Log.Info("Reconciled Ironic update successfully")
@@ -844,7 +843,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		},
 	}
 
-	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+	return oko_secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart

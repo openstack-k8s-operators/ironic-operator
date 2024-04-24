@@ -34,7 +34,7 @@ func GetIngressDomain(
 		},
 	)
 	err := helper.GetClient().Get(
-		context.Background(),
+		ctx,
 		client.ObjectKey{
 			Namespace: "openshift-ingress-operator",
 			Name:      "default",

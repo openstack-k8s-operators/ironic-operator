@@ -211,10 +211,10 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 
 // SetupWithManager - sets up the controller with the Manager.
 func (r *IronicNeutronAgentReconciler) SetupWithManager(
-	mgr ctrl.Manager,
+	ctx context.Context, mgr ctrl.Manager,
 ) error {
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicNeutronAgent{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicNeutronAgent{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicNeutronAgent)
 		if cr.Spec.Secret == "" {
@@ -226,7 +226,7 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicNeutronAgent{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicNeutronAgent{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicNeutronAgent)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
@@ -257,7 +257,7 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicNeutronAgent")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
 
 	for _, field := range ironicNeutronAgentWatchFields {
 		crList := &ironicv1.IronicNeutronAgentList{}
@@ -265,7 +265,7 @@ func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, sr
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -541,7 +541,7 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 	}
 
 	// Handle service init
-	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
+	ctrlResult, err = r.reconcileInit(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -549,7 +549,7 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 	}
 
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpdate(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -557,7 +557,7 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -586,9 +586,6 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 
 func (r *IronicNeutronAgentReconciler) reconcileInit(
 	ctx context.Context,
-	instance *ironicv1.IronicNeutronAgent,
-	helper *helper.Helper,
-	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
@@ -615,8 +612,6 @@ func (r *IronicNeutronAgentReconciler) reconcileDelete(
 
 func (r *IronicNeutronAgentReconciler) reconcileUpdate(
 	ctx context.Context,
-	instance *ironicv1.IronicNeutronAgent,
-	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
@@ -628,8 +623,6 @@ func (r *IronicNeutronAgentReconciler) reconcileUpdate(
 
 func (r *IronicNeutronAgentReconciler) reconcileUpgrade(
 	ctx context.Context,
-	instance *ironicv1.IronicNeutronAgent,
-	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
