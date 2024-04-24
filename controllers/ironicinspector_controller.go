@@ -32,7 +32,6 @@ import (
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -42,7 +41,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/types"
 	k8s_types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -264,7 +262,7 @@ func (r *IronicInspectorReconciler) Reconcile(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicInspectorReconciler) SetupWithManager(
-	mgr ctrl.Manager, ctx context.Context,
+	ctx context.Context, mgr ctrl.Manager,
 ) error {
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
@@ -314,7 +312,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 	}
 
 	// index passwordSecretField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicInspector{}, passwordSecretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicInspector{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicInspector)
 		if cr.Spec.Secret == "" {
@@ -326,7 +324,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 	}
 
 	// index caBundleSecretNameField
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &ironicv1.IronicInspector{}, caBundleSecretNameField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicInspector{}, caBundleSecretNameField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
 		cr := rawObj.(*ironicv1.IronicInspector)
 		if cr.Spec.TLS.CaBundleSecretName == "" {
@@ -361,7 +359,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("IronicInspector")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicInspector")
 
 	for _, field := range ironicInspectorWatchFields {
 		crList := &ironicv1.IronicInspectorList{}
@@ -369,7 +367,7 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -379,7 +377,7 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 
 			requests = append(requests,
 				reconcile.Request{
-					NamespacedName: types.NamespacedName{
+					NamespacedName: k8s_types.NamespacedName{
 						Name:      item.GetName(),
 						Namespace: item.GetNamespace(),
 					},
@@ -509,7 +507,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 		hash, ctrlResult, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
-			types.NamespacedName{
+			k8s_types.NamespacedName{
 				Name:      instance.Spec.TLS.CaBundleSecretName,
 				Namespace: instance.Namespace,
 			},
@@ -730,7 +728,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	db, ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper, serviceLabels)
+	db, ctrlResult, err := r.reconcileServiceDBinstance(ctx, instance, helper)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -786,7 +784,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	}
 
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpdate(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -794,7 +792,7 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -928,7 +926,6 @@ func (r *IronicInspectorReconciler) reconcileServiceDBinstance(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	helper *helper.Helper,
-	serviceLabels map[string]string,
 ) (*mariadbv1.Database, ctrl.Result, error) {
 
 	// ensure MariaDBAccount exists.  This account record may be created by
@@ -1306,8 +1303,6 @@ func (r *IronicInspectorReconciler) reconcileInit(
 
 func (r *IronicInspectorReconciler) reconcileUpdate(
 	ctx context.Context,
-	instance *ironicv1.IronicInspector,
-	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
@@ -1321,8 +1316,6 @@ func (r *IronicInspectorReconciler) reconcileUpdate(
 
 func (r *IronicInspectorReconciler) reconcileUpgrade(
 	ctx context.Context,
-	instance *ironicv1.IronicInspector,
-	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Ironic Inspector Service upgrade")
@@ -1460,7 +1453,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			Labels:        cmLabels,
 		},
 	}
-	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+	return oko_secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the

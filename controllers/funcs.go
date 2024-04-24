@@ -29,9 +29,6 @@ const (
 )
 
 var (
-	ironicWatchFields = []string{
-		passwordSecretField,
-	}
 	ironicAPIWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
