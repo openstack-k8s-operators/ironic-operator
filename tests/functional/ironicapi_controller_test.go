@@ -336,6 +336,13 @@ var _ = Describe("IronicAPI controller", func() {
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			depl := th.GetDeployment(ironicNames.IronicName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
@@ -379,6 +386,14 @@ var _ = Describe("IronicAPI controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
@@ -400,6 +415,14 @@ var _ = Describe("IronicAPI controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.InternalCertSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)

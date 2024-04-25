@@ -264,6 +264,13 @@ var _ = Describe("IronicConductor controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
 
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			depl := th.GetStatefulSet(ironicNames.ConductorName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
@@ -289,6 +296,13 @@ var _ = Describe("IronicConductor controller", func() {
 		It("reconfigures the deployment when CA changes", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			depl := th.GetStatefulSet(ironicNames.ConductorName)
 			// Check the resulting deployment fields

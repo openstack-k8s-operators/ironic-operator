@@ -374,6 +374,14 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -423,6 +431,14 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
@@ -448,6 +464,14 @@ var _ = Describe("IronicInspector controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(ironicNames.PublicCertSecretName))
 
 			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 
 			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)

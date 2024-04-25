@@ -235,6 +235,13 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
@@ -252,6 +259,13 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 		It("reconfigures the deployment when CA changes", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
