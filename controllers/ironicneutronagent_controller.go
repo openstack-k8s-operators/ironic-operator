@@ -190,6 +190,7 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 	)
 
 	instance.Status.Conditions.Init(&cl)
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// If we're not deleting this and the service object doesn't have our finalizer, add it.
 	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) || isNewInstance {
@@ -480,10 +481,14 @@ func (r *IronicNeutronAgentReconciler) reconcileDeployment(
 			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
-	instance.Status.ReadyCount = deployment.GetDeployment().Status.ReadyReplicas
 
-	if instance.Status.ReadyCount > 0 {
-		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	// Only check ReadyCount if controller sees the last version of the CR
+	if deployment.GetDeployment().Generation == deployment.GetDeployment().Status.ObservedGeneration {
+		instance.Status.ReadyCount = deployment.GetDeployment().Status.ReadyReplicas
+
+		if instance.Status.ReadyCount == *instance.Spec.Replicas {
+			instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+		}
 	}
 
 	return ctrl.Result{}, nil

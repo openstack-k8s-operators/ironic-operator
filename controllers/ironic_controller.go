@@ -184,6 +184,7 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	)
 
 	instance.Status.Conditions.Init(&cl)
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// If we're not deleting this and the service object doesn't have our finalizer, add it.
 	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) || isNewInstance {
@@ -457,19 +458,40 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 				err.Error()))
 			return ctrl.Result{}, err
 		}
-		if op != controllerutil.OperationResultNone {
-			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
+
+		// Check the observed Generation and mirror the condition from the
+		// underlying resource reconciliation
+		cndObsGen, err := r.checkIronicConductorGeneration(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				ironicv1.IronicConductorReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				ironicv1.IronicConductorReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
 		}
-		// Mirror IronicConductor status' ReadyCount to this parent CR
-		condGrp := conductorSpec.ConductorGroup
-		if conductorSpec.ConductorGroup == "" {
-			condGrp = ironicv1.ConductorGroupNull
-		}
-		instance.Status.IronicConductorReadyCount[condGrp] = ironicConductor.Status.ReadyCount
-		// Mirror IronicConductor's condition status
-		c := ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
-		if c != nil {
-			instance.Status.Conditions.Set(c)
+		if !cndObsGen {
+			instance.Status.Conditions.Set(condition.UnknownCondition(
+				ironicv1.IronicConductorReadyCondition,
+				condition.InitReason,
+				ironicv1.IronicConductorReadyInitMessage,
+			))
+		} else {
+			// Mirror IronicConductor status' ReadyCount to this parent CR
+			condGrp := conductorSpec.ConductorGroup
+			if conductorSpec.ConductorGroup == "" {
+				condGrp = ironicv1.ConductorGroupNull
+			}
+			instance.Status.IronicConductorReadyCount[condGrp] = ironicConductor.Status.ReadyCount
+			// Mirror IronicConductor's condition status
+			c := ironicConductor.Status.Conditions.Mirror(ironicv1.IronicConductorReadyCondition)
+			if c != nil {
+				instance.Status.Conditions.Set(c)
+			}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
+			}
 		}
 	}
 
@@ -484,20 +506,42 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			err.Error()))
 		return ctrl.Result{}, err
 	}
-	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicAPI.Name, string(op)))
-	}
 
-	// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
-	for k, v := range ironicAPI.Status.APIEndpoints {
-		instance.Status.APIEndpoints[k] = v
+	// Check the observed Generation and mirror the condition from the
+	// underlying resource reconciliation
+	apiObsGen, err := r.checkIronicAPIGeneration(instance)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			ironicv1.IronicAPIReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			ironicv1.IronicAPIReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
 	}
-	instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
+	// Only mirror the underlying condition if the observedGeneration is
+	// the last seen
+	if !apiObsGen {
+		instance.Status.Conditions.Set(condition.UnknownCondition(
+			ironicv1.IronicAPIReadyCondition,
+			condition.InitReason,
+			ironicv1.IronicAPIReadyInitMessage,
+		))
+	} else {
+		// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
+		for k, v := range ironicAPI.Status.APIEndpoints {
+			instance.Status.APIEndpoints[k] = v
+		}
+		instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
 
-	// Mirror IronicAPI's condition status
-	c := ironicAPI.Status.Conditions.Mirror(ironicv1.IronicAPIReadyCondition)
-	if c != nil {
-		instance.Status.Conditions.Set(c)
+		// Mirror IronicAPI's condition status
+		c := ironicAPI.Status.Conditions.Mirror(ironicv1.IronicAPIReadyCondition)
+		if c != nil {
+			instance.Status.Conditions.Set(c)
+		}
+		if op != controllerutil.OperationResultNone {
+			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicAPI.Name, string(op)))
+		}
 	}
 
 	// deploy ironic-inspector
@@ -513,20 +557,43 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 					err.Error()))
 			return ctrl.Result{}, err
 		}
-		if op != controllerutil.OperationResultNone {
-			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
-		}
 
-		// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-		for k, v := range ironicInspector.Status.APIEndpoints {
-			instance.Status.APIEndpoints[k] = v
+		// Check the observed Generation and mirror the condition from the
+		// underlying resource reconciliation
+		nspObsGen, err := r.checkIronicInspectorGeneration(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicInspectorReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicInspectorReadyErrorMessage,
+					err.Error()))
+			return ctrl.Result{}, err
 		}
-		instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
+		// Only mirror the underlying condition if the observedGeneration is
+		// the last seen
+		if !nspObsGen {
+			instance.Status.Conditions.Set(condition.UnknownCondition(
+				ironicv1.IronicInspectorReadyCondition,
+				condition.InitReason,
+				ironicv1.IronicInspectorReadyInitMessage,
+			))
+		} else {
+			// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
+			for k, v := range ironicInspector.Status.APIEndpoints {
+				instance.Status.APIEndpoints[k] = v
+			}
+			instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
-		// Mirror IronicInspector's condition status
-		c = ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
-		if c != nil {
-			instance.Status.Conditions.Set(c)
+			// Mirror IronicInspector's condition status
+			c := ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
+			if c != nil {
+				instance.Status.Conditions.Set(c)
+			}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
+			}
 		}
 	} else {
 		err := r.inspectorDeploymentDelete(ctx, instance)
@@ -557,15 +624,39 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 					err.Error()))
 			return ctrl.Result{}, err
 		}
-		if op != controllerutil.OperationResultNone {
-			Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicNeutronAgent.Name, string(op)))
+
+		// Check the observed Generation and mirror the condition from the
+		// underlying resource reconciliation
+		agObsGen, err := r.checkNeutronAgentGeneration(instance)
+		if err != nil {
+			instance.Status.Conditions.Set(
+				condition.FalseCondition(
+					ironicv1.IronicNeutronAgentReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.IronicNeutronAgentReadyErrorMessage,
+					err.Error()))
+			return ctrl.Result{}, err
 		}
-		// Mirror IronicNeutronAgent status ReadyCount to this parent CR
-		instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgent.Status.ReadyCount
-		// Mirror IronicNeutronAgent's condition status
-		c = ironicNeutronAgent.Status.Conditions.Mirror(ironicv1.IronicNeutronAgentReadyCondition)
-		if c != nil {
-			instance.Status.Conditions.Set(c)
+		// Only mirror the underlying condition if the observedGeneration is
+		// the last seen
+		if !agObsGen {
+			instance.Status.Conditions.Set(condition.UnknownCondition(
+				ironicv1.IronicNeutronAgentReadyCondition,
+				condition.InitReason,
+				ironicv1.IronicNeutronAgentReadyInitMessage,
+			))
+		} else {
+			// Mirror IronicNeutronAgent status ReadyCount to this parent CR
+			instance.Status.IronicNeutronAgentReadyCount = ironicNeutronAgent.Status.ReadyCount
+			// Mirror IronicNeutronAgent's condition status
+			c := ironicNeutronAgent.Status.Conditions.Mirror(ironicv1.IronicNeutronAgentReadyCondition)
+			if c != nil {
+				instance.Status.Conditions.Set(c)
+			}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicNeutronAgent.Name, string(op)))
+			}
 		}
 	} else {
 		err := r.ironicNeutronAgentDeploymentDelete(ctx, instance)
@@ -590,7 +681,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	// We reached the end of the Reconcile, update the Ready condition based on
 	// the sub conditions
-	instance.Status.ObservedGeneration = instance.Generation
 	if instance.Status.Conditions.AllSubConditionIsTrue() {
 		instance.Status.Conditions.MarkTrue(
 			condition.ReadyCondition, condition.ReadyMessage)
@@ -1099,4 +1189,88 @@ func (r *IronicReconciler) ensureDB(
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
 	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 	return db, ctrlResult, nil
+}
+
+// checkIronicAPIGeneration -
+func (r *IronicReconciler) checkIronicAPIGeneration(
+	instance *ironicv1.Ironic,
+) (bool, error) {
+	Log := r.GetLogger(context.Background())
+	api := &ironicv1.IronicAPIList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+	}
+	if err := r.Client.List(context.Background(), api, listOpts...); err != nil {
+		Log.Error(err, "Unable to retrieve IronicAPI CR %w")
+		return false, err
+	}
+	for _, item := range api.Items {
+		if item.Generation != item.Status.ObservedGeneration {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// checkIronicConductorGeneration -
+func (r *IronicReconciler) checkIronicConductorGeneration(
+	instance *ironicv1.Ironic,
+) (bool, error) {
+	Log := r.GetLogger(context.Background())
+	cnd := &ironicv1.IronicConductorList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+	}
+	if err := r.Client.List(context.Background(), cnd, listOpts...); err != nil {
+		Log.Error(err, "Unable to retrieve IronicConductor CR %w")
+		return false, err
+	}
+	for _, item := range cnd.Items {
+		if item.Generation != item.Status.ObservedGeneration {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// checkIronicInspectorGeneration -
+func (r *IronicReconciler) checkIronicInspectorGeneration(
+	instance *ironicv1.Ironic,
+) (bool, error) {
+	Log := r.GetLogger(context.Background())
+	nsp := &ironicv1.IronicInspectorList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+	}
+	if err := r.Client.List(context.Background(), nsp, listOpts...); err != nil {
+		Log.Error(err, "Unable to retrieve IronicInspector CR %w")
+		return false, err
+	}
+	for _, item := range nsp.Items {
+		if item.Generation != item.Status.ObservedGeneration {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// checkNeutronAgentGeneration -
+func (r *IronicReconciler) checkNeutronAgentGeneration(
+	instance *ironicv1.Ironic,
+) (bool, error) {
+	Log := r.GetLogger(context.Background())
+	ag := &ironicv1.IronicNeutronAgentList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+	}
+	if err := r.Client.List(context.Background(), ag, listOpts...); err != nil {
+		Log.Error(err, "Unable to retrieve IronicNeutronAgent CR %w")
+		return false, err
+	}
+	for _, item := range ag.Items {
+		if item.Generation != item.Status.ObservedGeneration {
+			return false, nil
+		}
+	}
+	return true, nil
 }
