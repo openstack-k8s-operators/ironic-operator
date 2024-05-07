@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -133,6 +134,10 @@ func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList
 		allErrs = append(allErrs, err)
 	}
 
+	if err := validateAPISpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
 	if err := validateConductorSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -194,6 +199,10 @@ func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.P
 		allErrs = append(allErrs, err)
 	}
 
+	if err := validateAPISpec(spec, basePath); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
 	if err := validateConductorSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -221,8 +230,25 @@ func (r *Ironic) ValidateDelete() (admission.Warnings, error) {
 	return nil, nil
 }
 
+func validateAPISpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	// validate the service override key is valid
+	allErrs = append(allErrs, service.ValidateRoutedOverrides(
+		basePath.Child("ironicAPI").Child("override").Child("service"),
+		spec.IronicAPI.Override.Service)...)
+
+	return allErrs
+}
+
 func validateInspectorSpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
+
+	// validate the service override key is valid
+	allErrs = append(allErrs, service.ValidateRoutedOverrides(
+		basePath.Child("ironicInspector").Child("override").Child("service"),
+		spec.IronicInspector.Override.Service)...)
+
 	fieldPath := basePath.Child("ironicInspector").Child("dhcpRanges")
 
 	// Validate DHCP ranges
