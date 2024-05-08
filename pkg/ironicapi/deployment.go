@@ -135,9 +135,16 @@ func Deployment(
 						{
 							Name: ironic.ServiceName + "-" + ironic.APIComponent + "-log",
 							Command: []string{
-								"/bin/bash",
+								"/usr/bin/dumb-init",
 							},
-							Args:  []string{"-c", "tail -n+1 -F " + ironic.LogPath},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/bin/tail",
+								"-n+1",
+								"-F",
+								ironic.LogPath,
+							},
 							Image: instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
