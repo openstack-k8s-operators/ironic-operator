@@ -13,6 +13,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 commands:
   - script: |
+      set -euxo pipefail
       template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
       regex="http:\/\/ironic-public-$NAMESPACE\.apps.*:http:\/\/ironic-admin-$NAMESPACE\.apps.*:http:\/\/ironic-internal-$NAMESPACE\.apps.*"
       apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
@@ -22,15 +23,12 @@ commands:
       else
         exit 1
       fi
----
 # the actual addresses of the apiEndpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
 # the endpoints are defined and their addresses follow the default pattern
 # This test is for the ironic inspector endpoints
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
   - script: |
+      set -euxo pipefail
       template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
       regex="http:\/\/ironic-inspector-public-$NAMESPACE\.apps.*:http:\/\/ironic-inspector-admin-$NAMESPACE\.apps.*:http:\/\/ironic-inspector-internal-$NAMESPACE\.apps.*"
       apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
@@ -40,14 +38,10 @@ commands:
       else
         exit 1
       fi
----
 # Test the status code is correct for each endpoint
 # This test is for ironic endpoints
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
   - script: |
-      set -x
+      set -euxo pipefail
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
       if [ -z "$PUBLIC_URL" ]; then
@@ -62,14 +56,10 @@ commands:
           fi
       fi
       exit $RETURN_CODE
----
 # Test the status code is correct for each endpoint
 # This test is for ironic inspector endpoints
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
   - script: |
-      set -x
+      set -euxo pipefail
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
       if [ -z "$PUBLIC_URL" ]; then
@@ -84,12 +74,9 @@ commands:
           fi
       fi
       exit $RETURN_CODE
----
 # when using image digests the containerImage URLs are SHAs so we verify them with a script
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
   - script: |
+      set -euxo pipefail
       tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
       imageTuples=$(oc get -n openstack-operators deployment ironic-operator-controller-manager -o go-template="$tupleTemplate")
       for ITEM in $(echo $imageTuples); do
