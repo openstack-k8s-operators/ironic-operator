@@ -15,7 +15,7 @@ commands:
   - script: |
       set -euxo pipefail
       template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
-      regex="http:\/\/ironic-public-$NAMESPACE\.apps.*:http:\/\/ironic-admin-$NAMESPACE\.apps.*:http:\/\/ironic-internal-$NAMESPACE\.apps.*"
+      regex="http:\/\/ironic-public\.$NAMESPACE\..*:http:\/\/ironic-internal\.$NAMESPACE\..*"
       apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [ -z "$matches" ]; then
@@ -30,7 +30,7 @@ commands:
   - script: |
       set -euxo pipefail
       template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
-      regex="http:\/\/ironic-inspector-public-$NAMESPACE\.apps.*:http:\/\/ironic-inspector-admin-$NAMESPACE\.apps.*:http:\/\/ironic-inspector-internal-$NAMESPACE\.apps.*"
+      regex="http:\/\/ironic-inspector-public\.$NAMESPACE\..*:http:\/\/ironic-inspector-internal\.$NAMESPACE\..*"
       apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [ -z "$matches" ]; then
