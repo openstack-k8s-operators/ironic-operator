@@ -117,6 +117,13 @@ var _ = BeforeSuite(func() {
 			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
+		WebhookInstallOptions: envtest.WebhookInstallOptions{
+			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
+			// NOTE(gibi): if localhost is resolved to ::1 (ipv6) then starting
+			// the webhook fails as it try to parse the address as ipv4 and
+			// failing on the colons in ::1
+			LocalServingHost: "127.0.0.1",
+		},
 	}
 
 	// cfg is defined in this file globally.
@@ -174,6 +181,9 @@ var _ = BeforeSuite(func() {
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
+
+	err = (&ironicv1.Ironic{}).SetupWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
 
 	err = (&controllers.IronicNeutronAgentReconciler{
 		Client:  k8sManager.GetClient(),
