@@ -16,6 +16,7 @@ limitations under the License.
 package ironicconductor
 
 import (
+	"fmt"
 	"net"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -26,6 +27,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	k8snet "k8s.io/utils/net"
@@ -164,8 +166,9 @@ func StatefulSet(
 		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
+	resourceName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
 	conductorContainer := corev1.Container{
-		Name: ironic.ServiceName + "-" + ironic.ConductorComponent,
+		Name: resourceName,
 		Command: []string{
 			"/bin/bash",
 		},
@@ -259,6 +262,25 @@ func StatefulSet(
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 					Volumes:                       volumes,
+				},
+			},
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "var-lib-ironic",
+						Labels: labels,
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{
+							"ReadWriteOnce",
+						},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse(instance.Spec.StorageRequest),
+							},
+						},
+						StorageClassName: &instance.Spec.StorageClass,
+					},
 				},
 			},
 		},

@@ -52,7 +52,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/pvc"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -182,23 +181,6 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
-
-	// Define a new PVC object
-	// TODO: Once conditions added to PVC lib-common logic, handle
-	//       the returned condition here
-	pvc := pvc.NewPvc(
-		ironicconductor.Pvc(instance),
-		5,
-	)
-
-	ctrlResult, err := pvc.CreateOrPatch(ctx, helper)
-
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-	// End PVC creation/patch
 
 	// Handle service delete
 	if !instance.DeletionTimestamp.IsZero() {

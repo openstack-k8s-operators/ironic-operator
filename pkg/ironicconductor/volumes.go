@@ -2,7 +2,6 @@ package ironicconductor
 
 import (
 	"fmt"
-	"strings"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -12,10 +11,6 @@ import (
 // GetVolumes -
 func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
-	pvcName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
-	if instance.Spec.ConductorGroup != "" {
-		pvcName = strings.ToLower(fmt.Sprintf("%s-%s", pvcName, instance.Spec.ConductorGroup))
-	}
 	conductorVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
@@ -23,14 +18,6 @@ func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
 					SecretName:  fmt.Sprintf("%s-config-data", instance.Name),
-				},
-			},
-		},
-		{
-			Name: "var-lib-ironic",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvcName,
 				},
 			},
 		},
