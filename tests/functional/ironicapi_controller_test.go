@@ -93,7 +93,7 @@ var _ = Describe("IronicAPI controller", func() {
 		It("should have a finalizer", func() {
 			Eventually(func() []string {
 				return GetIronicAPI(ironicNames.APIName).Finalizers
-			}, timeout, interval).Should(ContainElement("IronicAPI"))
+			}, timeout, interval).Should(ContainElement("openstack.org/ironicapi"))
 		})
 		It("creates service account, role and rolebindig", func() {
 			th.ExpectCondition(

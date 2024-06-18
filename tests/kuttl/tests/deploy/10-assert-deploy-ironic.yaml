@@ -12,7 +12,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: Ironic
 metadata:
   finalizers:
-  - Ironic
+  - openstack.org/ironic
   name: ironic
 spec:
   customServiceConfig: |
@@ -55,7 +55,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
 metadata:
   finalizers:
-  - IronicAPI
+  - openstack.org/ironicapi
   name: ironic-api
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
@@ -82,7 +82,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicConductor
 metadata:
   finalizers:
-  - IronicConductor
+  - openstack.org/ironicconductor
   name: ironic-conductor
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
@@ -111,7 +111,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicInspector
 metadata:
   finalizers:
-  - IronicInspector
+  - openstack.org/ironicinspector
   name: ironic-inspector
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1
@@ -141,7 +141,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicNeutronAgent
 metadata:
   finalizers:
-  - IronicNeutronAgent
+  - openstack.org/ironicneutronagent
   name: ironic-ironic-neutron-agent
   ownerReferences:
   - apiVersion: ironic.openstack.org/v1beta1

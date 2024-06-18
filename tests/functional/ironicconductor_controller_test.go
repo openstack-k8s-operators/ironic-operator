@@ -95,7 +95,7 @@ var _ = Describe("IronicConductor controller", func() {
 		It("should have a finalizer", func() {
 			Eventually(func() []string {
 				return GetIronicConductor(ironicNames.ConductorName).Finalizers
-			}, timeout, interval).Should(ContainElement("IronicConductor"))
+			}, timeout, interval).Should(ContainElement("openstack.org/ironicconductor"))
 		})
 		It("creates service account, role and rolebindig", func() {
 			th.ExpectCondition(
