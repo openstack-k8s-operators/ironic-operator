@@ -95,7 +95,7 @@ var _ = Describe("Ironic controller", func() {
 		It("should have a finalizer", func() {
 			Eventually(func() []string {
 				return GetIronic(ironicNames.IronicName).Finalizers
-			}, timeout, interval).Should(ContainElement("Ironic"))
+			}, timeout, interval).Should(ContainElement("openstack.org/ironic"))
 		})
 		It("creates service account, role and rolebindig", func() {
 			th.ExpectCondition(
@@ -235,7 +235,7 @@ var _ = Describe("Ironic controller", func() {
 				"Ironic",
 				ironicNames.Namespace,
 				ironicNames.IronicDatabaseName.Name,
-				"Ironic",
+				"openstack.org/ironic",
 				mariadb,
 				timeout,
 				interval,

@@ -10,7 +10,7 @@ apiVersion: ironic.openstack.org/v1beta1
 kind: IronicAPI
 metadata:
   finalizers:
-  - IronicAPI
+  - openstack.org/ironicapi
   name: ironic
 ---
 apiVersion: apps/v1
