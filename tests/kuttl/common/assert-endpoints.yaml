@@ -44,12 +44,13 @@ commands:
       set -euxo pipefail
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
+      CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
       if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
           echo "Endpoint: apiEndpoints.ironic.public not ready."
           sleep 10
       else
-          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          STATUSCODE=$($CURL_CMD $PUBLIC_URL)
           if test $STATUSCODE -ne 200; then
               RETURN_CODE=1
               echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
@@ -62,12 +63,13 @@ commands:
       set -euxo pipefail
       RETURN_CODE=0
       PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
+      CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
       if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
           echo "Endpoint: .status.apiEndpoints.ironic-inspector.public not ready."
           sleep 10
       else
-          STATUSCODE=$(curl --silent --output /dev/stderr --head --write-out "%{http_code}" $PUBLIC_URL)
+          STATUSCODE=$($CURL_CMD $PUBLIC_URL)
           if test $STATUSCODE -ne 200; then
               RETURN_CODE=1
               echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
