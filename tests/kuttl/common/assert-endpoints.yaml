@@ -14,9 +14,10 @@ kind: TestAssert
 commands:
   - script: |
       set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
       template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
       regex="http:\/\/ironic-public\.$NAMESPACE\..*:http:\/\/ironic-internal\.$NAMESPACE\..*"
-      apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
+      apiEndpoints=$(oc get ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [ -z "$matches" ]; then
         exit 0
@@ -29,9 +30,10 @@ commands:
 # This test is for the ironic inspector endpoints
   - script: |
       set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
       template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
       regex="http:\/\/ironic-inspector-public\.$NAMESPACE\..*:http:\/\/ironic-inspector-internal\.$NAMESPACE\..*"
-      apiEndpoints=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o go-template="$template")
+      apiEndpoints=$(oc get ironics.ironic.openstack.org ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [ -z "$matches" ]; then
         exit 0
@@ -43,7 +45,8 @@ commands:
   - script: |
       set -euxo pipefail
       RETURN_CODE=0
-      PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
+      oc config set-context --current --namespace=$NAMESPACE
+      PUBLIC_URL=$(oc get ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
       CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
       if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
@@ -62,7 +65,8 @@ commands:
   - script: |
       set -euxo pipefail
       RETURN_CODE=0
-      PUBLIC_URL=$(oc get -n $NAMESPACE ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
+      oc config set-context --current --namespace=$NAMESPACE
+      PUBLIC_URL=$(oc get ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
       CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
       if [ -z "$PUBLIC_URL" ]; then
           RETURN_CODE=1
@@ -79,6 +83,7 @@ commands:
 # when using image digests the containerImage URLs are SHAs so we verify them with a script
   - script: |
       set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
       tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
       imageTuples=$(oc get -n openstack-operators deployment ironic-operator-controller-manager -o go-template="$tupleTemplate")
       for ITEM in $(echo $imageTuples); do
@@ -89,16 +94,16 @@ commands:
           template='{{.spec.containerImage}}'
           case $NAME in
             API)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicapi ironic-api -o go-template="$template")
+              SERVICE_IMAGE=$(oc get ironicapi ironic-api -o go-template="$template")
               ;;
             CONDUCTOR)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicconductor ironic-conductor -o go-template="$template")
+              SERVICE_IMAGE=$(oc get ironicconductor ironic-conductor -o go-template="$template")
               ;;
             INSPECTOR)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicinspector ironic-inspector -o go-template="$template")
+              SERVICE_IMAGE=$(oc get ironicinspector ironic-inspector -o go-template="$template")
               ;;
             PXE)
-              SERVICE_IMAGE=$(oc get -n $NAMESPACE ironicconductor ironic-conductor -o go-template="{{.spec.pxeContainerImage}}")
+              SERVICE_IMAGE=$(oc get ironicconductor ironic-conductor -o go-template="{{.spec.pxeContainerImage}}")
               ;;
             NEUTRON_AGENT)
               # this isn't deployed in all tests
