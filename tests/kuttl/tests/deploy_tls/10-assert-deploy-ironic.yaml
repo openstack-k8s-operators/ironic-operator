@@ -107,25 +107,25 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 commands:
   - script: |
+      set -euxo pipefail
       template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
-      regex="https:\/\/ironic-internal.$NAMESPACE.*:https:\/\/ironic-public.$NAMESPACE.*"
+      regex="https:\/\/ironic-internal\.$NAMESPACE\..*:https:\/\/ironic-public\.$NAMESPACE\..*"
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [[ -n "$matches" ]]; then
         exit 1
       fi
----
+      exit 0
 # the actual addresses of the api endpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
 # the two endpoints are defined and their addresses follow the default pattern
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
   - script: |
+      set -euxo pipefail
       template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
-      regex="https:\/\/ironic-inspector-internal.$NAMESPACE.*:https:\/\/ironic-inspector-public.$NAMESPACE.*"
+      regex="https:\/\/ironic-inspector-internal\.$NAMESPACE\..*:https:\/\/ironic-inspector-public\.$NAMESPACE\..*"
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic-inspector -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [[ -n "$matches" ]]; then
         exit 1
       fi
+      exit 0
