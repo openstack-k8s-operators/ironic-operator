@@ -25,6 +25,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -84,6 +85,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -134,6 +136,7 @@ rules:
   resources:
   - ironicapis/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - ironic.openstack.org
@@ -160,6 +163,7 @@ rules:
   resources:
   - ironicconductors/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - ironic.openstack.org
@@ -186,6 +190,7 @@ rules:
   resources:
   - ironicinspectors/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - ironic.openstack.org
@@ -212,6 +217,7 @@ rules:
   resources:
   - ironicneutronagents/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - ironic.openstack.org
@@ -238,6 +244,7 @@ rules:
   resources:
   - ironics/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - ironic.openstack.org
@@ -304,6 +311,7 @@ rules:
   resources:
   - mariadbaccounts/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - mariadb.openstack.org
@@ -344,6 +352,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -354,6 +363,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
