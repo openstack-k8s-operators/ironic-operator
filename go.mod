@@ -8,12 +8,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240723072244-35220eeedc06
+	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240729052254-84df6dfc07a9
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240727082224-67f53e2af106
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240727081739-431d0dcd4c77
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240727081739-431d0dcd4c77
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240723061644-8b86dae4532b
+	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240729093119-474d32f45d19
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240730142703-7fd3da600c9d
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240730142703-7fd3da600c9d
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240730141130-cb64983240ea
 	k8s.io/api v0.28.12
 	k8s.io/apimachinery v0.28.12
 	k8s.io/client-go v0.28.12
@@ -54,7 +54,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240727081739-431d0dcd4c77 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240730142703-7fd3da600c9d // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
