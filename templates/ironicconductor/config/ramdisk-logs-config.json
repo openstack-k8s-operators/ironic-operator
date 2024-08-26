@@ -1,0 +1,3 @@
+{
+    "command": "/usr/local/bin/container-scripts/runlogwatch.sh"
+}

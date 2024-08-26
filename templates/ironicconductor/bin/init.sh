@@ -51,6 +51,9 @@ fi
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir /var/lib/ironic/httpboot
 fi
+if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
+    mkdir /var/lib/ironic/ramdisk-logs
+fi
 # Build an ESP image
 pushd /var/lib/ironic/httpboot
 if [ ! -a "esp.img" ]; then
