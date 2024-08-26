@@ -151,10 +151,16 @@ func StatefulSet(
 	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	ramdiskLogsEnvVars := map[string]env.Setter{}
+	ramdiskLogsEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+	ramdiskLogsEnvVars["LOG_DIR"] = env.SetValue("/var/log/ironic/deploy")
+
 	volumes := GetVolumes(instance)
 	conductorVolumeMounts := GetVolumeMounts("ironic-conductor")
 	httpbootVolumeMounts := GetVolumeMounts("httpboot")
 	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
+	ramdiskLogsVolumeMounts := GetVolumeMounts("ramdisk-logs")
 	initVolumeMounts := GetInitVolumeMounts()
 
 	// Add the CA bundle
@@ -163,6 +169,7 @@ func StatefulSet(
 		conductorVolumeMounts = append(conductorVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		httpbootVolumeMounts = append(httpbootVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		dnsmasqVolumeMounts = append(dnsmasqVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		ramdiskLogsVolumeMounts = append(ramdiskLogsVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
@@ -201,10 +208,26 @@ func StatefulSet(
 		LivenessProbe:  httpbootLivenessProbe,
 		// StartupProbe:   startupProbe,
 	}
+	ramdiskLogsContainer := corev1.Container{
+		Name: "ramdisk-logs",
+		Command: []string{
+			"/bin/bash",
+		},
+		Image:        instance.Spec.ContainerImage,
+		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
+		VolumeMounts: ramdiskLogsVolumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+		},
+	}
 
 	containers := []corev1.Container{
 		conductorContainer,
 		httpbootContainer,
+		ramdiskLogsContainer,
 	}
 
 	if instance.Spec.ProvisionNetwork != "" {

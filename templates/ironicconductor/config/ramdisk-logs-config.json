@@ -1,0 +1,10 @@
+{
+    "command": "/usr/local/bin/container-scripts/runlogwatch.sh",
+    "permissions": [
+        {
+            "path": "/var/log/ironic",
+            "owner": "ironic:ironic",
+            "recurse": true
+        }
+    ]
+}

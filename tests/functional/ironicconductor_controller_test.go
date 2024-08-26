@@ -276,7 +276,7 @@ var _ = Describe("IronicConductor controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
 			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(6))
-			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(3))
 
 			// cert deployment volumes
 			th.AssertVolumeExists(ironicNames.CaBundleSecretName.Name, depl.Spec.Template.Spec.Volumes)
@@ -309,7 +309,7 @@ var _ = Describe("IronicConductor controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
 			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(6))
-			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(3))
 
 			// Grab the current config hash
 			originalHash := GetEnvVarValue(
