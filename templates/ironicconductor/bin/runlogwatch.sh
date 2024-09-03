@@ -1,4 +1,6 @@
-#!/usr/bin/bash
+#!/bin//bash
+
+set -eux
 
 # Ramdisk logs path
 LOG_DIR=${LOG_DIR:-/var/log/ironic/deploy}
