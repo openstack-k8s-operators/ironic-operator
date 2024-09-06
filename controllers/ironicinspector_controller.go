@@ -504,7 +504,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	//
 	// Validate the CA cert secret if provided
 	if instance.Spec.TLS.CaBundleSecretName != "" {
-		hash, ctrlResult, err := tls.ValidateCACertSecret(
+		hash, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
 			k8s_types.NamespacedName{
@@ -513,6 +513,14 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 			},
 		)
 		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
+			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.TLSInputReadyCondition,
 				condition.ErrorReason,
@@ -520,8 +528,6 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 				condition.TLSInputErrorMessage,
 				err.Error()))
 			return ctrl.Result{}, "", err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrlResult, "", nil
 		}
 
 		if hash != "" {
@@ -530,8 +536,16 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	}
 
 	// Validate API service certs secrets
-	certsHash, ctrlResult, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
+	certsHash, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
 	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+			return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
+		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.TLSInputReadyCondition,
 			condition.ErrorReason,
@@ -539,8 +553,6 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 			condition.TLSInputErrorMessage,
 			err.Error()))
 		return ctrl.Result{}, "", err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, "", nil
 	}
 	configMapVars[tls.TLSHashName] = env.SetValue(certsHash)
 

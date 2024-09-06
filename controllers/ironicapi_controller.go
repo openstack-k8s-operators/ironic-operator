@@ -680,7 +680,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	//
 	// Validate the CA cert secret if provided
 	if instance.Spec.TLS.CaBundleSecretName != "" {
-		hash, ctrlResult, err := tls.ValidateCACertSecret(
+		hash, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
 			types.NamespacedName{
@@ -689,15 +689,21 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 			},
 		)
 		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+				return ctrl.Result{}, nil
+			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.TLSInputReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
 				condition.TLSInputErrorMessage,
 				err.Error()))
-			return ctrlResult, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			return ctrlResult, nil
+			return ctrl.Result{}, err
 		}
 
 		if hash != "" {
@@ -706,17 +712,23 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 
 	// Validate API service certs secrets
-	certsHash, ctrlResult, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
+	certsHash, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
 	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+			return ctrl.Result{}, nil
+		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.TLSInputReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.TLSInputErrorMessage,
 			err.Error()))
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
+		return ctrl.Result{}, err
 	}
 	configMapVars[tls.TLSHashName] = env.SetValue(certsHash)
 
@@ -803,7 +815,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	}
 
 	// Handle service init
-	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
+	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {

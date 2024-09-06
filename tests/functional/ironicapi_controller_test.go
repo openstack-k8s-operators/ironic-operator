@@ -278,8 +278,8 @@ var _ = Describe("IronicAPI controller", func() {
 				ConditionGetterFunc(IronicAPIConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: %s", ironicNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
 				ironicNames.APIName,
@@ -297,8 +297,9 @@ var _ = Describe("IronicAPI controller", func() {
 				ConditionGetterFunc(IronicAPIConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets \"%s in namespace %s\" not found",
+					ironicNames.InternalCertSecretName.Name, ironicNames.InternalCertSecretName.Namespace),
 			)
 			th.ExpectCondition(
 				ironicNames.APIName,
@@ -317,8 +318,9 @@ var _ = Describe("IronicAPI controller", func() {
 				ConditionGetterFunc(IronicAPIConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/public-tls-certs not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets \"%s in namespace %s\" not found",
+					ironicNames.PublicCertSecretName.Name, ironicNames.PublicCertSecretName.Namespace),
 			)
 			th.ExpectCondition(
 				ironicNames.APIName,

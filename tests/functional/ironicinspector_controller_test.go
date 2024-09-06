@@ -318,8 +318,8 @@ var _ = Describe("IronicInspector controller", func() {
 				ConditionGetterFunc(IronicInspectorConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: %s", ironicNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
@@ -331,14 +331,14 @@ var _ = Describe("IronicInspector controller", func() {
 
 		It("reports that the internal cert secret is missing", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(ironicNames.CaBundleSecretName))
-
 			th.ExpectConditionWithDetails(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/internal-tls-certs not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets \"%s in namespace %s\" not found",
+					ironicNames.InternalCertSecretName.Name, ironicNames.InternalCertSecretName.Namespace),
 			)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
@@ -357,8 +357,9 @@ var _ = Describe("IronicInspector controller", func() {
 				ConditionGetterFunc(IronicInspectorConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/public-tls-certs not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets \"%s in namespace %s\" not found",
+					ironicNames.PublicCertSecretName.Name, ironicNames.PublicCertSecretName.Namespace),
 			)
 			th.ExpectCondition(
 				ironicNames.InspectorName,
