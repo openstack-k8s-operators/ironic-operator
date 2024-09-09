@@ -250,8 +250,8 @@ var _ = Describe("IronicConductor controller", func() {
 				ConditionGetterFunc(IronicConductorConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.ErrorReason,
-				fmt.Sprintf("TLSInput error occured in TLS sources Secret %s/combined-ca-bundle not found", ironicNames.Namespace),
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: %s", ironicNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
 				ironicNames.ConductorName,
