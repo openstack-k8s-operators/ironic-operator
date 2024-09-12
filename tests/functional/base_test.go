@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -282,7 +283,7 @@ func CreateIronic(
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
 func GetIronic(
@@ -332,7 +333,7 @@ func CreateIronicAPI(
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
 func GetIronicAPI(
@@ -372,7 +373,7 @@ func CreateIronicConductor(
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
 func GetIronicConductor(
@@ -416,7 +417,7 @@ func CreateIronicInspector(
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
 func GetIronicInspector(
@@ -457,7 +458,7 @@ func CreateIronicNeutronAgent(
 		},
 		"spec": spec,
 	}
-	return th.CreateUnstructured(raw)
+	return CreateUnstructured(raw)
 }
 
 func GetIronicNeutronAgent(
@@ -561,7 +562,7 @@ func CreateFakeIngressController() {
 	)
 
 	// Create fake custom resource, namespace and fake ingresscontroller
-	th.CreateUnstructured(fakeCustomResorce)
+	CreateUnstructured(fakeCustomResorce)
 	Eventually(func(g Gomega) {
 		g.Expect(th.K8sClient.Get(th.Ctx, client.ObjectKey{
 			Name: "ingresscontrollers.operator.openshift.io",
@@ -569,7 +570,7 @@ func CreateFakeIngressController() {
 	}, th.Timeout, th.Interval).Should(Succeed())
 	th.CreateNamespace(name.Namespace)
 
-	fic := th.CreateUnstructured(fakeIngressController)
+	fic := CreateUnstructured(fakeIngressController)
 
 	// (zzzeek) if we proceed into the k8sManager.Start(ctx) step before
 	// the above CreateUnstructured call is done, the above call
@@ -583,4 +584,14 @@ func CreateFakeIngressController() {
 		g.Expect(th.K8sClient.Get(th.Ctx, name, fic)).Should(Succeed())
 	}, th.Timeout, th.Interval).Should(Succeed())
 
+}
+
+func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructured {
+	logger.Info("Creating", "raw", rawObj)
+	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
+	Eventually(func(g Gomega) {
+		_, err := controllerutil.CreateOrPatch(ctx, k8sClient, unstructuredObj, func() error { return nil })
+		g.Expect(err).ShouldNot(HaveOccurred())
+	}, th.Timeout, th.Interval).Should(Succeed())
+	return unstructuredObj
 }
