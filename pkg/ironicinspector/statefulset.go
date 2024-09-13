@@ -145,6 +145,7 @@ func StatefulSet(
 	httpdVolumeMounts := GetVolumeMounts("httpd")
 	inspectorVolumeMounts := GetVolumeMounts("ironic-inspector")
 	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
+	ramdiskLogsVolumeMounts := GetVolumeMounts("ramdisk-logs")
 	initVolumeMounts := GetInitVolumeMounts()
 
 	// add CA cert if defined
@@ -154,6 +155,7 @@ func StatefulSet(
 		inspectorVolumeMounts = append(inspectorVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		httpbootVolumeMounts = append(httpbootVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		dnsmasqVolumeMounts = append(dnsmasqVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		ramdiskLogsVolumeMounts = append(ramdiskLogsVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
@@ -239,6 +241,24 @@ func StatefulSet(
 		// StartupProbe:   startupProbe,
 	}
 	containers = append(containers, httpbootContainer)
+
+	ramdiskLogsEnvVars := map[string]env.Setter{}
+	ramdiskLogsEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+	ramdiskLogsContainer := corev1.Container{
+		Name: "ramdisk-logs",
+		Command: []string{
+			"/bin/bash",
+		},
+		Args:         args,
+		Image:        instance.Spec.ContainerImage,
+		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
+		VolumeMounts: ramdiskLogsVolumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+	}
+	containers = append(containers, ramdiskLogsContainer)
 
 	if instance.Spec.InspectionNetwork != "" {
 		// Only include dnsmasq container if there is an inspection network
