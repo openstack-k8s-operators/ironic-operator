@@ -62,6 +62,7 @@ func GetVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "ironic-api-config.json",
 			ReadOnly:  true,
 		},
+		GetLogVolumeMount(),
 	}
 
 	return append(ironic.GetVolumeMounts(), volumeMounts...)
