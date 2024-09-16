@@ -53,7 +53,7 @@ OPERATOR_SDK_VERSION ?= v1.31.0
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.28
+ENVTEST_K8S_VERSION = 1.29
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -66,6 +66,8 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+GOTOOLCHAIN_VERSION ?= go1.21.0
 
 # Extra vars which will be passed to the Docker-build
 DOCKER_BUILD_ARGS ?=
@@ -117,7 +119,7 @@ tidy: ## Run go mod tidy on every mod file in the repo
 
 .PHONY: golangci-lint
 golangci-lint:
-	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.51.2
+	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.1
 	$(LOCALBIN)/golangci-lint run --fix
 
 PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
@@ -331,9 +333,10 @@ golint: get-ci-tools
 
 .PHONY: gowork
 gowork: ## Generate go.work file to support our multi module repository
-	test -f go.work || go work init
+	test -f go.work || GOTOOLCHAIN=$(GOTOOLCHAIN_VERSION) go work init
 	go work use .
 	go work use ./api
+	go work sync
 
 .PHONY: operator-lint
 operator-lint: gowork ## Runs operator-lint
