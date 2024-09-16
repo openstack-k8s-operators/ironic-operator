@@ -106,7 +106,7 @@ func GetDBSyncVolumeMounts() []corev1.VolumeMount {
 
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name:      "config-data-merged",
+			Name:      "config-data",
 			MountPath: "/var/lib/kolla/config_files/config.json",
 			SubPath:   "db-sync-config.json",
 			ReadOnly:  true,
