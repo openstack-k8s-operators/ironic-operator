@@ -20,6 +20,10 @@ export TRANSPORTURL=${TransportURL:-""}
 
 export CUSTOMCONF=${CustomConf:-""}
 
+if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
+    mkdir /var/lib/ironic/ramdisk-logs
+fi
+
 SVC_CFG=/etc/ironic-inspector/inspector.conf
 SVC_CFG_MERGED=/var/lib/config-data/merged/inspector.conf
 

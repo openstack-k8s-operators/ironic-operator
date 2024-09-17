@@ -827,8 +827,9 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
 			AdditionalTemplate: map[string]string{
-				"common.sh":  "/common/bin/common.sh",
-				"get_net_ip": "/common/bin/get_net_ip",
+				"common.sh":      "/common/bin/common.sh",
+				"get_net_ip":     "/common/bin/get_net_ip",
+				"runlogwatch.sh": "/common/bin/runlogwatch.sh",
 			},
 			Labels: cmLabels,
 		},

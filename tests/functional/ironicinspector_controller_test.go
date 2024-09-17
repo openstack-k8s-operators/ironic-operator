@@ -199,7 +199,7 @@ var _ = Describe("IronicInspector controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
 			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(6))
-			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// Check the ironic-inspector-httpd container
 			container := ss.Spec.Template.Spec.Containers[0]
@@ -393,7 +393,7 @@ var _ = Describe("IronicInspector controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
 			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
-			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// cert deployment volumes
 			th.AssertVolumeExists(ironicNames.CaBundleSecretName.Name, depl.Spec.Template.Spec.Volumes)
@@ -483,7 +483,7 @@ var _ = Describe("IronicInspector controller", func() {
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
 			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
-			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// Grab the current config hash
 			originalHash := GetEnvVarValue(
