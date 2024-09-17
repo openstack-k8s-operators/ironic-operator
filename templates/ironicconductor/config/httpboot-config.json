@@ -10,11 +10,6 @@
     ],
     "permissions": [
         {
-            "path": "/var/log/ironic",
-            "owner": "ironic:ironic",
-            "recurse": true
-        },
-        {
             "path": "/var/lib/ironic",
             "owner": "ironic:ironic",
             "recurse": true
