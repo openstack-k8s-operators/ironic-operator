@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 # Ramdisk logs path
 LOG_DIR=${LOG_DIR:-/var/lib/ironic/ramdisk-logs}
