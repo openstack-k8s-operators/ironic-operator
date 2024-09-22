@@ -1,4 +1,4 @@
-#!/bin//bash
+#!/bin/bash
 #
 # Copyright 2020 Red Hat Inc.
 #
@@ -15,12 +15,10 @@
 # under the License.
 set -ex
 
+
 # Create TFTP, HTTP serving directories
 mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
-if [ ! -d "/var/lib/ironic/httpboot" ]; then
-    mkdir /var/lib/ironic/httpboot
-fi
-
+mkdir -p /var/lib/ironic/httpboot
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos

@@ -46,7 +46,8 @@ const (
 	InitContainerCommand = "/usr/local/bin/container-scripts/init.sh"
 
 	// PxeInitContainerCommand -
-	PxeInitContainerCommand = "/usr/local/bin/container-scripts/pxe-init.sh"
+	PxeInitContainerCommand = "/usr/local/bin/container-scripts/inspector-pxe-init.sh"
+
 )
 
 // InitContainer - init container for Ironic Inspector pods
