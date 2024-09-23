@@ -17,8 +17,12 @@ set -ex
 
 
 # Create TFTP, HTTP serving directories
-mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
-mkdir -p /var/lib/ironic/httpboot
+if [ ! -d "/var/lib/ironic/tftpboot/pxelinux.cfg" ]; then
+    mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
+fi
+if [ ! -d "/var/lib/ironic/httpboot" ]; then
+    mkdir -p /var/lib/ironic/httpboot
+fi
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos
@@ -39,3 +43,35 @@ for dir in httpboot tftpboot; do
     # Ensure all files are readable
     chmod -R +r /var/lib/ironic/$dir
 done
+
+# Patch ironic-python-agent with custom CA certificates
+if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/ironic-python-agent.initramfs" ]; then
+    # Extract the initramfs
+    cd /
+    mkdir initramfs
+    pushd initramfs
+    zcat /var/lib/ironic/httpboot/ironic-python-agent.initramfs | cpio -idmV
+    popd
+
+    # Copy the CA certificates
+    cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
+    echo update-ca-trust | unshare -r chroot ./initramfs
+
+    # Repack the initramfs
+    pushd initramfs
+    find . | cpio -o -c --quiet -R root:root | gzip -1 > /var/lib/ironic/httpboot/ironic-python-agent.initramfs
+fi
+
+# Build an ESP image
+pushd /var/lib/ironic/httpboot
+if [ ! -a "esp.img" ]; then
+    dd if=/dev/zero of=esp.img bs=4096 count=1024
+    mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
+
+    mmd -i esp.img EFI
+    mmd -i esp.img EFI/BOOT
+    mcopy -i esp.img -v bootx64.efi ::EFI/BOOT
+    mcopy -i esp.img -v grubx64.efi ::EFI/BOOT
+    mdir -i esp.img ::EFI/BOOT;
+fi
+popd

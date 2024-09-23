@@ -47,7 +47,6 @@ const (
 
 	// PxeInitContainerCommand -
 	PxeInitContainerCommand = "/usr/local/bin/container-scripts/inspector-pxe-init.sh"
-
 )
 
 // InitContainer - init container for Ironic Inspector pods
@@ -129,23 +128,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 	}
 	containers = append(containers, inspectorInit)
 
-	if init.PxeInit {
-		pxeInit := corev1.Container{
-			Name:  "inspector-pxe-init",
-			Image: init.PxeContainerImage,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
-			},
-			Command: []string{
-				"/bin/bash",
-			},
-			Args:         []string{"-c", PxeInitContainerCommand},
-			Env:          envs,
-			VolumeMounts: init.VolumeMounts,
-		}
-		containers = append(containers, pxeInit)
-	}
-
 	if init.IpaInit {
 		ipaInit := corev1.Container{
 			Name:  "ironic-python-agent-init",
@@ -157,6 +139,29 @@ func InitContainer(init APIDetails) []corev1.Container {
 			VolumeMounts: init.VolumeMounts,
 		}
 		containers = append(containers, ipaInit)
+	}
+
+	if init.PxeInit {
+		pxeInit := corev1.Container{
+			Name:  "inspector-pxe-init",
+			Image: init.PxeContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: &runAsUser,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"SYS_CHROOT",
+						"SETFCAP",
+					},
+				},
+			},
+			Command: []string{
+				"/bin/bash",
+			},
+			Args:         []string{"-c", PxeInitContainerCommand},
+			Env:          envs,
+			VolumeMounts: init.VolumeMounts,
+		}
+		containers = append(containers, pxeInit)
 	}
 
 	return containers

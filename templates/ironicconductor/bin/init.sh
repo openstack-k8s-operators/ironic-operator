@@ -54,16 +54,3 @@ fi
 if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
     mkdir /var/lib/ironic/ramdisk-logs
 fi
-# Build an ESP image
-pushd /var/lib/ironic/httpboot
-if [ ! -a "esp.img" ]; then
-    dd if=/dev/zero of=esp.img bs=4096 count=1024
-    mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
-
-    mmd -i esp.img EFI
-    mmd -i esp.img EFI/BOOT
-    mcopy -i esp.img -v bootx64.efi ::EFI/BOOT
-    mcopy -i esp.img -v grubx64.efi ::EFI/BOOT
-    mdir -i esp.img ::EFI/BOOT;
-fi
-popd

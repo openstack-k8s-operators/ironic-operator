@@ -351,6 +351,7 @@ func StatefulSet(
 		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,
 		IpaInit:                true,
+		Privileged:             true,
 		InspectorHTTPURL:       inspectorHTTPURL,
 		IngressDomain:          ingressDomain,
 		InspectionNetwork:      instance.Spec.InspectionNetwork,
