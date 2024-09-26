@@ -8,15 +8,15 @@ require (
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240916123109-af18c66e2af1
+	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240924160156-ab5ffca21875
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240916074020-1104df97c4dc
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240916063644-814ac3823abe
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240916063644-814ac3823abe
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240913150207-a06f656e440b
-	k8s.io/api v0.29.2
-	k8s.io/apimachinery v0.29.2
-	k8s.io/client-go v0.29.2
+	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240924153427-7c76cf130db3
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240925091112-d0fa8e528283
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240925091112-d0fa8e528283
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240924182844-b6e2e51b497f
+	k8s.io/api v0.29.9
+	k8s.io/apimachinery v0.29.9
+	k8s.io/client-go v0.29.9
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.17.6
 )
@@ -54,7 +54,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240916063644-814ac3823abe // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240925091112-d0fa8e528283 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
@@ -77,7 +77,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiextensions-apiserver v0.29.2 // indirect
-	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/component-base v0.29.9 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
