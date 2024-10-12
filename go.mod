@@ -10,10 +10,10 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20241010211630-1da98a9fb3f9
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241010164950-7b08059ab809
+	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20241012151742-8030171def4e
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20241007071524-66e6544525a3
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20241007071524-66e6544525a3
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20241010184758-ab6bb1c87d6f
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20241012153655-4666731b845c
 	k8s.io/api v0.29.9
 	k8s.io/apimachinery v0.29.9
 	k8s.io/client-go v0.29.9
