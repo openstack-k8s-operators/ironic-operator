@@ -344,12 +344,11 @@ operator-lint: gowork ## Runs operator-lint
 	go vet -vettool=$(LOCALBIN)/operator-lint ./... ./api/...
 
 # Used for webhook testing
-# Please ensure the ironic-controller-manager deployment and
-# webhook definitions are removed from the csv before running
-# this. Also, cleanup the webhook configuration for local testing
-# before deplying with olm again.
-# $oc delete -n openstack validatingwebhookconfiguration/vironic.kb.io
-# $oc delete -n openstack mutatingwebhookconfiguration/mironic.kb.io
+# The configure_local_webhooks.sh script below will remove any OLM webhooks
+# for the operator and also scale its deployment replicas down to 0 so that
+# the operator can run locally.
+# Make sure to cleanup the webhook configuration for local testing by running
+# ./hack/clean_local_webhook.sh before deplying with OLM again.
 SKIP_CERT ?=false
 .PHONY: run-with-webhook
 run-with-webhook: export METRICS_PORT?=8080
