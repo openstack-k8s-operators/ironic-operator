@@ -162,7 +162,7 @@ func (r *IronicAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// initialize conditions used later as Status=Unknown
 	cl := condition.CreateList(
 		condition.UnknownCondition(condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage),
-		condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+		condition.UnknownCondition(condition.CreateServiceReadyCondition, condition.InitReason, condition.CreateServiceReadyInitMessage),
 		condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 		condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 		condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
@@ -457,10 +457,10 @@ func (r *IronicAPIReconciler) reconcileInit(
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrl.Result{}, err
@@ -489,19 +489,19 @@ func (r *IronicAPIReconciler) reconcileInit(
 		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
+				condition.CreateServiceReadyRunningMessage))
 			return ctrlResult, nil
 		}
 		// create service - end
@@ -521,7 +521,7 @@ func (r *IronicAPIReconciler) reconcileInit(
 	instance.Status.APIEndpoints[ironic.ServiceName] = apiEndpoints
 	// V1 - end
 
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 
 	// expose service - end
 

@@ -180,9 +180,9 @@ func (r *IronicInspectorReconciler) Reconcile(
 	// initialize conditions used later as Status=Unknown
 	cl := condition.CreateList(
 		condition.UnknownCondition(
-			condition.ExposeServiceReadyCondition,
+			condition.CreateServiceReadyCondition,
 			condition.InitReason,
-			condition.ExposeServiceReadyInitMessage),
+			condition.CreateServiceReadyInitMessage),
 		condition.UnknownCondition(
 			condition.InputReadyCondition,
 			condition.InitReason,
@@ -1137,10 +1137,10 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrl.Result{}, err
@@ -1169,19 +1169,19 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
+				condition.CreateServiceReadyRunningMessage))
 			return ctrlResult, nil
 		}
 		// create service - end
@@ -1205,7 +1205,7 @@ func (r *IronicInspectorReconciler) reconcileExposeService(
 	instance.Status.APIEndpoints[inspectorServiceName] = apiEndpoints
 	// V1 - end
 
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 
 	return ctrl.Result{}, nil
 }

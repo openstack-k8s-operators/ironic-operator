@@ -180,7 +180,7 @@ var _ = Describe("IronicInspector controller", func() {
 			th.ExpectCondition(
 				ironicNames.InspectorName,
 				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
