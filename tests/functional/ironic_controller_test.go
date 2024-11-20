@@ -226,6 +226,240 @@ var _ = Describe("Ironic controller", func() {
 		})
 	})
 
+	When("Ironic is created with nodeSelector", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["nodeSelector"] = map[string]interface{}{
+				"foo": "bar",
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+
+			nestedINATransportURLName := ironicNames.INATransportURLName
+			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
+			infra.GetTransportURL(nestedINATransportURLName)
+			infra.SimulateTransportURLReady(nestedINATransportURLName)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+
+		It("sets nodeSelector in resource specs", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("updates nodeSelector in resource specs when changed", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				newNodeSelector := map[string]string{
+					"foo2": "bar2",
+				}
+				ironic.Spec.NodeSelector = &newNodeSelector
+				g.Expect(k8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes nodeSelector from resource specs when cleared", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				emptyNodeSelector := map[string]string{}
+				ironic.Spec.NodeSelector = &emptyNodeSelector
+				g.Expect(k8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes nodeSelector from resource specs when nilled", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				ironic.Spec.NodeSelector = nil
+				g.Expect(k8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("allows nodeSelector service override", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				apiNodeSelector := map[string]string{
+					"foo": "api",
+				}
+				ironic.Spec.IronicAPI.NodeSelector = &apiNodeSelector
+				conductorNodeSelector := map[string]string{
+					"foo": "conductor",
+				}
+				ironic.Spec.IronicConductors[0].NodeSelector = &conductorNodeSelector
+				inspectorNodeSelector := map[string]string{
+					"foo": "inspector",
+				}
+				ironic.Spec.IronicInspector.NodeSelector = &inspectorNodeSelector
+				INANodeSelector := map[string]string{
+					"foo": "ina",
+				}
+				ironic.Spec.IronicNeutronAgent.NodeSelector = &INANodeSelector
+
+				g.Expect(k8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "inspector"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "api"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "inspector"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "conductor"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "ina"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("allows nodeSelector service override to empty", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				apiNodeSelector := map[string]string{}
+				ironic.Spec.IronicAPI.NodeSelector = &apiNodeSelector
+				conductorNodeSelector := map[string]string{}
+				ironic.Spec.IronicConductors[0].NodeSelector = &conductorNodeSelector
+				inspectorNodeSelector := map[string]string{}
+				ironic.Spec.IronicInspector.NodeSelector = &inspectorNodeSelector
+				INANodeSelector := map[string]string{}
+				ironic.Spec.IronicNeutronAgent.NodeSelector = &INANodeSelector
+
+				g.Expect(k8sClient.Update(ctx, ironic)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+
+	})
+
 	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
 	// that exercise standard account create / update patterns that should be
 	// common to all controllers that ensure MariaDBAccount CRs.
