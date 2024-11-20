@@ -614,9 +614,13 @@ func (in *IronicInspectorTemplate) DeepCopyInto(out *IronicInspectorTemplate) {
 	out.PasswordSelectors = in.PasswordSelectors
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	if in.DefaultConfigOverwrite != nil {
@@ -815,9 +819,13 @@ func (in *IronicServiceTemplate) DeepCopyInto(out *IronicServiceTemplate) {
 	}
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
@@ -880,9 +888,13 @@ func (in *IronicSpecCore) DeepCopyInto(out *IronicSpecCore) {
 	in.IronicNeutronAgent.DeepCopyInto(&out.IronicNeutronAgent)
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = new(map[string]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
 	}
 }
