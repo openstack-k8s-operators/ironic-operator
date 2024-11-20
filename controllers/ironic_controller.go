@@ -778,6 +778,11 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		KeystoneEndpoints:       *keystoneEndpoints,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 	}
+
+	if IronicConductorSpec.NodeSelector == nil {
+		IronicConductorSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -787,9 +792,6 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
 		deployment.Spec = IronicConductorSpec
-		if len(deployment.Spec.NodeSelector) == 0 {
-			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		if deployment.Spec.StorageClass == "" {
 			deployment.Spec.StorageClass = instance.Spec.StorageClass
 		}
@@ -822,6 +824,10 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		KeystoneEndpoints:  *keystoneEndpoints,
 	}
 
+	if IronicAPISpec.NodeSelector == nil {
+		IronicAPISpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	deployment := &ironicv1.IronicAPI{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-api", instance.Name),
@@ -831,9 +837,6 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, deployment, func() error {
 		deployment.Spec = IronicAPISpec
-		if len(deployment.Spec.NodeSelector) == 0 {
-			deployment.Spec.NodeSelector = instance.Spec.NodeSelector
-		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
 			return err
@@ -977,6 +980,11 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		RabbitMqClusterName:     instance.Spec.RabbitMqClusterName,
 		Secret:                  instance.Spec.Secret,
 	}
+
+	if IronicInspectorSpec.NodeSelector == nil {
+		IronicInspectorSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	deployment := &ironicv1.IronicInspector{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-inspector", instance.Name),
@@ -987,9 +995,6 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
 			deployment.Spec = IronicInspectorSpec
-			if len(deployment.Spec.NodeSelector) == 0 {
-				deployment.Spec.NodeSelector = instance.Spec.NodeSelector
-			}
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {
@@ -1046,6 +1051,11 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		ServiceUser:                instance.Spec.ServiceUser,
 		TLS:                        instance.Spec.IronicAPI.TLS.Ca,
 	}
+
+	if IronicNeutronAgentSpec.NodeSelector == nil {
+		IronicNeutronAgentSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
 	deployment := &ironicv1.IronicNeutronAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-ironic-neutron-agent", instance.Name),
@@ -1056,9 +1066,6 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 	op, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, deployment, func() error {
 			deployment.Spec = IronicNeutronAgentSpec
-			if len(deployment.Spec.NodeSelector) == 0 {
-				deployment.Spec.NodeSelector = instance.Spec.NodeSelector
-			}
 			err := controllerutil.SetControllerReference(
 				instance, deployment, r.Scheme)
 			if err != nil {

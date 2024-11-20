@@ -234,13 +234,16 @@ func GetIronicNames(
 		},
 		InternalCertSecretName: types.NamespacedName{
 			Namespace: ironicName.Namespace,
-			Name:      "internal-tls-certs"},
+			Name:      "internal-tls-certs",
+		},
 		PublicCertSecretName: types.NamespacedName{
 			Namespace: ironicName.Namespace,
-			Name:      "public-tls-certs"},
+			Name:      "public-tls-certs",
+		},
 		CaBundleSecretName: types.NamespacedName{
 			Namespace: ironicName.Namespace,
-			Name:      "combined-ca-bundle"},
+			Name:      "combined-ca-bundle",
+		},
 	}
 }
 

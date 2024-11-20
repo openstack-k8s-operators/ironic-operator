@@ -142,7 +142,7 @@ type IronicSpecCore struct {
 	// NodeSelector to target subset of worker nodes running this service. Setting
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// Storage class to host data. This is passed to IronicConductors unless
 	// storageClass is explicitly set for the conductor.
