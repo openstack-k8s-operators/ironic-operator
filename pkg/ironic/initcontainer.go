@@ -116,26 +116,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	var containers []corev1.Container
 
-	if init.PxeInit {
-		pxeInit := corev1.Container{
-			Name:  "pxe-init",
-			Image: init.PxeContainerImage,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
-			},
-			Command: []string{
-				"/bin/bash",
-			},
-			Args: []string{
-				"-c",
-				PxeInitContainerCommand,
-			},
-			Env:          envs,
-			VolumeMounts: init.VolumeMounts,
-		}
-		containers = append(containers, pxeInit)
-	}
-
 	initContainer := corev1.Container{
 		Name:  "init",
 		Image: init.ContainerImage,
@@ -165,6 +145,27 @@ func InitContainer(init APIDetails) []corev1.Container {
 			VolumeMounts: init.VolumeMounts,
 		}
 		containers = append(containers, ipaInit)
+	}
+
+	if init.PxeInit {
+		pxeInit := corev1.Container{
+			Name:  "pxe-init",
+			Image: init.PxeContainerImage,
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser:  &runAsUser,
+				Privileged: &init.Privileged,
+			},
+			Command: []string{
+				"/bin/bash",
+			},
+			Args: []string{
+				"-c",
+				PxeInitContainerCommand,
+			},
+			Env:          envs,
+			VolumeMounts: init.VolumeMounts,
+		}
+		containers = append(containers, pxeInit)
 	}
 
 	return containers

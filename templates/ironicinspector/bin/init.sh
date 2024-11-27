@@ -1,4 +1,4 @@
-#!/bin//bash
+#!/bin/bash
 #
 # Copyright 2023 Red Hat Inc.
 #
@@ -20,6 +20,9 @@ export TRANSPORTURL=${TransportURL:-""}
 
 export CUSTOMCONF=${CustomConf:-""}
 
+if [ ! -d "/var/lib/ironic/httpboot" ]; then
+    mkdir /var/lib/ironic/httpboot
+fi
 if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
     mkdir /var/lib/ironic/ramdisk-logs
 fi

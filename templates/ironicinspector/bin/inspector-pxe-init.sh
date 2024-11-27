@@ -18,10 +18,6 @@ set -ex
 # Get the statefulset pod index
 export PODINDEX=$(echo ${HOSTNAME##*-})
 
-# Create TFTP, HTTP serving directories
-mkdir -p /var/lib/ironic/tftpboot/pxelinux.cfg
-mkdir -p /var/lib/ironic/httpboot
-
 # DHCP server configuration
 export InspectorNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${InspectionNetwork})
 export INSPECTOR_HTTP_URL=$(python3 -c 'import os; print(os.environ["InspectorHTTPURL"] % os.environ)')
@@ -38,23 +34,5 @@ envsubst < ${DNSMASQ_CFG} | tee ${DNSMASQ_CFG}
 export INSPECTOR_IPXE=/var/lib/config-data/merged/inspector.ipxe
 envsubst < ${INSPECTOR_IPXE} | tee ${INSPECTOR_IPXE}
 
-# Check for expected EFI directories
-if [ -d "/boot/efi/EFI/centos" ]; then
-    efi_dir=centos
-elif [ -d "/boot/efi/EFI/redhat" ]; then
-    efi_dir=redhat
-else
-    echo "No EFI directory detected"
-    exit 1
-fi
-
-# Copy iPXE and grub files to tftpboot, httpboot
-for dir in httpboot tftpboot; do
-    cp /usr/share/ipxe/ipxe-snponly-x86_64.efi /var/lib/ironic/$dir/snponly.efi
-    cp /usr/share/ipxe/undionly.kpxe           /var/lib/ironic/$dir/undionly.kpxe
-    cp /usr/share/ipxe/ipxe.lkrn               /var/lib/ironic/$dir/ipxe.lkrn
-    cp /boot/efi/EFI/$efi_dir/shimx64.efi      /var/lib/ironic/$dir/bootx64.efi
-    cp /boot/efi/EFI/$efi_dir/grubx64.efi      /var/lib/ironic/$dir/grubx64.efi
-    # Ensure all files are readable
-    chmod -R +r /var/lib/ironic/$dir
-done
+# run common pxe-init script
+/usr/local/bin/container-scripts/pxe-init.sh
