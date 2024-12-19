@@ -45,7 +45,7 @@ for dir in httpboot tftpboot; do
 done
 
 # Patch ironic-python-agent with custom CA certificates
-if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/ironic-python-agent.initramfs" ]; then
+if [[ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" || -f "/etc/pki/ca-trust/extracted/pem/internal-ca-bundle.pem" ]] && [ -f "/var/lib/ironic/httpboot/ironic-python-agent.initramfs" ]; then
     # Extract the initramfs
     cd /
     mkdir initramfs
@@ -54,7 +54,12 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     popd
 
     # Copy the CA certificates
-    cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
+    if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ]; then
+        cp /etc/pki/ca-trust/extracted/pem/internal-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
+    fi
+    if [ -f "/etc/pki/ca-trust/extracted/pem/internal-ca-bundle.pem" ]; then
+        cp /etc/pki/ca-trust/extracted/pem/internal-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
+    fi
     echo update-ca-trust | unshare -r chroot ./initramfs
 
     # Repack the initramfs
