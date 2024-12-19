@@ -54,6 +54,8 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     popd
 
     # Copy the CA certificates
+    # DEBUG - is the rootca-internal there?
+    grep rootca-internal /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
     cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
     echo update-ca-trust | unshare -r chroot ./initramfs
 
