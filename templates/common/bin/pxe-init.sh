@@ -54,7 +54,7 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     popd
 
     # Copy the CA certificates
-    cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/extracted/pem/
+    cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/source/anchors/
     echo update-ca-trust | unshare -r chroot ./initramfs
 
     # Repack the initramfs
