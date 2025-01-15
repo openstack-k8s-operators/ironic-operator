@@ -600,3 +600,29 @@ func (spec *IronicSpecCore) Default() {
 		spec.RPCTransport = "json-rpc"
 	}
 }
+
+// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
+func (spec *IronicAPISpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+	const haProxyAnno = "haproxy.router.openshift.io/timeout"
+	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
+	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
+	const ironicAnno = "api.ironic.openstack.org/timeout"
+
+	valIronic, okIronic := annotations[ironicAnno]
+	valHAProxy, okHAProxy := annotations[haProxyAnno]
+
+	// Human operator sets the HAProxy timeout manually
+	if !okIronic && okHAProxy {
+		return
+	}
+
+	// Human operator modified the HAProxy timeout manually without removing the Ironic flag
+	if okIronic && okHAProxy && valIronic != valHAProxy {
+		delete(annotations, ironicAnno)
+		return
+	}
+
+	timeout := fmt.Sprintf("%ds", spec.APITimeout)
+	annotations[ironicAnno] = timeout
+	annotations[haProxyAnno] = timeout
+}

@@ -48,6 +48,11 @@ spec:
           spec:
             description: IronicSpec defines the desired state of Ironic
             properties:
+              apiTimeout:
+                default: 60
+                description: APITimeout for HAProxy, Apache
+                minimum: 10
+                type: integer
               customServiceConfig:
                 default: '# add your customization here'
                 description: |-
@@ -545,6 +550,11 @@ spec:
                 description: IronicInspector - Spec definition for the inspector service
                   of this Ironic deployment
                 properties:
+                  apiTimeout:
+                    default: 60
+                    description: APITimeout for HAProxy, Apache
+                    minimum: 10
+                    type: integer
                   customServiceConfig:
                     default: '# add your customization here'
                     description: |-

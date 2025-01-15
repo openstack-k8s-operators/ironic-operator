@@ -149,6 +149,12 @@ type IronicSpecCore struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=""
 	StorageClass string `json:"storageClass"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for HAProxy, Apache
+	APITimeout int `json:"apiTimeout"`
 }
 
 // IronicImages to specify container images required by all ironic services

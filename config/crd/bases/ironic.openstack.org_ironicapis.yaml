@@ -52,6 +52,11 @@ spec:
           spec:
             description: IronicAPISpec defines the desired state of IronicAPI
             properties:
+              apiTimeout:
+                default: 60
+                description: APITimeout for HAProxy, Apache
+                minimum: 10
+                type: integer
               containerImage:
                 description: ContainerImage - Ironic API Container Image
                 type: string
