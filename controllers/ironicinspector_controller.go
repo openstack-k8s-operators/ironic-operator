@@ -1523,6 +1523,7 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		httpdVhostConfig[endpt.String()] = endptConfig
 	}
 	templateParameters["VHosts"] = httpdVhostConfig
+	templateParameters["TimeOut"] = instance.Spec.APITimeout
 
 	cms := []util.Template{
 		// Scripts ConfigMap
