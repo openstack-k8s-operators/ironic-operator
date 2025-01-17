@@ -828,6 +828,10 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		IronicAPISpec.NodeSelector = instance.Spec.NodeSelector
 	}
 
+	if IronicAPISpec.APITimeout == 0 {
+		IronicAPISpec.APITimeout = instance.Spec.APITimeout
+	}
+
 	deployment := &ironicv1.IronicAPI{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-api", instance.Name),
@@ -898,6 +902,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["LogPath"] = ironic.LogPath
+	templateParameters["APITimeout"] = instance.Spec.APITimeout
 
 	databaseAccount := db.GetAccount()
 	dbSecret := db.GetSecret()
@@ -983,6 +988,10 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 
 	if IronicInspectorSpec.NodeSelector == nil {
 		IronicInspectorSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	if IronicInspectorSpec.APITimeout == 0 {
+		IronicInspectorSpec.APITimeout = instance.Spec.APITimeout
 	}
 
 	deployment := &ironicv1.IronicInspector{
