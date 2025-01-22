@@ -122,6 +122,20 @@ spec:
                       But can also be used to add additional files. Those get added to the service config dir in /etc/<service> .
                       TODO: -> implement
                     type: object
+                  httpdCustomization:
+                    description: HttpdCustomization - customize the httpd service
+                    properties:
+                      customConfigSecret:
+                        description: |-
+                          CustomConfigSecret - customize the httpd vhost config using this parameter to specify
+                          a secret that contains service config data. The content of each provided snippet gets
+                          rendered as a go template and placed into /etc/httpd/conf/httpd_custom_<key> .
+                          In the default httpd template at the end of the vhost those custom configs get
+                          included using `Include conf/httpd_custom_<endpoint>_*`.
+                          For information on how sections in httpd configuration get merged, check section
+                          "How the sections are merged" in https://httpd.apache.org/docs/current/sections.html#merging
+                        type: string
+                    type: object
                   networkAttachments:
                     description: NetworkAttachments is a list of NetworkAttachment
                       resource names to expose the services to the given network
@@ -603,6 +617,20 @@ spec:
                       - start
                       type: object
                     type: array
+                  httpdCustomization:
+                    description: HttpdCustomization - customize the httpd service
+                    properties:
+                      customConfigSecret:
+                        description: |-
+                          CustomConfigSecret - customize the httpd vhost config using this parameter to specify
+                          a secret that contains service config data. The content of each provided snippet gets
+                          rendered as a go template and placed into /etc/httpd/conf/httpd_custom_<key> .
+                          In the default httpd template at the end of the vhost those custom configs get
+                          included using `Include conf/httpd_custom_<endpoint>_*`.
+                          For information on how sections in httpd configuration get merged, check section
+                          "How the sections are merged" in https://httpd.apache.org/docs/current/sections.html#merging
+                        type: string
+                    type: object
                   inspectionNetwork:
                     description: InspectionNetwork - Additional network to attach
                       to expose boot DHCP, TFTP, HTTP services.

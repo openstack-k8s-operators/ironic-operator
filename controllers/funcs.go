@@ -22,10 +22,11 @@ import (
 
 // fields to index to reconcile when change
 const (
-	passwordSecretField     = ".spec.secret"
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
-	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
-	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
+	passwordSecretField                 = ".spec.secret"
+	caBundleSecretNameField             = ".spec.tls.caBundleSecretName"
+	tlsAPIInternalField                 = ".spec.tls.api.internal.secretName"
+	tlsAPIPublicField                   = ".spec.tls.api.public.secretName"
+	httpdCustomServiceConfigSecretField = ".spec.httpdCustomization.customServiceConfigSecret"
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 		caBundleSecretNameField,
 		tlsAPIInternalField,
 		tlsAPIPublicField,
+		httpdCustomServiceConfigSecretField,
 	}
 	ironicConductorWatchFields = []string{
 		passwordSecretField,
@@ -42,6 +44,7 @@ var (
 	ironicInspectorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
+		httpdCustomServiceConfigSecretField,
 	}
 	ironicNeutronAgentWatchFields = []string{
 		passwordSecretField,

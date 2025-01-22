@@ -26,6 +26,7 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironicinspector "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	"gopkg.in/yaml.v2"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -333,6 +334,18 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 			return nil
 		}
 		return []string{cr.Spec.TLS.CaBundleSecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index httpdOverrideSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicInspector{}, httpdCustomServiceConfigSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicInspector)
+		if cr.Spec.HttpdCustomization.CustomConfigSecret == nil {
+			return nil
+		}
+		return []string{*cr.Spec.HttpdCustomization.CustomConfigSecret}
 	}); err != nil {
 		return err
 	}
@@ -1436,7 +1449,16 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		ironicinspector.DatabaseName,
 	)
 
+	httpdOverrideSecret := &corev1.Secret{}
+	if instance.Spec.HttpdCustomization.CustomConfigSecret != nil && *instance.Spec.HttpdCustomization.CustomConfigSecret != "" {
+		httpdOverrideSecret, _, err = oko_secret.GetSecret(ctx, h, *instance.Spec.HttpdCustomization.CustomConfigSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
 	// create httpd  vhost template parameters
+	customTemplates := map[string]string{}
 	httpdVhostConfig := map[string]interface{}{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]interface{}{}
@@ -1447,9 +1469,26 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
 			endptConfig["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
 		}
+
+		endptConfig["Override"] = false
+		if len(httpdOverrideSecret.Data) > 0 {
+			endptConfig["Override"] = true
+			for key, data := range httpdOverrideSecret.Data {
+				if len(data) > 0 {
+					customTemplates["httpd_custom_"+endpt.String()+"_"+key] = string(data)
+				}
+			}
+		}
 		httpdVhostConfig[endpt.String()] = endptConfig
 	}
 	templateParameters["VHosts"] = httpdVhostConfig
+
+	// Marshal the templateParameters map to YAML
+	yamlData, err := yaml.Marshal(templateParameters)
+	if err != nil {
+		return fmt.Errorf("Error marshalling to YAML: %w", err)
+	}
+	customData[common.TemplateParameters] = string(yamlData)
 
 	cms := []util.Template{
 		// Scripts ConfigMap
@@ -1468,13 +1507,14 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		},
 		// ConfigMap
 		{
-			Name:          fmt.Sprintf("%s-config-data", instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			ConfigOptions: templateParameters,
-			Labels:        cmLabels,
+			Name:           fmt.Sprintf("%s-config-data", instance.Name),
+			Namespace:      instance.Namespace,
+			Type:           util.TemplateTypeConfig,
+			InstanceType:   instance.Kind,
+			CustomData:     customData,
+			ConfigOptions:  templateParameters,
+			StringTemplate: customTemplates,
+			Labels:         cmLabels,
 		},
 	}
 	return oko_secret.EnsureSecrets(ctx, h, instance, cms, envVars)
