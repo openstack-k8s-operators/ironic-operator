@@ -46,6 +46,13 @@
             "dest": "/etc/my.cnf",
             "owner": "ironic",
             "perm": "0644"
+        },
+        {
+            "source": "/var/lib/config-data/merged/httpd_custom_*",
+            "dest": "/etc/httpd/conf/",
+            "owner": "apache",
+            "perm": "0444",
+            "optional": true
         }
     ],
     "permissions": [

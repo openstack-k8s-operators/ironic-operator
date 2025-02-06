@@ -25,6 +25,7 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	corev1 "k8s.io/api/core/v1"
@@ -500,6 +501,70 @@ var _ = Describe("IronicInspector controller", func() {
 				g.Expect(newHash).NotTo(BeEmpty())
 				g.Expect(newHash).NotTo(Equal(originalHash))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("A IronicInspector is created with HttpdCustomization.CustomConfigSecret", func() {
+		BeforeEach(func() {
+			customServiceConfigSecretName := types.NamespacedName{Name: "foo", Namespace: ironicNames.Namespace}
+			customConfig := []byte(`CustomParam "foo"
+CustomKeystonePublicURL "{{ .KeystonePublicURL }}"`)
+			th.CreateSecret(
+				customServiceConfigSecretName,
+				map[string][]byte{
+					"bar.conf": customConfig,
+				},
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicInspectorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["keystoneEndpoints"] = map[string]interface{}{
+				"public": "http://keystone-public-openstack.testing",
+			}
+			spec["httpdCustomization"] = map[string]interface{}{
+				"customConfigSecret": customServiceConfigSecretName.Name,
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicInspector(ironicNames.InspectorName, spec))
+
+			infra.GetTransportURL(ironicNames.InspectorTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.InspectorTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(ironicNames.InspectorDatabaseName)
+		})
+
+		It("it renders the custom template and adds it to the ironic-inspector-config-data secret", func() {
+			scrt := th.GetSecret(ironicNames.InspectorConfigSecretName)
+			Expect(scrt).ShouldNot(BeNil())
+			Expect(scrt.Data).Should(HaveKey(common.TemplateParameters))
+			configData := string(scrt.Data[common.TemplateParameters])
+			keystonePublicURL := "http://keystone-public-openstack.testing"
+			Expect(configData).Should(ContainSubstring(fmt.Sprintf("KeystonePublicURL: %s", keystonePublicURL)))
+
+			for _, cfg := range []string{"httpd_custom_internal_bar.conf", "httpd_custom_public_bar.conf"} {
+				Expect(scrt.Data).Should(HaveKey(cfg))
+				configData := string(scrt.Data[cfg])
+				Expect(configData).Should(ContainSubstring("CustomParam \"foo\""))
+				Expect(configData).Should(ContainSubstring(fmt.Sprintf("CustomKeystonePublicURL \"%s\"", keystonePublicURL)))
+			}
 		})
 	})
 

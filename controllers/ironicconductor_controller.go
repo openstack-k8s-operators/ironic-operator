@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/fields"
 	k8s_types "k8s.io/apimachinery/pkg/types"
 
@@ -825,6 +826,13 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		instance.Spec.DatabaseHostname,
 		ironic.DatabaseName,
 	)
+
+	// Marshal the templateParameters map to YAML
+	yamlData, err := yaml.Marshal(templateParameters)
+	if err != nil {
+		return fmt.Errorf("Error marshalling to YAML: %w", err)
+	}
+	customData[common.TemplateParameters] = string(yamlData)
 
 	cms := []util.Template{
 		// Scripts ConfigMap

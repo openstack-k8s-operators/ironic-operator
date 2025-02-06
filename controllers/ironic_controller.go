@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
+	"gopkg.in/yaml.v2"
 
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -908,6 +909,13 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		instance.Status.DatabaseHostname,
 		ironic.DatabaseName,
 	)
+
+	// Marshal the templateParameters map to YAML
+	yamlData, err := yaml.Marshal(templateParameters)
+	if err != nil {
+		return fmt.Errorf("Error marshalling to YAML: %w", err)
+	}
+	customData[common.TemplateParameters] = string(yamlData)
 
 	cms := []util.Template{
 		// Scripts ConfigMap
