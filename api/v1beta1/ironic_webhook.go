@@ -33,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // log is for logging in this package.
@@ -104,6 +105,8 @@ func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
 	ironiclog.Info("validate create", "name", r.Name)
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
+
+	allErrs = r.Spec.ValidateIronicTopology(basePath, r.Namespace)
 	if err := r.Spec.ValidateCreate(basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -169,6 +172,7 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
+	allErrs = r.Spec.ValidateIronicTopology(basePath, r.Namespace)
 	if err := r.Spec.ValidateUpdate(oldIronic.Spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -599,4 +603,56 @@ func (spec *IronicSpecCore) Default() {
 	if spec.RPCTransport == "" {
 		spec.RPCTransport = "json-rpc"
 	}
+}
+
+// ValidateIronicTopology - Returns an ErrorList if the Topology is referenced
+// on a different namespace
+func (spec *IronicSpec) ValidateIronicTopology(basePath *field.Path, namespace string) field.ErrorList {
+	var allErrs field.ErrorList
+
+	// When a TopologyRef CR is referenced, fail if a different Namespace is
+	// referenced because is not supported
+	if spec.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(spec.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
+
+	// When a TopologyRef CR is referenced with an override to IronicAPI, fail
+	// if a different Namespace is referenced because not supported
+	if spec.IronicAPI.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(spec.IronicAPI.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
+
+	// When a TopologyRef CR is referenced with an override to an instance of
+	// IronicConductor(s),  fail if a different Namespace is referenced because
+	// not supported
+	for _, cs := range spec.IronicConductors {
+		if cs.TopologyRef != nil {
+			if err := topologyv1.ValidateTopologyNamespace(cs.TopologyRef.Namespace, *basePath, namespace); err != nil {
+				allErrs = append(allErrs, err)
+			}
+		}
+	}
+
+	// When a TopologyRef CR is referenced with an override to an instance of
+	// IronicInspector, fail if a different Namespace is referenced because not
+	// supported
+	if spec.IronicInspector.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(spec.IronicInspector.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
+
+	// When a TopologyRef CR is referenced with an override to an instance of
+	// IronicNeutronAgent, fail if a different Namespace is referenced because
+	// not supported
+	if spec.IronicNeutronAgent.TopologyRef != nil {
+		if err := topologyv1.ValidateTopologyNamespace(spec.IronicNeutronAgent.TopologyRef.Namespace, *basePath, namespace); err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
+	return allErrs
 }

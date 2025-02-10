@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -45,6 +46,7 @@ func StatefulSet(
 	labels map[string]string,
 	ingressDomain string,
 	annotations map[string]string,
+	topology *topologyv1.Topology,
 ) *appsv1.StatefulSet {
 	runAsUser := int64(0)
 
@@ -305,19 +307,31 @@ func StatefulSet(
 			},
 		},
 	}
-
-	// If possible two pods of the same service should not
-	// run on the same worker node. If this is not possible
-	// the get still created on the same worker node.
-	statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
-		common.AppSelector,
-		[]string{
-			ironic.ServiceName,
-		},
-		corev1.LabelHostname,
-	)
 	if instance.Spec.NodeSelector != nil {
 		statefulset.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
+	}
+	if topology != nil {
+		// Get the Topology .Spec
+		ts := topology.Spec
+		// Process TopologySpreadConstraints if defined in the referenced Topology
+		if ts.TopologySpreadConstraints != nil {
+			statefulset.Spec.Template.Spec.TopologySpreadConstraints = *topology.Spec.TopologySpreadConstraints
+		}
+		// Process Affinity if defined in the referenced Topology
+		if ts.Affinity != nil {
+			statefulset.Spec.Template.Spec.Affinity = ts.Affinity
+		}
+	} else {
+		// If possible two pods of the same service should not
+		// run on the same worker node. If this is not possible
+		// the get still created on the same worker node.
+		statefulset.Spec.Template.Spec.Affinity = affinity.DistributePods(
+			common.AppSelector,
+			[]string{
+				ironic.ServiceName,
+			},
+			corev1.LabelHostname,
+		)
 	}
 
 	// init.sh needs to detect and set ProvisionNetworkIP

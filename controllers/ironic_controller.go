@@ -783,6 +783,11 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		IronicConductorSpec.NodeSelector = instance.Spec.NodeSelector
 	}
 
+	// If topology is not present in the underlying IronicConductorSpec Spec,
+	// inherit from the top-level CR
+	if IronicConductorSpec.TopologyRef == nil {
+		IronicConductorSpec.TopologyRef = instance.Spec.TopologyRef
+	}
 	deployment := &ironicv1.IronicConductor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -826,6 +831,12 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 
 	if IronicAPISpec.NodeSelector == nil {
 		IronicAPISpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	// If topology is not present in the underlying IronicAPI Spec,
+	// inherit from the top-level CR
+	if IronicAPISpec.TopologyRef == nil {
+		IronicAPISpec.TopologyRef = instance.Spec.TopologyRef
 	}
 
 	deployment := &ironicv1.IronicAPI{
@@ -985,6 +996,12 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 		IronicInspectorSpec.NodeSelector = instance.Spec.NodeSelector
 	}
 
+	// If topology is not present in the underlying IronicInspector Spec,
+	// inherit from the top-level CR
+	if IronicInspectorSpec.TopologyRef == nil {
+		IronicInspectorSpec.TopologyRef = instance.Spec.TopologyRef
+	}
+
 	deployment := &ironicv1.IronicInspector{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-inspector", instance.Name),
@@ -1054,6 +1071,12 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 
 	if IronicNeutronAgentSpec.NodeSelector == nil {
 		IronicNeutronAgentSpec.NodeSelector = instance.Spec.NodeSelector
+	}
+
+	// If topology is not present in the underlying IronicNeutronAgent Spec,
+	// inherit from the top-level CR
+	if IronicNeutronAgentSpec.TopologyRef == nil {
+		IronicNeutronAgentSpec.TopologyRef = instance.Spec.TopologyRef
 	}
 
 	deployment := &ironicv1.IronicNeutronAgent{

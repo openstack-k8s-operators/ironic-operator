@@ -226,6 +226,158 @@ var _ = Describe("Ironic controller", func() {
 		})
 	})
 
+	When("Ironic is created with topologyref", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec("ironic")
+			// Create Test Topologies
+			for _, t := range ironicNames.IronicTopologies {
+				CreateTopology(t, topologySpec)
+			}
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["topologyRef"] = map[string]interface{}{
+				"name": ironicNames.IronicTopologies[0].Name,
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+
+			nestedINATransportURLName := ironicNames.INATransportURLName
+			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
+			infra.GetTransportURL(nestedINATransportURLName)
+			infra.SimulateTransportURLReady(nestedINATransportURLName)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+
+		It("sets topology in CR status", func() {
+			Eventually(func(g Gomega) {
+				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+			}, timeout, interval).Should(Succeed())
+		})
+		It("sets nodeSelector in resource specs", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Affinity).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Affinity).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+		It("updates topology when the reference changes", func() {
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				ironic.Spec.TopologyRef.Name = ironicNames.IronicTopologies[1].Name
+				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+			}, timeout, interval).Should(Succeed())
+		})
+		It("overrides topology when the reference changes", func() {
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				//Patch IronicAPI Spec
+				newAPI := GetIronicAPISpec(ironicNames.APIName)
+				newAPI.TopologyRef.Name = ironicNames.IronicTopologies[1].Name
+				ironic.Spec.IronicAPI = newAPI
+				//Patch ironicConductor Spec
+				newCnd := GetIronicConductorSpec(ironicNames.ConductorName)
+				newCnd.TopologyRef.Name = ironicNames.IronicTopologies[2].Name
+				ironic.Spec.IronicConductors[0] = newCnd
+				//Patch ironicInspector Spec
+				newInsp := GetIronicInspectorSpec(ironicNames.InspectorName)
+				newInsp.TopologyRef.Name = ironicNames.IronicTopologies[3].Name
+				ironic.Spec.IronicInspector = newInsp
+				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[2].Name))
+				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[3].Name))
+			}, timeout, interval).Should(Succeed())
+		})
+		It("removes topologyRef from the spec", func() {
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				// Remove the TopologyRef from the existing Ironic .Spec
+				ironic.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).Should(BeEmpty())
+				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).Should(BeEmpty())
+				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).Should(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 	When("Ironic is created with nodeSelector", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -627,6 +779,32 @@ var _ = Describe("Ironic Webhook", func() {
 			ContainSubstring(
 				"invalid: spec.ironicInspector.override.service[wrooong]: " +
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+		)
+	})
+
+	It("rejects a wrong TopologyRef on a different namespace", func() {
+		spec := GetDefaultIronicSpec()
+		// Reference a top-level topology
+		spec["topologyRef"] = map[string]interface{}{
+			"name":      ironicNames.IronicTopologies[0].Name,
+			"namespace": "foo",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "ironic.openstack.org/v1beta1",
+			"kind":       "Ironic",
+			"metadata": map[string]interface{}{
+				"name":      ironicNames.IronicName.Name,
+				"namespace": ironicNames.IronicName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
 		)
 	})
 })
