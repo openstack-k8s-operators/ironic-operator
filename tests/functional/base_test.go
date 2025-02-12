@@ -84,6 +84,7 @@ type IronicNames struct {
 	InternalCertSecretName    types.NamespacedName
 	PublicCertSecretName      types.NamespacedName
 	CaBundleSecretName        types.NamespacedName
+	IronicTopologies          []types.NamespacedName
 }
 
 func GetIronicNames(
@@ -244,6 +245,31 @@ func GetIronicNames(
 			Namespace: ironicName.Namespace,
 			Name:      "combined-ca-bundle",
 		},
+		// A set of topologies to Test how the reference is propagated to the
+		// resulting StatefulSets and if a potential override produces the
+		// expected values
+		IronicTopologies: []types.NamespacedName{
+			{
+				Namespace: ironicName.Namespace,
+				Name:      fmt.Sprintf("%s-global-topology", ironicName.Name),
+			},
+			{
+				Namespace: ironicName.Namespace,
+				Name:      fmt.Sprintf("%s-api-topology", ironicName.Name),
+			},
+			{
+				Namespace: ironicName.Namespace,
+				Name:      fmt.Sprintf("%s-conductor-topology", ironicName.Name),
+			},
+			{
+				Namespace: ironicName.Namespace,
+				Name:      fmt.Sprintf("%s-inspector-topology", ironicName.Name),
+			},
+			{
+				Namespace: ironicName.Namespace,
+				Name:      fmt.Sprintf("%s-nagent-topology", ironicName.Name),
+			},
+		},
 	}
 }
 
@@ -349,6 +375,16 @@ func GetIronicAPI(
 	return instance
 }
 
+func GetIronicAPISpec(
+	name types.NamespacedName,
+) ironicv1.IronicAPITemplate {
+	instance := &ironicv1.IronicAPI{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance.Spec.IronicAPITemplate
+}
+
 func IronicAPIConditionGetter(name types.NamespacedName) condition.Conditions {
 	instance := GetIronicAPI(name)
 	return instance.Status.Conditions
@@ -387,6 +423,16 @@ func GetIronicConductor(
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func GetIronicConductorSpec(
+	name types.NamespacedName,
+) ironicv1.IronicConductorTemplate {
+	instance := &ironicv1.IronicConductor{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance.Spec.IronicConductorTemplate
 }
 
 func IronicConductorConditionGetter(name types.NamespacedName) condition.Conditions {
@@ -431,6 +477,16 @@ func GetIronicInspector(
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func GetIronicInspectorSpec(
+	name types.NamespacedName,
+) ironicv1.IronicInspectorTemplate {
+	instance := &ironicv1.IronicInspector{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance.Spec.IronicInspectorTemplate
 }
 
 func GetDefaultIronicInspectorSpec() map[string]interface{} {
@@ -597,4 +653,39 @@ func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructure
 		g.Expect(err).ShouldNot(HaveOccurred())
 	}, th.Timeout, th.Interval).Should(Succeed())
 	return unstructuredObj
+}
+
+// GetSampleTopologySpec - A sample (and opinionated) Topology Spec used to
+// test Ironic components
+func GetSampleTopologySpec(svcSelector string) map[string]interface{} {
+	// Build the topology Spec
+	topologySpec := map[string]interface{}{
+		"topologySpreadConstraints": []map[string]interface{}{
+			{
+				"maxSkew":           1,
+				"topologyKey":       corev1.LabelHostname,
+				"whenUnsatisfiable": "ScheduleAnyway",
+				"labelSelector": map[string]interface{}{
+					"matchLabels": map[string]interface{}{
+						"service": svcSelector,
+					},
+				},
+			},
+		},
+	}
+	return topologySpec
+}
+
+// CreateTopology - Creates a Topology CR based on the spec passed as input
+func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "topology.openstack.org/v1beta1",
+		"kind":       "Topology",
+		"metadata": map[string]interface{}{
+			"name":      topology.Name,
+			"namespace": topology.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
 }
