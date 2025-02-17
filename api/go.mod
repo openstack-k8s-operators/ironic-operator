@@ -5,8 +5,8 @@ go 1.21
 require (
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250210183624-a8bf66784d6d
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250205143454-43504d7ad19a
+	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250213131341-8e63f078f923
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250211124440-b44f6585b825
 	k8s.io/api v0.29.14
 	k8s.io/apimachinery v0.29.14
 	k8s.io/client-go v0.29.14
