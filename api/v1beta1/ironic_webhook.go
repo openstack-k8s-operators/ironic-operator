@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // log is for logging in this package.
@@ -655,4 +655,56 @@ func (spec *IronicSpec) ValidateIronicTopology(basePath *field.Path, namespace s
 		}
 	}
 	return allErrs
+}
+
+// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
+func (spec *IronicAPISpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+	const haProxyAnno = "haproxy.router.openshift.io/timeout"
+	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
+	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
+	const ironicAnno = "api.ironic.openstack.org/timeout"
+
+	valIronic, okIronic := annotations[ironicAnno]
+	valHAProxy, okHAProxy := annotations[haProxyAnno]
+
+	// Human operator sets the HAProxy timeout manually
+	if !okIronic && okHAProxy {
+		return
+	}
+
+	// Human operator modified the HAProxy timeout manually without removing the Ironic flag
+	if okIronic && okHAProxy && valIronic != valHAProxy {
+		delete(annotations, ironicAnno)
+		return
+	}
+
+	timeout := fmt.Sprintf("%ds", spec.APITimeout)
+	annotations[ironicAnno] = timeout
+	annotations[haProxyAnno] = timeout
+}
+
+// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
+func (spec *IronicInspectorSpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+	const haProxyAnno = "haproxy.router.openshift.io/timeout"
+	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
+	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
+	const ironicInspectorAnno = "inspector.ironic.openstack.org/timeout"
+
+	valIronic, okIronic := annotations[ironicInspectorAnno]
+	valHAProxy, okHAProxy := annotations[haProxyAnno]
+
+	// Human operator sets the HAProxy timeout manually
+	if !okIronic && okHAProxy {
+		return
+	}
+
+	// Human operator modified the HAProxy timeout manually without removing the Ironic flag
+	if okIronic && okHAProxy && valIronic != valHAProxy {
+		delete(annotations, ironicInspectorAnno)
+		return
+	}
+
+	timeout := fmt.Sprintf("%ds", spec.APITimeout)
+	annotations[ironicInspectorAnno] = timeout
+	annotations[haProxyAnno] = timeout
 }

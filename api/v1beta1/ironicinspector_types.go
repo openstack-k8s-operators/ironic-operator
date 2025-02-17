@@ -172,6 +172,12 @@ type IronicInspectorSpec struct {
 	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic-inspector
 	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=60
+	// +kubebuilder:validation:Minimum=10
+	// APITimeout for HAProxy, Apache
+	APITimeout int `json:"apiTimeout"`
 }
 
 // IronicInspectorStatus defines the observed state of IronicInspector
