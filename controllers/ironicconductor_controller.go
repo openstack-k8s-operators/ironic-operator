@@ -342,10 +342,7 @@ func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instanc
 	if ctrlResult, err := topologyv1.EnsureDeletedTopologyRef(
 		ctx,
 		helper,
-		&topologyv1.TopoRef{
-			Name:      instance.Status.LastAppliedTopology,
-			Namespace: instance.Namespace,
-		},
+		instance.Status.LastAppliedTopology,
 		instance.Name,
 	); err != nil {
 		return ctrlResult, err
@@ -703,17 +700,16 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	//
 	// Handle Topology
 	//
-	lastTopologyRef := topologyv1.TopoRef{
-		Name:      instance.Status.LastAppliedTopology,
-		Namespace: instance.Namespace,
-	}
-	topology, err := ensureIronicTopology(
+	topology, err := ensureTopology(
 		ctx,
 		helper,
-		instance.Spec.TopologyRef,
-		&lastTopologyRef,
-		instance.Name,
-		ironic.ConductorComponent,
+		instance,      // topologyHandler
+		instance.Name, // finalizer
+		&instance.Status.Conditions,
+		labels.GetSingleLabelSelector(
+			common.ComponentSelector,
+			ironic.ConductorComponent,
+		),
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -723,19 +719,6 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			condition.TopologyReadyErrorMessage,
 			err.Error()))
 		return ctrl.Result{}, fmt.Errorf("waiting for Topology requirements: %w", err)
-	}
-
-	// If TopologyRef is present and ensureManilaTopology returned a valid
-	// topology object, set .Status.LastAppliedTopology to the referenced one
-	// and mark the condition as true
-	if instance.Spec.TopologyRef != nil {
-		// update the Status with the last retrieved Topology name
-		instance.Status.LastAppliedTopology = instance.Spec.TopologyRef.Name
-		// update the TopologyRef associated condition
-		instance.Status.Conditions.MarkTrue(condition.TopologyReadyCondition, condition.TopologyReadyMessage)
-	} else {
-		// remove LastAppliedTopology from the .Status
-		instance.Status.LastAppliedTopology = ""
 	}
 
 	// Define a new StatefulSet object

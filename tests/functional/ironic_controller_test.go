@@ -287,11 +287,11 @@ var _ = Describe("Ironic controller", func() {
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
-				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
-				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("sets nodeSelector in resource specs", func() {
@@ -315,11 +315,11 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
-				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
-				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("overrides topology when the reference changes", func() {
@@ -342,11 +342,11 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
-				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
-				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[2].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[2].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(ironicNames.IronicTopologies[3].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[3].Name))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from the spec", func() {
@@ -359,11 +359,11 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
-				g.Expect(ironicAPI.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(ironicAPI.Status.LastAppliedTopology).Should(BeNil())
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
-				g.Expect(ironicConductor.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(ironicConductor.Status.LastAppliedTopology).Should(BeNil())
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).Should(BeEmpty())
+				g.Expect(ironicInspector.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
