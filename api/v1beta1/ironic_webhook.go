@@ -106,8 +106,7 @@ func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
-	allErrs = r.Spec.ValidateIronicTopology(basePath, r.Namespace)
-	if err := r.Spec.ValidateCreate(basePath); err != nil {
+	if err := r.Spec.ValidateCreate(basePath, r.Namespace); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -122,11 +121,11 @@ func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateCreate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
-func (spec *IronicSpec) ValidateCreate(basePath *field.Path) field.ErrorList {
-	return spec.IronicSpecCore.ValidateCreate(basePath)
+func (spec *IronicSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+	return spec.IronicSpecCore.ValidateCreate(basePath, namespace)
 }
 
-func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList {
+func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if err := validateRPCTransport(spec, basePath); err != nil {
@@ -157,6 +156,7 @@ func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path) field.ErrorList
 		allErrs = append(allErrs, err...)
 	}
 
+	allErrs = append(allErrs, spec.ValidateIronicTopology(basePath, namespace)...)
 	return allErrs
 }
 
@@ -172,8 +172,7 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
-	allErrs = r.Spec.ValidateIronicTopology(basePath, r.Namespace)
-	if err := r.Spec.ValidateUpdate(oldIronic.Spec, basePath); err != nil {
+	if err := r.Spec.ValidateUpdate(oldIronic.Spec, basePath, r.Namespace); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -188,11 +187,11 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
-func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path) field.ErrorList {
-	return spec.IronicSpecCore.ValidateUpdate(old.IronicSpecCore, basePath)
+func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path, namespace string) field.ErrorList {
+	return spec.IronicSpecCore.ValidateUpdate(old.IronicSpecCore, basePath, namespace)
 }
 
-func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path) field.ErrorList {
+func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if err := validateRPCTransport(spec, basePath); err != nil {
@@ -223,6 +222,7 @@ func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.P
 		allErrs = append(allErrs, err...)
 	}
 
+	allErrs = append(allErrs, spec.ValidateIronicTopology(basePath, namespace)...)
 	return allErrs
 }
 
@@ -607,7 +607,7 @@ func (spec *IronicSpecCore) Default() {
 
 // ValidateIronicTopology - Returns an ErrorList if the Topology is referenced
 // on a different namespace
-func (spec *IronicSpec) ValidateIronicTopology(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *IronicSpecCore) ValidateIronicTopology(basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
 
 	// When a TopologyRef CR is referenced, fail if a different Namespace is
