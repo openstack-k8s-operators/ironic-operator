@@ -658,7 +658,7 @@ func (spec *IronicSpecCore) ValidateIronicTopology(basePath *field.Path, namespa
 }
 
 // SetDefaultRouteAnnotations sets HAProxy timeout values of the route
-func (spec *IronicAPISpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+func (spec *IronicSpecCore) SetDefaultRouteAnnotations(annotations map[string]string) {
 	const haProxyAnno = "haproxy.router.openshift.io/timeout"
 	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
 	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
@@ -684,7 +684,7 @@ func (spec *IronicAPISpec) SetDefaultRouteAnnotations(annotations map[string]str
 }
 
 // SetDefaultRouteAnnotations sets HAProxy timeout values of the route
-func (spec *IronicInspectorSpec) SetDefaultRouteAnnotations(annotations map[string]string) {
+func (spec *IronicSpecCore) SetDefaultInspectorRouteAnnotations(annotations map[string]string) {
 	const haProxyAnno = "haproxy.router.openshift.io/timeout"
 	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
 	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
