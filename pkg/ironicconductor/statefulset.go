@@ -47,7 +47,7 @@ func StatefulSet(
 	ingressDomain string,
 	annotations map[string]string,
 	topology *topologyv1.Topology,
-) *appsv1.StatefulSet {
+) (*appsv1.StatefulSet, error) {
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
@@ -118,6 +118,11 @@ func StatefulSet(
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
 	}
 
+	// Parse the storageRequest defined in the CR
+	storageRequest, err := resource.ParseQuantity(instance.Spec.StorageRequest)
+	if err != nil {
+		return nil, err
+	}
 	// dnsmasq only listen on ports 67 and/or 547 when DHCPRanges are configured.
 	dnsmasqProbeCommand := []string{"sh", "-c", "ss -lun | grep :69"}
 	ipv6Probe := false
@@ -298,7 +303,7 @@ func StatefulSet(
 						},
 						Resources: corev1.VolumeResourceRequirements{
 							Requests: corev1.ResourceList{
-								corev1.ResourceStorage: resource.MustParse(instance.Spec.StorageRequest),
+								corev1.ResourceStorage: storageRequest,
 							},
 						},
 						StorageClassName: &instance.Spec.StorageClass,
@@ -352,5 +357,5 @@ func StatefulSet(
 	}
 	statefulset.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
-	return statefulset
+	return statefulset, nil
 }
