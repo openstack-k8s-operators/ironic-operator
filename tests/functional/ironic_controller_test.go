@@ -287,10 +287,13 @@ var _ = Describe("Ironic controller", func() {
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
 			}, timeout, interval).Should(Succeed())
 		})
@@ -315,10 +318,13 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 			}, timeout, interval).Should(Succeed())
 		})
@@ -342,10 +348,13 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
+				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
+				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[2].Name))
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
+				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[3].Name))
 			}, timeout, interval).Should(Succeed())
 		})
