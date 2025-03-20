@@ -791,29 +791,76 @@ var _ = Describe("Ironic Webhook", func() {
 		)
 	})
 
-	It("rejects a wrong TopologyRef on a different namespace", func() {
-		spec := GetDefaultIronicSpec()
-		// Reference a top-level topology
-		spec["topologyRef"] = map[string]interface{}{
-			"name":      ironicNames.IronicTopologies[0].Name,
-			"namespace": "foo",
-		}
-		raw := map[string]interface{}{
-			"apiVersion": "ironic.openstack.org/v1beta1",
-			"kind":       "Ironic",
-			"metadata": map[string]interface{}{
-				"name":      ironicNames.IronicName.Name,
-				"namespace": ironicNames.IronicName.Namespace,
-			},
-			"spec": spec,
-		}
-		unstructuredObj := &unstructured.Unstructured{Object: raw}
-		_, err := controllerutil.CreateOrPatch(
-			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(
-			ContainSubstring(
-				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
-		)
-	})
+	DescribeTable("rejects wrong topology for",
+		func(serviceNameFunc func() (string, string)) {
+
+			component, errorPath := serviceNameFunc()
+			expectedErrorMessage := fmt.Sprintf("spec.%s.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported", errorPath)
+
+			spec := GetDefaultIronicSpec()
+
+			// API, Inspector, NeutronAgent
+			if component != "top-level" && component != "ironicConductors" {
+				spec[component] = map[string]interface{}{
+					"topologyRef": map[string]interface{}{
+						"name":      "bar",
+						"namespace": "foo",
+					},
+				}
+			}
+			// Conductors
+			if component == "ironicConductors" {
+				condList := []map[string]interface{}{
+					{
+						"topologyRef": map[string]interface{}{
+							"name":      "foo",
+							"namespace": "bar",
+						},
+					},
+				}
+				spec["ironicConductors"] = condList
+				// top-level topologyRef
+			} else {
+				spec["topologyRef"] = map[string]interface{}{
+					"name":      "bar",
+					"namespace": "foo",
+				}
+			}
+			// Build the ironic CR
+			raw := map[string]interface{}{
+				"apiVersion": "ironic.openstack.org/v1beta1",
+				"kind":       "Ironic",
+				"metadata": map[string]interface{}{
+					"name":      ironicNames.IronicName.Name,
+					"namespace": ironicNames.IronicName.Namespace,
+				},
+				"spec": spec,
+			}
+			unstructuredObj := &unstructured.Unstructured{Object: raw}
+			_, err := controllerutil.CreateOrPatch(
+				th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(
+				ContainSubstring(expectedErrorMessage))
+		},
+		Entry("top-level topologyRef", func() (string, string) {
+			return "top-level", "topologyRef"
+		}),
+		Entry("ironicAPI topologyRef", func() (string, string) {
+			component := "ironicAPI"
+			return component, fmt.Sprintf("%s.topologyRef", component)
+		}),
+		Entry("ironicInspector topologyRef", func() (string, string) {
+			component := "ironicInspector"
+			return component, fmt.Sprintf("%s.topologyRef", component)
+		}),
+		Entry("ironicNeutronAgent topologyRef", func() (string, string) {
+			component := "ironicNeutronAgent"
+			return component, fmt.Sprintf("%s.topologyRef", component)
+		}),
+		Entry("ironicConductor topologyRef", func() (string, string) {
+			component := "ironicConductors"
+			return component, fmt.Sprintf("%s.topologyRef", component)
+		}),
+	)
 })
