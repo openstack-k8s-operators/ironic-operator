@@ -612,48 +612,38 @@ func (spec *IronicSpecCore) ValidateIronicTopology(basePath *field.Path, namespa
 
 	// When a TopologyRef CR is referenced, fail if a different Namespace is
 	// referenced because is not supported
-	if spec.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(spec.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	allErrs = append(allErrs, topologyv1.ValidateTopologyRef(
+		spec.TopologyRef, *basePath.Child("topologyRef"), namespace)...)
 
 	// When a TopologyRef CR is referenced with an override to IronicAPI, fail
 	// if a different Namespace is referenced because not supported
-	if spec.IronicAPI.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(spec.IronicAPI.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	apiPath := basePath.Child("ironicAPI")
+	allErrs = append(allErrs,
+		spec.IronicAPI.ValidateTopology(apiPath, namespace)...)
 
 	// When a TopologyRef CR is referenced with an override to an instance of
 	// IronicConductor(s),  fail if a different Namespace is referenced because
 	// not supported
 	for _, cs := range spec.IronicConductors {
-		if cs.TopologyRef != nil {
-			if err := topologyv1.ValidateTopologyNamespace(cs.TopologyRef.Namespace, *basePath, namespace); err != nil {
-				allErrs = append(allErrs, err)
-			}
-		}
+		path := basePath.Child("ironicConductors")
+		allErrs = append(allErrs,
+			cs.ValidateTopology(path, namespace)...)
 	}
 
 	// When a TopologyRef CR is referenced with an override to an instance of
 	// IronicInspector, fail if a different Namespace is referenced because not
 	// supported
-	if spec.IronicInspector.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(spec.IronicInspector.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	insPath := basePath.Child("ironicInspector")
+	allErrs = append(allErrs,
+		spec.IronicInspector.ValidateTopology(insPath, namespace)...)
 
 	// When a TopologyRef CR is referenced with an override to an instance of
 	// IronicNeutronAgent, fail if a different Namespace is referenced because
 	// not supported
-	if spec.IronicNeutronAgent.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(spec.IronicNeutronAgent.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	nagentPath := basePath.Child("ironicNeutronAgent")
+	allErrs = append(allErrs,
+		spec.IronicNeutronAgent.ValidateTopology(nagentPath, namespace)...)
+
 	return allErrs
 }
 

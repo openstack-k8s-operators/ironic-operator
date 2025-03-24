@@ -23,6 +23,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // IronicInspectorPasswordSelector to identify the AdminUser password from the Secret
@@ -278,4 +279,16 @@ func (instance *IronicInspector) GetLastAppliedTopology() *topologyv1.TopoRef {
 // SetLastAppliedTopology - Sets the LastAppliedTopology value in the Status
 func (instance *IronicInspector) SetLastAppliedTopology(topologyRef *topologyv1.TopoRef) {
 	instance.Status.LastAppliedTopology = topologyRef
+}
+
+// ValidateTopology -
+func (instance *IronicInspectorTemplate) ValidateTopology(
+	basePath *field.Path,
+	namespace string,
+) field.ErrorList {
+	var allErrs field.ErrorList
+	allErrs = append(allErrs, topologyv1.ValidateTopologyRef(
+		instance.TopologyRef,
+		*basePath.Child("topologyRef"), namespace)...)
+	return allErrs
 }
