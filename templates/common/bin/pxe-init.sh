@@ -64,7 +64,9 @@ fi
 
 # Build an ESP image
 pushd /var/lib/ironic/httpboot
-if [ ! -a "esp.img" ]; then
+if ! command -v dd || ! command -v mkfs.msdos || ! command -v mmd; then
+    echo "WARNING: esp.img will not be created because dd/mkfs.msdos/mmd are missing. Please patch the OpenstackVersion to update container images."
+elif [ ! -a "esp.img" ]; then
     dd if=/dev/zero of=esp.img bs=4096 count=1024
     mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
 
