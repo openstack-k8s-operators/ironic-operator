@@ -28,6 +28,7 @@ import (
 
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
@@ -227,11 +228,21 @@ var _ = Describe("Ironic controller", func() {
 	})
 
 	When("Ironic is created with topologyref", func() {
+		var topologyRef, topologyRefAlt *topologyv1.TopoRef
 		BeforeEach(func() {
-			// Build the topology Spec
-			topologySpec := GetSampleTopologySpec("ironic")
+			// Define the two topology references used in this test
+			topologyRef = &topologyv1.TopoRef{
+				Name:      ironicNames.IronicTopologies[0].Name,
+				Namespace: ironicNames.IronicTopologies[0].Namespace,
+			}
+			topologyRefAlt = &topologyv1.TopoRef{
+				Name:      ironicNames.IronicTopologies[1].Name,
+				Namespace: ironicNames.IronicTopologies[1].Namespace,
+			}
 			// Create Test Topologies
 			for _, t := range ironicNames.IronicTopologies {
+				// Build the topology Spec
+				topologySpec, _ := GetSampleTopologySpec(t.Name)
 				CreateTopology(t, topologySpec)
 			}
 			DeferCleanup(
@@ -254,7 +265,7 @@ var _ = Describe("Ironic controller", func() {
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
 			spec["topologyRef"] = map[string]interface{}{
-				"name": ironicNames.IronicTopologies[0].Name,
+				"name": topologyRef.Name,
 			}
 			DeferCleanup(
 				th.DeleteInstance,
@@ -286,46 +297,96 @@ var _ = Describe("Ironic controller", func() {
 
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      topologyRef.Name,
+					Namespace: topologyRef.Namespace,
+				})
+				finalizers := tp.GetFinalizers()
+				g.Expect(finalizers).To(HaveLen(4))
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
 				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(topologyRef))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicapi-%s", ironicAPI.Name)))
+
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
 				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(topologyRef))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
+
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
 				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[0].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(topologyRef))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
-		It("sets nodeSelector in resource specs", func() {
+		It("sets topology in resource specs", func() {
 			Eventually(func(g Gomega) {
+				_, expectedTopologySpecObj := GetSampleTopologySpec(topologyRef.Name)
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Affinity).To(BeNil())
+
 				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.Affinity).To(BeNil())
+
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Affinity).To(BeNil())
+
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Affinity).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("updates topology when the reference changes", func() {
+			expectedTopology := &topologyv1.TopoRef{
+				Name:      ironicNames.IronicTopologies[1].Name,
+				Namespace: ironicNames.IronicTopologies[1].Namespace,
+			}
+			var finalizers []string
 			Eventually(func(g Gomega) {
 				ironic := GetIronic(ironicNames.IronicName)
-				ironic.Spec.TopologyRef.Name = ironicNames.IronicTopologies[1].Name
+				ironic.Spec.TopologyRef.Name = topologyRefAlt.Name
 				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
+				tp := GetTopology(types.NamespacedName{
+					Name:      expectedTopology.Name,
+					Namespace: expectedTopology.Namespace,
+				})
+				finalizers = tp.GetFinalizers()
+				g.Expect(finalizers).To(HaveLen(4))
+
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
 				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicapi-%s", ironicAPI.Name)))
+
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
 				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
+
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
 				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
+
+				// Get the previous topology and verify there are no finalizers
+				// anymore
+				tp = GetTopology(types.NamespacedName{
+					Name:      topologyRef.Name,
+					Namespace: topologyRef.Namespace,
+				})
+				g.Expect(tp.GetFinalizers()).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("overrides topology when the reference changes", func() {
@@ -347,15 +408,57 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
+				expectedTopology := &topologyv1.TopoRef{
+					Name:      ironicNames.IronicTopologies[1].Name,
+					Namespace: ironicNames.IronicTopologies[1].Namespace,
+				}
+				tp := GetTopology(types.NamespacedName{
+					Name:      expectedTopology.Name,
+					Namespace: expectedTopology.Namespace,
+				})
+				g.Expect(tp.GetFinalizers()).To(HaveLen(1))
+				finalizers := tp.GetFinalizers()
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
 				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicAPI.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[1].Name))
+				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(expectedTopology))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicapi-%s", ironicAPI.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				expectedTopology := &topologyv1.TopoRef{
+					Name:      ironicNames.IronicTopologies[2].Name,
+					Namespace: ironicNames.IronicTopologies[2].Namespace,
+				}
+				tp := GetTopology(types.NamespacedName{
+					Name:      expectedTopology.Name,
+					Namespace: expectedTopology.Namespace,
+				})
+				g.Expect(tp.GetFinalizers()).To(HaveLen(1))
+				finalizers := tp.GetFinalizers()
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
 				g.Expect(ironicConductor.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicConductor.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[2].Name))
+				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(expectedTopology))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				expectedTopology := &topologyv1.TopoRef{
+					Name:      ironicNames.IronicTopologies[3].Name,
+					Namespace: ironicNames.IronicTopologies[3].Namespace,
+				}
+				tp := GetTopology(types.NamespacedName{
+					Name:      expectedTopology.Name,
+					Namespace: expectedTopology.Namespace,
+				})
+				g.Expect(tp.GetFinalizers()).To(HaveLen(1))
+				finalizers := tp.GetFinalizers()
 				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
 				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology.Name).To(Equal(ironicNames.IronicTopologies[3].Name))
+				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(expectedTopology))
+				g.Expect(finalizers).To(ContainElement(
+					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from the spec", func() {
@@ -384,6 +487,17 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				for _, topology := range ironicNames.IronicTopologies {
+					// Get the current topology and verify there are no finalizers
+					tp := GetTopology(types.NamespacedName{
+						Name:      topology.Name,
+						Namespace: topology.Namespace,
+					})
+					g.Expect(tp.GetFinalizers()).To(BeEmpty())
+				}
 			}, timeout, interval).Should(Succeed())
 		})
 	})
