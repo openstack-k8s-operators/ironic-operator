@@ -88,19 +88,6 @@ type topologyHandler interface {
 	SetLastAppliedTopology(t *topologyv1.TopoRef)
 }
 
-// GetLastAppliedTopologyRef - Returns a TopoRef object that can be passed to the
-// Handle topology logic
-func GetLastAppliedTopologyRef(t topologyHandler, ns string) *topologyv1.TopoRef {
-	lastAppliedTopologyName := ""
-	if l := t.GetLastAppliedTopology(); l != nil {
-		lastAppliedTopologyName = l.Name
-	}
-	return &topologyv1.TopoRef{
-		Name:      lastAppliedTopologyName,
-		Namespace: ns,
-	}
-}
-
 func ensureTopology(
 	ctx context.Context,
 	helper *helper.Helper,
@@ -114,7 +101,7 @@ func ensureTopology(
 		ctx,
 		helper,
 		instance.GetSpecTopologyRef(),
-		GetLastAppliedTopologyRef(instance, helper.GetBefore().GetNamespace()),
+		instance.GetLastAppliedTopology(),
 		finalizer,
 		defaultLabelSelector,
 	)
