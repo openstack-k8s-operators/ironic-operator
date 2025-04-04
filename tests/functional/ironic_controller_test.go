@@ -32,6 +32,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
+	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -234,17 +235,16 @@ var _ = Describe("Ironic controller", func() {
 				Namespace: ironicNames.Namespace,
 				Name:      ironicNames.IronicName.Name + "-" + ironicNames.INAName.Name,
 			}
-			/*
-				DeferCleanup(
-					k8sClient.Delete,
-					ctx,
-					CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
-				)
 
-				apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
-				DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
-				DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
-			*/
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+
+			apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
@@ -730,6 +730,11 @@ var _ = Describe("Ironic controller", func() {
 				th.DeleteInstance,
 				CreateIronic(ironicNames.IronicName, spec),
 			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
 			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
 			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
@@ -987,6 +992,11 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronic(ironicNames.IronicName, spec),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
