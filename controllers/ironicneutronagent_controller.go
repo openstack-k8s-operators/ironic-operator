@@ -517,8 +517,8 @@ func (r *IronicNeutronAgentReconciler) reconcileDeployment(
 		serviceLabels,
 		topology,
 	)
-	deployment := deployment.NewDeployment(deplomentDef, 5)
-	ctrlResult, err := deployment.CreateOrPatch(ctx, helper)
+	depl := deployment.NewDeployment(deplomentDef, 5)
+	ctrlResult, err := depl.CreateOrPatch(ctx, helper)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -537,11 +537,22 @@ func (r *IronicNeutronAgentReconciler) reconcileDeployment(
 	}
 
 	// Only check ReadyCount if controller sees the last version of the CR
-	if deployment.GetDeployment().Generation == deployment.GetDeployment().Status.ObservedGeneration {
-		instance.Status.ReadyCount = deployment.GetDeployment().Status.ReadyReplicas
+	deploy := depl.GetDeployment()
+	if deploy.Generation == deploy.Status.ObservedGeneration {
+		instance.Status.ReadyCount = deploy.Status.ReadyReplicas
 
-		if instance.Status.ReadyCount == *instance.Spec.Replicas {
+		// Mark the Deployment as Ready only if the number of Replicas is equals
+		// to the Deployed instances (ReadyCount), and the the Status.Replicas
+		// match Status.ReadyReplicas. If a deployment update is in progress,
+		// Replicas > ReadyReplicas.
+		if deployment.IsReady(deploy) {
 			instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+		} else {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.DeploymentReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.DeploymentReadyRunningMessage))
 		}
 	}
 
