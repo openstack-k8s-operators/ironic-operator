@@ -227,6 +227,465 @@ var _ = Describe("Ironic controller", func() {
 		})
 	})
 
+	When("Deployment rollout is progressing", func() {
+		var inaName types.NamespacedName
+		BeforeEach(func() {
+			inaName = types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      ironicNames.IronicName.Name + "-" + ironicNames.INAName.Name,
+			}
+			/*
+				DeferCleanup(
+					k8sClient.Delete,
+					ctx,
+					CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+				)
+
+				apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+				DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+				DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+			*/
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, GetDefaultIronicSpec()),
+			)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+
+			nestedINATransportURLName := ironicNames.INATransportURLName
+			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
+			infra.GetTransportURL(nestedINATransportURLName)
+			infra.SimulateTransportURLReady(nestedINATransportURLName)
+
+			// API, Conductor, Inspector and Worker and NeutronAgent deployment in progress
+			th.SimulateDeploymentProgressing(ironicNames.IronicName)
+			th.SimulateStatefulSetProgressing(ironicNames.ConductorName)
+			th.SimulateStatefulSetProgressing(ironicNames.InspectorName)
+			th.SimulateDeploymentProgressing(ironicNames.INAName)
+		})
+
+		It("shows the IronicAPI deployment progressing in DeploymentReadyCondition", func() {
+			// IronicAPI - deployment progressing
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("shows the IronicConductor deployment progressing in DeploymentReadyCondition", func() {
+			// IronicConductor - deployment progressing
+			th.ExpectConditionWithDetails(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("shows the IronicInspector deployment progressing in DeploymentReadyCondition", func() {
+			// IronicInspector - deployment progressing
+			th.ExpectConditionWithDetails(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("shows the IronicNeutronAgent deployment progressing in DeploymentReadyCondition", func() {
+			// IronicNeutronAgent - deployment progressing
+			th.ExpectConditionWithDetails(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("still shows the IronicAPI deployment progressing in DeploymentReadyCondition when rollout hits ProgressDeadlineExceeded", func() {
+			th.SimulateDeploymentProgressDeadlineExceeded(ironicNames.IronicName)
+			// IronicAPI - deployment progressing
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("still shows the IronicNeutronAgent deployment progressing in DeploymentReadyCondition when rollout hits ProgressDeadlineExceeded", func() {
+			th.SimulateDeploymentProgressDeadlineExceeded(ironicNames.INAName)
+			// IronicNeutronAgent - deployment progressing
+			th.ExpectConditionWithDetails(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("IronicAPI reaches Ready when deployment rollout finished", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("IronicConductor reaches Ready when deployment rollout finished", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("IronicInspector reaches Ready when deployment rollout finished", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("IronicNeutronAgent reaches Ready when deployment rollout finished", func() {
+			th.ExpectConditionWithDetails(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				condition.DeploymentReadyRunningMessage,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.DeploymentReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+
+		It("Ironic overall condition reaches ready when all deployments succeeded", func() {
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// overall Ironic condition false
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+
+			// set all deployments to finished
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.ConductorName,
+				ConditionGetterFunc(IronicConductorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.InspectorName,
+				ConditionGetterFunc(IronicInspectorConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				inaName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// overall Barbican condition true
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+	})
+
 	When("Ironic is created with topologyref", func() {
 		var topologyRef, topologyRefAlt *topologyv1.TopoRef
 		BeforeEach(func() {
