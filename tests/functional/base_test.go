@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"
@@ -690,27 +689,4 @@ func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.Topol
 		},
 	}
 	return topologySpec, topologySpecObj
-}
-
-// CreateTopology - Creates a Topology CR based on the spec passed as input
-func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
-	raw := map[string]interface{}{
-		"apiVersion": "topology.openstack.org/v1beta1",
-		"kind":       "Topology",
-		"metadata": map[string]interface{}{
-			"name":      topology.Name,
-			"namespace": topology.Namespace,
-		},
-		"spec": spec,
-	}
-	return th.CreateUnstructured(raw)
-}
-
-// GetTopology - Returns the referenced Topology
-func GetTopology(name types.NamespacedName) *topologyv1.Topology {
-	instance := &topologyv1.Topology{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
 }

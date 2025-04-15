@@ -702,7 +702,7 @@ var _ = Describe("Ironic controller", func() {
 			for _, t := range ironicNames.IronicTopologies {
 				// Build the topology Spec
 				topologySpec, _ := GetSampleTopologySpec(t.Name)
-				CreateTopology(t, topologySpec)
+				infra.CreateTopology(t, topologySpec)
 			}
 			DeferCleanup(
 				k8sClient.Delete,
@@ -756,7 +756,7 @@ var _ = Describe("Ironic controller", func() {
 
 		It("sets topology in CR status", func() {
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      topologyRef.Name,
 					Namespace: topologyRef.Namespace,
 				})
@@ -814,7 +814,7 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      expectedTopology.Name,
 					Namespace: expectedTopology.Namespace,
 				})
@@ -841,7 +841,7 @@ var _ = Describe("Ironic controller", func() {
 
 				// Get the previous topology and verify there are no finalizers
 				// anymore
-				tp = GetTopology(types.NamespacedName{
+				tp = infra.GetTopology(types.NamespacedName{
 					Name:      topologyRef.Name,
 					Namespace: topologyRef.Namespace,
 				})
@@ -871,7 +871,7 @@ var _ = Describe("Ironic controller", func() {
 					Name:      ironicNames.IronicTopologies[1].Name,
 					Namespace: ironicNames.IronicTopologies[1].Namespace,
 				}
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      expectedTopology.Name,
 					Namespace: expectedTopology.Namespace,
 				})
@@ -889,7 +889,7 @@ var _ = Describe("Ironic controller", func() {
 					Name:      ironicNames.IronicTopologies[2].Name,
 					Namespace: ironicNames.IronicTopologies[2].Namespace,
 				}
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      expectedTopology.Name,
 					Namespace: expectedTopology.Namespace,
 				})
@@ -907,7 +907,7 @@ var _ = Describe("Ironic controller", func() {
 					Name:      ironicNames.IronicTopologies[3].Name,
 					Namespace: ironicNames.IronicTopologies[3].Namespace,
 				}
-				tp := GetTopology(types.NamespacedName{
+				tp := infra.GetTopology(types.NamespacedName{
 					Name:      expectedTopology.Name,
 					Namespace: expectedTopology.Namespace,
 				})
@@ -951,7 +951,7 @@ var _ = Describe("Ironic controller", func() {
 			Eventually(func(g Gomega) {
 				for _, topology := range ironicNames.IronicTopologies {
 					// Get the current topology and verify there are no finalizers
-					tp := GetTopology(types.NamespacedName{
+					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topology.Name,
 						Namespace: topology.Namespace,
 					})
