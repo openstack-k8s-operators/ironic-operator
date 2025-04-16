@@ -118,7 +118,7 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// Fetch the Ironic instance
 	instance := &ironicv1.Ironic{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -249,7 +249,7 @@ func (r *IronicReconciler) findObjectForSrc(ctx context.Context, src client.Obje
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.Client.List(ctx, crList, listOps)
+	err := r.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -913,7 +913,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
 
 	var tlsCfg *tls.Service
-	if instance.Spec.IronicAPI.TLS.Ca.CaBundleSecretName != "" {
+	if instance.Spec.IronicAPI.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 
@@ -1123,13 +1123,13 @@ func (r *IronicReconciler) inspectorDeploymentDelete(
 		return err
 	}
 	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
-	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
+	if err := r.Get(ctx, deploymentObjectKey, deployment); err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	if err := r.Client.Delete(ctx, deployment); err != nil {
+	if err := r.Delete(ctx, deployment); err != nil {
 		return err
 	}
 	// Remove inspector APIEndpoints, Services and set ReadyCount 0
@@ -1200,13 +1200,13 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentDelete(
 		return err
 	}
 	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
-	if err := r.Client.Get(ctx, deploymentObjectKey, deployment); err != nil {
+	if err := r.Get(ctx, deploymentObjectKey, deployment); err != nil {
 		if k8s_errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	if err := r.Client.Delete(ctx, deployment); err != nil {
+	if err := r.Delete(ctx, deployment); err != nil {
 		return err
 	}
 	// Set ReadyCount 0
@@ -1315,7 +1315,7 @@ func (r *IronicReconciler) checkIronicAPIGeneration(
 	listOpts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
 	}
-	if err := r.Client.List(context.Background(), api, listOpts...); err != nil {
+	if err := r.List(context.Background(), api, listOpts...); err != nil {
 		Log.Error(err, "Unable to retrieve IronicAPI CR %w")
 		return false, err
 	}
@@ -1336,7 +1336,7 @@ func (r *IronicReconciler) checkIronicConductorGeneration(
 	listOpts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
 	}
-	if err := r.Client.List(context.Background(), cnd, listOpts...); err != nil {
+	if err := r.List(context.Background(), cnd, listOpts...); err != nil {
 		Log.Error(err, "Unable to retrieve IronicConductor CR %w")
 		return false, err
 	}
@@ -1357,7 +1357,7 @@ func (r *IronicReconciler) checkIronicInspectorGeneration(
 	listOpts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
 	}
-	if err := r.Client.List(context.Background(), nsp, listOpts...); err != nil {
+	if err := r.List(context.Background(), nsp, listOpts...); err != nil {
 		Log.Error(err, "Unable to retrieve IronicInspector CR %w")
 		return false, err
 	}
@@ -1378,7 +1378,7 @@ func (r *IronicReconciler) checkNeutronAgentGeneration(
 	listOpts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
 	}
-	if err := r.Client.List(context.Background(), ag, listOpts...); err != nil {
+	if err := r.List(context.Background(), ag, listOpts...); err != nil {
 		Log.Error(err, "Unable to retrieve IronicNeutronAgent CR %w")
 		return false, err
 	}
