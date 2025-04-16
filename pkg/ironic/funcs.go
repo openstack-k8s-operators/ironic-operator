@@ -2,6 +2,7 @@ package ironic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -16,6 +17,12 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8snet "k8s.io/utils/net"
+)
+
+// Static errors for ironic package functions
+var (
+	ErrIngressDomainTypeAssertion = errors.New("unable to retrieve ingress domain - invalid type")
+	ErrIngressDomainNotFound      = errors.New("unable to retrieve ingress domain")
 )
 
 // GetIngressDomain - Get the Ingress Domain of cluster
@@ -49,7 +56,7 @@ func GetIngressDomain(
 	ingressStatus := ingress.UnstructuredContent()["status"]
 	ingressStatusMap, ok := ingressStatus.(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("unable to retrieve ingress domain - wanted type map[string]interface{}; got %T", ingressStatus)
+		return "", fmt.Errorf("%w: wanted type map[string]interface{}; got %T", ErrIngressDomainTypeAssertion, ingressStatus)
 	}
 	for k, v := range ingressStatusMap {
 		if k == "domain" {
@@ -61,7 +68,7 @@ func GetIngressDomain(
 	if ingressDomain != "" {
 		Log.Info(fmt.Sprintf("Found ingress domain: %s", ingressDomain))
 	} else {
-		return "", fmt.Errorf("unable to retrieve ingress domain")
+		return "", ErrIngressDomainNotFound
 	}
 
 	return ingressDomain, nil
