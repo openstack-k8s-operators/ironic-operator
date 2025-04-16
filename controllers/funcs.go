@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers contains shared utility functions for ironic-operator controllers.
 package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -29,10 +31,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Static errors for ironic controllers
+var (
+	ErrNetworkAttachmentConfig = errors.New("not all pods have interfaces with ips as configured in NetworkAttachments")
+)
+
 // fields to index to reconcile when change
 const (
 	passwordSecretField     = ".spec.secret"
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
+	caBundleSecretNameField = ".spec.tls.caBundleSecretName" // #nosec G101
 	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	transportURLSecretField = ".spec.transportURLSecret"

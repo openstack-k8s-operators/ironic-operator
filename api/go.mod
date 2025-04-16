@@ -1,6 +1,6 @@
 module github.com/openstack-k8s-operators/ironic-operator/api
 
-go 1.21
+go 1.24
 
 require (
 	github.com/onsi/ginkgo/v2 v2.20.1

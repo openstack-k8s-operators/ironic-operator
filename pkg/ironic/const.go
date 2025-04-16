@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package ironic contains ironic service constants and configuration.
 package ironic
 
 const (

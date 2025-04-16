@@ -45,6 +45,7 @@ const (
 	// PxeInitContainerCommand -
 	PxeInitContainerCommand = "/usr/local/bin/container-scripts/inspector-pxe-init.sh"
 
+	// InitCreateDirectoriesCommand is the command to create necessary directories for ironic inspector
 	InitCreateDirectoriesCommand = `mkdir -p /var/lib/ironic/httpboot /var/lib/ironic/ramdisk-logs`
 )
 

@@ -126,7 +126,7 @@ func (r *IronicInspectorReconciler) Reconcile(
 
 	// Fetch the IronicInspector instance
 	instance := &ironicv1.IronicInspector{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after
@@ -291,7 +291,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		listOpts := []client.ListOption{
 			client.InNamespace(o.GetNamespace()),
 		}
-		if err := r.Client.List(
+		if err := r.List(
 			ctx,
 			apis,
 			listOpts...); err != nil {
@@ -434,7 +434,7 @@ func (r *IronicInspectorReconciler) findObjectForSrc(ctx context.Context, src cl
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.Client.List(ctx, crList, listOps)
+	err := r.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -628,7 +628,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -653,7 +653,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 				condition.TLSInputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				condition.TLSInputReadyWaitingMessage, err.Error()))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -803,7 +803,7 @@ func (r *IronicInspectorReconciler) reconcileStatefulSet(
 		if networkReady {
 			instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
 		} else {
-			err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+			err := fmt.Errorf("%w: %s", ErrNetworkAttachmentConfig, instance.Spec.NetworkAttachments)
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.ErrorReason,
@@ -1461,7 +1461,7 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		map[string]string{})
 	Log := r.GetLogger(ctx)
 	var tlsCfg *tls.Service
-	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 	// customData hold any customization for the service.
