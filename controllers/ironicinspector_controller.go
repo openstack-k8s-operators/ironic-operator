@@ -543,7 +543,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -568,7 +568,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 				condition.TLSInputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				condition.TLSInputReadyWaitingMessage, err.Error()))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
