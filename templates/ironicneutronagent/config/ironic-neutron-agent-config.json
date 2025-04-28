@@ -1,17 +1,17 @@
 {
-    "command": "/usr/bin/ironic-neutron-agent --config-file /etc/neutron/plugins/ml2/ironic_neutron_agent.ini",
+    "command": "/usr/bin/ironic-neutron-agent --config-dir /etc/neutron/neutron.conf.d",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/ironic_neutron_agent.ini",
-            "dest": "/etc/neutron/plugins/ml2/ironic_neutron_agent.ini",
-            "owner": "neutron",
-            "perm": "0600"
+            "source": "/var/lib/config-data/default/01-ironic_neutron_agent.conf",
+            "dest": "/etc/neutron/neutron.conf.d/01-ironic_neutron_agent.conf",
+            "owner": "root:neutron",
+            "perm": "0640"
         },
         {
-            "source": "/var/lib/config-data/merged/custom.conf",
-            "dest": "/etc/neutron/neutron.conf.d/custom.conf",
-            "owner": "neutron",
-            "perm": "0600"
+            "source": "/var/lib/config-data/default/02-ironic_neutron_agent-custom.conf",
+            "dest": "/etc/neutron/neutron.conf.d/02-ironic_neutron_agent-custom.conf",
+            "owner": "root:neutron",
+            "perm": "0640"
         }
     ],
     "permissions": [

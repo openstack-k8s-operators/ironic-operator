@@ -41,6 +41,11 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				ctx,
 				CreateIronicSecret(ironicNames.Namespace, SecretName),
 			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 		})
@@ -102,6 +107,11 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 	When("IronicNeutronAgent is created pointing to non existent Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
 			infra.GetTransportURL(ironicNames.INATransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
@@ -204,6 +214,11 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				ctx,
 				CreateIronicSecret(ironicNames.Namespace, SecretName),
 			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
 			spec := GetDefaultIronicNeutronAgentSpec()
 			spec["tls"] = map[string]interface{}{
 				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
@@ -245,7 +260,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			// cert deployment volumes
@@ -270,7 +285,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			// Grab the current config hash

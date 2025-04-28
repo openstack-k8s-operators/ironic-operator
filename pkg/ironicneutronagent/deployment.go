@@ -67,13 +67,11 @@ func Deployment(
 
 	volumes := GetVolumes(instance.Name)
 	volumeMounts := GetVolumeMounts()
-	initVolumeMounts := GetInitVolumeMounts()
 
 	// Add the CA bundle
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
-		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
 	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
@@ -136,15 +134,6 @@ func Deployment(
 			corev1.LabelHostname,
 		)
 	}
-
-	initContainerDetails := APIDetails{
-		ContainerImage:       instance.Spec.ContainerImage,
-		OSPSecret:            instance.Spec.Secret,
-		TransportURLSecret:   instance.Status.TransportURLSecret,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         initVolumeMounts,
-	}
-	deployment.Spec.Template.Spec.InitContainers = InitContainer(initContainerDetails)
 
 	return deployment
 }

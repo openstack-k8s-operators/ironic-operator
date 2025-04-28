@@ -312,6 +312,22 @@ func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, sr
 	return requests
 }
 
+func (r *IronicNeutronAgentReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.IronicNeutronAgent,
+) (string, error) {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+	}
+	return string(transportURL), nil
+}
+
 func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicNeutronAgent,
@@ -435,17 +451,13 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
-	//
-	// Create ConfigMaps required as input for the Service and calculate an overall hash of hashes
+	// Create Secrets required as input for the Service and calculate an overall hash of hashes
 	//
 
-	// create custom Configmap for IronicNeutronAgent input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal neutron config required to get the
-	//   service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, helper, instance, &configMapVars)
+	// create Secret required for ironicneutronagent input. It contains minimal ironicneutronagent config required
+	// to get the service up, user can add additional files to be added to the service.
+	err = r.generateServiceSecrets(ctx, helper, instance, &configMapVars)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -455,7 +467,8 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 			err.Error()))
 		return ctrl.Result{}, "", err
 	}
-	// Create ConfigMaps - end
+
+	// Create ConfigMaps and Secrets - end
 
 	// create hash over all the different input resources to identify if any those changed
 	// and a restart/recreate is required.
@@ -476,7 +489,6 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 	instance.Status.Conditions.MarkTrue(
 		condition.ServiceConfigReadyCondition,
 		condition.ServiceConfigReadyMessage)
-	// Create ConfigMaps and Secrets - end
 
 	return ctrl.Result{}, inputHash, nil
 }
@@ -712,24 +724,25 @@ func (r *IronicNeutronAgentReconciler) reconcileUpgrade(
 	return ctrl.Result{}, nil
 }
 
-// generateServiceConfigMaps - create custom configmap to hold service-specific config
-func (r *IronicNeutronAgentReconciler) generateServiceConfigMaps(
+// generateServiceSecrets - create secrets which service configuration
+func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *ironicv1.IronicNeutronAgent,
 	envVars *map[string]env.Setter,
 ) error {
-	//
-	// create custom Configmap for ironic-neutron-agnet-specific config input
-	// - %-config-data configmap holding custom config for the service config
-	//
-
-	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironic.ServiceName), map[string]string{})
+	// Create/update secrets from templates
+	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironicneutronagent.ServiceName), map[string]string{})
 
 	// customData hold any customization for the service.
-	// custom.conf is going to be merged into /etc/ironic/ironic.conf
-	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	// 02-ironic_neutron_agent-custom.conf is going to /etc/neutron/neutron.conf.d
+	// 01-ironic_neutron_agent.conf is going to /etc/neutron/neutron.conf.d such that it gets loaded before custom one
+	customData := map[string]string{
+		"02-ironic_neutron_agent-custom.conf": instance.Spec.CustomServiceConfig,
+	}
+	for key, data := range instance.Spec.DefaultConfigOverwrite {
+		customData[key] = data
+	}
 
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
@@ -744,35 +757,40 @@ func (r *IronicNeutronAgentReconciler) generateServiceConfigMaps(
 		return err
 	}
 
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
+	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
+	templateParameters["TransportURL"] = transportURL
+
+	// Other OpenStack services
+	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
+	templateParameters["ServicePassword"] = servicePassword
+	templateParameters["keystone_authtoken"] = servicePassword
+	templateParameters["service_catalog"] = servicePassword
+	templateParameters["ironic"] = servicePassword
 
 	cms := []util.Template{
-		// Scripts ConfigMap
-		{
-			Name:         fmt.Sprintf("%s-scripts", instance.Name),
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeScripts,
-			InstanceType: instance.Kind,
-			AdditionalTemplate: map[string]string{
-				"common.sh": "/common/bin/common.sh",
-			},
-			Labels: cmLabels,
-		},
-		// Custom ConfigMap
 		{
 			Name:          fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:     instance.Namespace,
 			Type:          util.TemplateTypeConfig,
 			InstanceType:  instance.Kind,
 			CustomData:    customData,
-			ConfigOptions: templateParameters,
 			Labels:        cmLabels,
+			ConfigOptions: templateParameters,
 		},
 	}
-
 	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
 }
 
