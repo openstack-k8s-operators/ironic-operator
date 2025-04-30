@@ -27,7 +27,7 @@ import (
 
 const (
 	// DBSyncCommand -
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade'"
+	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf --config-dir /etc/ironic-inspector/inspector.conf.d upgrade'"
 )
 
 // DbSyncJob func

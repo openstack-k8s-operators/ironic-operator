@@ -20,18 +20,12 @@ func GetVolumes(name string) []corev1.Volume {
 			},
 		},
 		{
-			Name: "config-data",
+			Name: "config",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
 					SecretName:  name + "-config-data",
 				},
-			},
-		},
-		{
-			Name: "config-data-merged",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
 			},
 		},
 		{
@@ -75,14 +69,9 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config-data",
+			Name:      "config",
 			MountPath: "/var/lib/config-data/default",
 			ReadOnly:  true,
-		},
-		{
-			Name:      "config-data-merged",
-			MountPath: "/var/lib/config-data/merged",
-			ReadOnly:  false,
 		},
 		{
 			Name:      "var-lib-ironic",
@@ -107,12 +96,12 @@ func GetVolumeMounts(serviceName string) []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config-data-merged",
-			MountPath: "/var/lib/config-data/merged",
-			ReadOnly:  false,
+			Name:      "config",
+			MountPath: "/var/lib/config-data/default",
+			ReadOnly:  true,
 		},
 		{
-			Name:      "config-data-merged",
+			Name:      "config",
 			MountPath: "/var/lib/kolla/config_files/config.json",
 			SubPath:   serviceName + "-config.json",
 			ReadOnly:  true,
