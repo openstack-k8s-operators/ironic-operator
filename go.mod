@@ -8,12 +8,12 @@ require (
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250422055748-825e3d94da81
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250509194427-81d3a41eb9ca
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250420193521-f2b86a82d7e8
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250505061650-7cb2f323fb35
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20250419062702-0acec6a591c8
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20250415060817-dc849adfa27e
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250506083817-ce591b464a0f
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250508141203-be026d3164f7
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20250508141203-be026d3164f7
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20250429105455-119a21fd879a
 	k8s.io/api v0.29.15
 	k8s.io/apimachinery v0.29.15
 	k8s.io/client-go v0.29.15
@@ -54,8 +54,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20250419062702-0acec6a591c8 // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20250419062702-0acec6a591c8 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20250423055245-3cb2ae8df6f0 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20250423055245-3cb2ae8df6f0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
