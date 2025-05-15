@@ -27,7 +27,8 @@ if [ $ret_val -gt 1 ] ; then
     ironic-dbsync --config-file=/etc/ironic/ironic.conf upgrade
     ironic-status upgrade check && ret_val=$? || ret_val=$?
     if [ $ret_val -gt 1 ] ; then
-        die $LINENO "Ironic DB Status check failed, returned: $ret_val"
+        echo $LINENO "Ironic DB Status check failed, returned: $ret_val"
+        exit $ret_val
     fi
 fi
 ironic-dbsync --config-file /etc/ironic/ironic.conf
