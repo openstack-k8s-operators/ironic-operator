@@ -33,6 +33,7 @@ import (
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -415,6 +416,25 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 	return requests
 }
 
+func (r *IronicInspectorReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.IronicInspector,
+) (string, error) {
+	if instance.Spec.RPCTransport != "oslo" {
+		return "fake://", nil
+	}
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+	}
+	return string(transportURL), nil
+}
+
 func (r *IronicInspectorReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
@@ -589,15 +609,9 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	// calculate an overall hash of hashes
 	//
 
-	//
-	// create Configmap required for ironic input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal ironic config required to get the
-	//   service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret
-	//   via the init container
-	//
-	err = r.generateServiceConfigMaps(
+	// create Secret required for ironicInspector input. It contains minimal ironicinspector config required
+	// to get the service up, user can add additional files to be added to the service.
+	err = r.generateServiceSecrets(
 		ctx,
 		instance,
 		helper,
@@ -1411,24 +1425,16 @@ func (r *IronicInspectorReconciler) reconcileUpgrade(
 	return ctrl.Result{}, nil
 }
 
-// generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
+// generateServiceSecrets - create secrets which hold service configuration
 // TODO add DefaultConfigOverwrite
-func (r *IronicInspectorReconciler) generateServiceConfigMaps(
+func (r *IronicInspectorReconciler) generateServiceSecrets(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
 	h *helper.Helper,
 	envVars *map[string]env.Setter,
 	db *mariadbv1.Database,
 ) error {
-	//
-	// create Configmap/Secret required for ironic-inspector input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal ironic-inspector config required
-	//   to get the service up, user can add additional files to be added to
-	//   the service
-	// - parameters which has passwords gets added from the ospSecret via the
-	//   init container
-	//
+	// Create/update secrets from templates
 	cmLabels := labels.GetLabels(
 		instance,
 		labels.GetGroupLabel(ironic.ServiceName),
@@ -1439,20 +1445,24 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		tlsCfg = &tls.Service{}
 	}
 	// customData hold any customization for the service.
-	// custom.conf is going to /etc/ironic-inspector/inspector.conf.d
-	// all other files get placed into /etc/ironic-inspector to allow
-	// overwrite of e.g. policy.json.
-	// TODO: make sure custom.conf can not be overwritten
+	// 02-inspector-custom.conf is going to /etc/ironic-inspector/inspector.conf.d
+	// 01-inspector.conf is going to /etc/ironic-inspector/inspector such that it gets loaded before custom one
 	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
-		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"02-inspector-custom.conf": instance.Spec.CustomServiceConfig,
+		"my.cnf":                   db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
 	templateParameters := make(map[string]interface{})
-	if !instance.Spec.Standalone {
 
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["TransportURL"] = transportURL
+
+	if !instance.Spec.Standalone {
 		keystoneAPI, err := keystonev1.GetKeystoneAPI(
 			ctx, h, instance.Namespace, map[string]string{})
 		if err != nil {
@@ -1466,10 +1476,24 @@ func (r *IronicInspectorReconciler) generateServiceConfigMaps(
 		if err != nil {
 			return err
 		}
+		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+
+		servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+		templateParameters["ServicePassword"] = servicePassword
 		templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 		templateParameters["KeystonePublicURL"] = keystonePublicURL
+
+		// Other OpenStack services
+		templateParameters["ServicePassword"] = servicePassword
+		templateParameters["keystone_authtoken"] = servicePassword
+		templateParameters["service_catalog"] = servicePassword
+		templateParameters["ironic"] = servicePassword
+		templateParameters["swift"] = servicePassword
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

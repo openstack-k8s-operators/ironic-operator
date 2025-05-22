@@ -2,13 +2,13 @@
     "command": "/usr/sbin/httpd -DFOREGROUND",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/httpd.conf",
+            "source": "/var/lib/config-data/default/httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
             "owner": "root",
             "perm": "0644"
         },
         {
-            "source": "/var/lib/config-data/merged/ssl.conf",
+            "source": "/var/lib/config-data/default/ssl.conf",
             "dest": "/etc/httpd/conf.d/ssl.conf",
             "owner": "root",
             "perm": "0644"

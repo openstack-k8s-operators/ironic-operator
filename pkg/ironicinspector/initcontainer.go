@@ -42,11 +42,10 @@ type APIDetails struct {
 }
 
 const (
-	// InitContainerCommand -
-	InitContainerCommand = "/usr/local/bin/container-scripts/init.sh"
-
 	// PxeInitContainerCommand -
 	PxeInitContainerCommand = "/usr/local/bin/container-scripts/inspector-pxe-init.sh"
+
+	InitCreateDirectoriesCommand = `mkdir -p /var/lib/ironic/httpboot /var/lib/ironic/ramdisk-logs`
 )
 
 // InitContainer - init container for Ironic Inspector pods
@@ -113,21 +112,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	containers := []corev1.Container{}
 
-	inspectorInit := corev1.Container{
-		Name:  "inspector-init",
-		Image: init.ContainerImage,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
-		Command: []string{
-			"/bin/bash",
-		},
-		Args:         []string{"-c", InitContainerCommand},
-		Env:          envs,
-		VolumeMounts: init.VolumeMounts,
-	}
-	containers = append(containers, inspectorInit)
-
 	if init.IpaInit {
 		ipaInit := corev1.Container{
 			Name:  "ironic-python-agent-init",
@@ -135,6 +119,10 @@ func InitContainer(init APIDetails) []corev1.Container {
 			SecurityContext: &corev1.SecurityContext{
 				Privileged: &init.Privileged,
 			},
+			Command: []string{
+				"/bin/bash",
+			},
+			Args:         []string{"-c", InitCreateDirectoriesCommand},
 			Env:          imageCopyEnvs,
 			VolumeMounts: init.VolumeMounts,
 		}

@@ -239,17 +239,17 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				k8sClient.Delete,
 				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 
 			apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
 			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
 			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
-			DeferCleanup(
-				k8sClient.Delete,
-				ctx,
-				CreateIronicSecret(ironicNames.Namespace, SecretName),
-			)
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
