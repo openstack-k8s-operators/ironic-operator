@@ -16,6 +16,15 @@
 set -ex
 
 /usr/local/bin/kolla_set_configs
+
+# prepare for 'upgrade check' loading all drivers
+if [ ! -d "/var/lib/ironic/tmp" ]; then
+    mkdir /var/lib/ironic/tmp
+fi
+if [ ! -d "/var/lib/ironic/httpboot" ]; then
+    mkdir -p /var/lib/ironic/httpboot
+fi
+
 ironic-status upgrade check && ret_val=$? || ret_val=$?
 if [ $ret_val -gt 1 ] ; then
     # NOTE(TheJulia): We need to evaluate the return code from the
