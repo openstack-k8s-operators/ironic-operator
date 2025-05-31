@@ -33,10 +33,19 @@ sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
 sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/d" \
     -e "/BLOCK_PODINDEX_${PODINDEX}_END/d" \
     -i ${DNSMASQ_CFG}
-envsubst < ${DNSMASQ_CFG} | tee ${DNSMASQ_CFG}
+
+# OSPCIX-870: Copy the config to tempdir to avoid race condition where pipe to
+#             tee may wipe the file.
+export TMP_DNSMASQ_CFG=/var/tmp/dnsmasq.conf
+cp ${DNSMASQ_CFG} ${TMP_DNSMASQ_CFG}
+envsubst < ${TMP_DNSMASQ_CFG} | tee ${DNSMASQ_CFG}
 
 export INSPECTOR_IPXE=/var/lib/ironic/inspector.ipxe
-envsubst < ${INSPECTOR_IPXE} | tee ${INSPECTOR_IPXE}
+# OSPCIX-870: Copy the config to tempdir to avoid race condition where pipe to
+#             tee may wipe the file.
+export TMP_INSPECTOR_IPXE=/var/tmp/inspector.ipxe
+cp ${INSPECTOR_IPXE} ${TMP_INSPECTOR_IPXE}
+envsubst < ${TMP_INSPECTOR_IPXE} | tee ${INSPECTOR_IPXE}
 
 # run common pxe-init script
 /usr/local/bin/container-scripts/pxe-init.sh
