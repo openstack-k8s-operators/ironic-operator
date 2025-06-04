@@ -686,6 +686,109 @@ var _ = Describe("Ironic controller", func() {
 
 	})
 
+	Context("Ironic is fully deployed", func() {
+		keystoneAPIName := types.NamespacedName{}
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+
+			apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			keystoneAPIName = keystone.CreateKeystoneAPI(ironicNames.Namespace)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystoneAPIName)
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, GetDefaultIronicSpec()),
+			)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+
+			nestedINATransportURLName := ironicNames.INATransportURLName
+			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
+			infra.GetTransportURL(nestedINATransportURLName)
+			infra.SimulateTransportURLReady(nestedINATransportURLName)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("updates the KeystoneAuthURL if keystone internal endpoint changes", func() {
+			newInternalEndpoint := "https://keystone-internal"
+
+			keystone.UpdateKeystoneAPIEndpoint(keystoneAPIName, "internal", newInternalEndpoint)
+			logger.Info("Reconfigured")
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.IronicConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := confSecret.Data["ironic.conf"]
+				g.Expect(string(conf)).Should(
+					ContainSubstring("auth_url=%s", newInternalEndpoint))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.InspectorConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := confSecret.Data["01-inspector.conf"]
+				g.Expect(string(conf)).Should(
+					ContainSubstring("auth_url=%s", newInternalEndpoint))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := confSecret.Data["01-ironic_neutron_agent.conf"]
+				g.Expect(string(conf)).Should(
+					ContainSubstring("auth_url=%s", newInternalEndpoint))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	When("Ironic is created with topologyref", func() {
 		var topologyRef, topologyRefAlt *topologyv1.TopoRef
 		BeforeEach(func() {

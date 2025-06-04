@@ -80,6 +80,7 @@ type IronicNames struct {
 	InspectorConfigSecretName types.NamespacedName
 	INAName                   types.NamespacedName
 	INATransportURLName       types.NamespacedName
+	INAConfigSecretName       types.NamespacedName
 	KeystoneServiceName       types.NamespacedName
 	InternalCertSecretName    types.NamespacedName
 	PublicCertSecretName      types.NamespacedName
@@ -232,6 +233,10 @@ func GetIronicNames(
 		INATransportURLName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name + "-transport",
+		},
+		INAConfigSecretName: types.NamespacedName{
+			Namespace: ironicNeutronAgent.Namespace,
+			Name:      "ironic-ironic-neutron-agent-config-data",
 		},
 		InternalCertSecretName: types.NamespacedName{
 			Namespace: ironicName.Namespace,
