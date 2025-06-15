@@ -226,6 +226,18 @@ func StatefulSet(
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser: &runAsUser,
 		},
+		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
+		// pre-stop command
+		Lifecycle: &corev1.Lifecycle{
+			PreStop: &corev1.LifecycleHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"/usr/bin/pkill",
+						"inotifywait",
+					},
+				},
+			},
+		},
 	}
 
 	containers := []corev1.Container{
