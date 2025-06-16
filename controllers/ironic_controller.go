@@ -49,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -218,6 +219,52 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
+	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
+		Log := r.GetLogger(ctx)
+
+		result := []reconcile.Request{}
+
+		// get all API CRs
+		apis := &ironicv1.IronicInspectorList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(o.GetNamespace()),
+		}
+		if err := r.Client.List(
+			ctx,
+			apis,
+			listOpts...); err != nil {
+
+			Log.Error(err, "Unable to retrieve API CRs %v")
+			return nil
+		}
+
+		label := o.GetLabels()
+		// TODO: Just trying to verify that the CM is owned by this CR's managing CR
+		if l, ok := label[labels.GetOwnerNameLabelSelector(
+			labels.GetGroupLabel(ironic.ServiceName))]; ok {
+			for _, cr := range apis.Items {
+				// return reconcil event for the CR where the CM owner label
+				// AND the parentIronicName matches
+				if l == ironicv1.GetOwningIronicName(&cr) {
+					// return namespace and Name of CR
+					name := client.ObjectKey{
+						Namespace: o.GetNamespace(),
+						Name:      cr.Name,
+					}
+					Log.Info(fmt.Sprintf(
+						"ConfigMap object %s and CR %s marked with label: %s",
+						o.GetName(), cr.Name, l))
+					result = append(
+						result, reconcile.Request{NamespacedName: name})
+				}
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+		return nil
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.Ironic{}).
 		Owns(&ironicv1.IronicConductor{}).
@@ -228,10 +275,13 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Secret{}).
-		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
+		Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(configMapFn),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Watches(&keystonev1.KeystoneAPI{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectForSrc),
 			builder.WithPredicates(keystonev1.KeystoneAPIStatusChangedPredicate)).
@@ -537,6 +587,10 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 				Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicConductor.Name, string(op)))
 			}
 		}
+	}
+
+	if instance.Spec.IronicAPI.CustomServiceConfig == "" {
+		instance.Spec.IronicAPI.CustomServiceConfig = instance.Spec.IronicSpecCore.CustomServiceConfig
 	}
 
 	// deploy ironic-api
@@ -935,8 +989,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	// all other files get placed into /etc/ironic to allow overwrite of e.g. policy.json
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
-		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"01-ironic-custom.conf": instance.Spec.CustomServiceConfig,
+		"my.cnf":                db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 
 	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
