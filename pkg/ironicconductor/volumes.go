@@ -2,6 +2,7 @@ package ironicconductor
 
 import (
 	"fmt"
+	"strings"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -11,13 +12,15 @@ import (
 // GetVolumes -
 func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
+	parentName := strings.Replace(instance.Name, "-conductor", "", 1)
+
 	conductorVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  fmt.Sprintf("%s-config-data", instance.Name),
+					SecretName:  fmt.Sprintf("%s-config-data", parentName),
 				},
 			},
 		},

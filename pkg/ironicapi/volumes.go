@@ -1,6 +1,9 @@
 package ironicapi
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -8,14 +11,14 @@ import (
 // GetVolumes -
 func GetVolumes(name string) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
-
+	parentName := strings.Replace(name, "-api", "", 1)
 	apiVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  name + "-config-data",
+					SecretName:  fmt.Sprintf("%s-config-data", parentName),
 				},
 			},
 		},

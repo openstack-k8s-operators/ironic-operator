@@ -44,7 +44,7 @@ function common_ironic_config {
     export CUSTOMCONF=${CustomConf:-""}
 
     SVC_CFG=/etc/ironic/ironic.conf
-    SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
+    SVC_CFG_MERGED=/var/lib/config-data/merged/01-ironic-custom.conf
 
     # Copy default service config from container image as base
     cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
@@ -65,8 +65,8 @@ function common_ironic_config {
     # Can we just put custom.conf in something like /etc/ironic/ironic.conf.d/custom.conf
     # and have it automatically detected, or would we have to somehow change the call
     # to the ironic binary to tell it to use that custom conf dir?
-    echo merging /var/lib/config-data/default/custom.conf into ${SVC_CFG_MERGED}
-    crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/default/custom.conf
+    echo merging /var/lib/config-data/default/01-ironic-custom.conf into ${SVC_CFG_MERGED}
+    crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/default/01-ironic-custom.conf
 
     # TODO: a cleaner way to handle this?
     # There might be service-specific extra custom conf that needs to be merged
