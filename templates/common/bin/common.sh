@@ -44,7 +44,7 @@ function common_ironic_config {
     export CUSTOMCONF=${CustomConf:-""}
 
     SVC_CFG=/etc/ironic/ironic.conf
-    SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
+    SVC_CFG_MERGED=/var/lib/config-data/merged/01-ironic-custom.conf
 
     # Copy default service config from container image as base
     cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
