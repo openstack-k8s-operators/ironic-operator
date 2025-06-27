@@ -227,7 +227,7 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
 	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
 		Log := r.GetLogger(ctx)
-
+		Log.Info("In the configMapFn and watching for it")
 		result := []reconcile.Request{}
 
 		// get all API CRs
@@ -241,10 +241,15 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		}
 
 		label := o.GetLabels()
+
+		Log.Info(fmt.Sprintf("GetLabels: %s and GroupLbel %s", label, labels.GetGroupLabel(ironic.ServiceName)))
+
 		// TODO: Just trying to verify that the CM is owned by this CR's managing CR
 		if l, ok := label[labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))]; ok {
+			Log.Info("For loop for l and ok")
 			for _, cr := range apis.Items {
 				// return reconcil event for the CR where the CM owner label AND the parentIronicName matches
+				Log.Info("Return reconcile event log")
 				if l == ironicv1.GetOwningIronicName(&cr) {
 					// return namespace and Name of CR
 					name := client.ObjectKey{
@@ -253,6 +258,8 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 					}
 					Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
 					result = append(result, reconcile.Request{NamespacedName: name})
+				} else {
+					Log.Info("GetOwningIronicName returns nothing")
 				}
 			}
 		}

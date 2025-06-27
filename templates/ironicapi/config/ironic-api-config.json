@@ -14,6 +14,12 @@
             "perm": "0600"
         },
         {
+            "source": "/var/lib/config-data/merged/01-ironic-custom.conf",
+            "dest": "/etc/ironic/ironic.conf.d/01-ironic-custom.conf",
+            "owner": "ironic",
+            "perm": "0600"
+        },
+        {
             "source": "/var/lib/config-data/merged/ironic-api-httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
             "owner": "root",
