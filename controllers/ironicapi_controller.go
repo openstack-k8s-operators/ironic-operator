@@ -659,6 +659,37 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
 
+	// Get secrets by Namespace and Label that we need to hash
+	labelSelectorMap := map[string]string{}
+	lbl := labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))
+	labelSelectorMap[lbl] = ironicv1.GetOwningIronicName(instance)
+	secrets, err := secret.GetSecrets(ctx, helper, instance.Namespace, labelSelectorMap)
+	if err != nil {
+		Log.Info(fmt.Sprintf("No secrets with label %s found", lbl))
+	} else {
+		for _, s := range secrets.Items {
+			hash, err := secret.Hash(&s)
+			if err != nil {
+				if k8s_errors.IsNotFound(err) {
+					Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
+					instance.Status.Conditions.Set(condition.FalseCondition(
+						condition.InputReadyCondition,
+						condition.RequestedReason,
+						condition.SeverityInfo,
+						condition.InputReadyWaitingMessage))
+					return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+				}
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.InputReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					condition.InputReadyErrorMessage,
+					err.Error()))
+				return ctrl.Result{}, err
+			}
+			configMapVars[s.Name] = env.SetValue(hash)
+		}
+	}
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
