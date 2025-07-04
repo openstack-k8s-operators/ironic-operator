@@ -207,43 +207,6 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	// watch for configmap where the CM owner label AND the CR.Spec.ManagingCrName label matches
-	configMapFn := func(ctx context.Context, o client.Object) []reconcile.Request {
-		result := []reconcile.Request{}
-		Log := r.GetLogger(ctx)
-
-		// get all API CRs
-		apis := &ironicv1.IronicConductorList{}
-		listOpts := []client.ListOption{
-			client.InNamespace(o.GetNamespace()),
-		}
-		if err := r.Client.List(ctx, apis, listOpts...); err != nil {
-			Log.Error(err, "Unable to retrieve API CRs %v")
-			return nil
-		}
-
-		label := o.GetLabels()
-		// TODO: Just trying to verify that the CM is owned by this CR's managing CR
-		if l, ok := label[labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))]; ok {
-			for _, cr := range apis.Items {
-				// return reconcil event for the CR where the CM owner label AND the parentIronicName matches
-				if l == ironicv1.GetOwningIronicName(&cr) {
-					// return namespace and Name of CR
-					name := client.ObjectKey{
-						Namespace: o.GetNamespace(),
-						Name:      cr.Name,
-					}
-					Log.Info(fmt.Sprintf("ConfigMap object %s and CR %s marked with label: %s", o.GetName(), cr.Name, l))
-					result = append(result, reconcile.Request{NamespacedName: name})
-				}
-			}
-		}
-		if len(result) > 0 {
-			return result
-		}
-		return nil
-	}
-
 	// index passwordSecretField
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicConductor{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
@@ -291,16 +254,16 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		// watch the config CMs we don't own
-		Watches(&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(configMapFn)).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
-		Watches(&topologyv1.Topology{},
+		Watches(
+			&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
 }
 
@@ -309,8 +272,38 @@ func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src c
 
 	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicConductor")
 
+	crList := &ironicv1.IronicConductorList{}
+	namespace := src.GetNamespace()
+	listOpts := []client.ListOption{client.InNamespace(namespace)}
+
+	if err := r.List(ctx, crList, listOpts...); err != nil {
+		l.Error(err, "Unable to retrieve Conductor CRs %v")
+	} else {
+		label := src.GetLabels()
+		// TODO: Just trying to verify that the Secret is owned by this CR's managing CR
+		if lbl, ok := label[labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))]; ok {
+			for _, item := range crList.Items {
+				// return reconcil event for the CR where the Secret owner label AND the parentIronicName matches
+				if lbl == ironicv1.GetOwningIronicName(&item) {
+					// return Namespace and Name of CR
+					l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+
+					requests = append(
+						requests,
+						reconcile.Request{
+							NamespacedName: k8s_types.NamespacedName{
+								Name:      item.GetName(),
+								Namespace: item.GetNamespace(),
+							},
+						},
+					)
+
+				}
+			}
+		}
+	}
+
 	for _, field := range ironicConductorWatchFields {
-		crList := &ironicv1.IronicConductorList{}
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
