@@ -1,33 +1,52 @@
 package ironicapi
 
 import (
+	"fmt"
+
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
-func GetVolumes(name string) []corev1.Volume {
+func GetVolumes(instance *ironicv1.IronicAPI) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
+	parentName := ironicv1.GetOwningIronicName(instance)
 
-	apiVolumes := []corev1.Volume{
-		{
-			Name: "config-data-custom",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0640AccessMode,
-					SecretName:  name + "-config-data",
+	var apiVolumes []corev1.Volume
+
+	if parentName == "" {
+		// TODO: Add proper logging
+		fmt.Println("parentName is not present")
+		// Only include logs volume when parentName is not present
+		apiVolumes = append(apiVolumes,
+			corev1.Volume{
+				Name: "logs",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+				},
+			})
+	} else {
+		// Include both volumes when parentName is present
+		apiVolumes = append(apiVolumes,
+			corev1.Volume{
+				Name: "config-data-custom",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						DefaultMode: &config0640AccessMode,
+						SecretName:  fmt.Sprintf("%s-config-data", parentName),
+					},
 				},
 			},
-		},
-		{
-			Name: "logs",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
-			},
-		},
+			corev1.Volume{
+				Name: "logs",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
+				},
+			})
 	}
 
-	return append(ironic.GetVolumes(name), apiVolumes...)
+	return append(ironic.GetVolumes(instance.Name), apiVolumes...)
 }
 
 // GetLogVolumeMount - Ironic API LogVolumeMount
@@ -40,14 +59,19 @@ func GetLogVolumeMount() corev1.VolumeMount {
 }
 
 // GetInitVolumeMounts - Ironic API init task VolumeMounts
-func GetInitVolumeMounts() []corev1.VolumeMount {
+func GetInitVolumeMounts(instance *ironicv1.IronicAPI) []corev1.VolumeMount {
+	parentName := ironicv1.GetOwningIronicName(instance)
 
-	initVolumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "config-data-custom",
-			MountPath: "/var/lib/config-data/custom",
-			ReadOnly:  true,
-		},
+	var initVolumeMounts []corev1.VolumeMount
+
+	// Only include config-data-custom volume mount when parentName is present
+	if parentName != "" {
+		initVolumeMounts = append(initVolumeMounts,
+			corev1.VolumeMount{
+				Name:      "config-data-custom",
+				MountPath: "/var/lib/config-data/custom",
+				ReadOnly:  true,
+			})
 	}
 
 	return append(ironic.GetInitVolumeMounts(), initVolumeMounts...)
