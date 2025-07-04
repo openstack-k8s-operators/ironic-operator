@@ -77,7 +77,7 @@ func Deployment(
 	}
 
 	// create Volume and VolumeMounts
-	volumes := GetVolumes(instance.Name)
+	volumes := GetVolumes(instance)
 	volumeMounts := GetVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts()
 
