@@ -1,21 +1,25 @@
 package ironicapi
 
 import (
+	"fmt"
+
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
-func GetVolumes(name string) []corev1.Volume {
+func GetVolumes(instance *ironicv1.IronicAPI) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
-
+	parentName := ironicv1.GetOwningIronicName(instance)
+	// TODO: add logging when there is no parentName returned
 	apiVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  name + "-config-data",
+					SecretName:  fmt.Sprintf("%s-config-data", parentName),
 				},
 			},
 		},
@@ -27,7 +31,7 @@ func GetVolumes(name string) []corev1.Volume {
 		},
 	}
 
-	return append(ironic.GetVolumes(name), apiVolumes...)
+	return append(ironic.GetVolumes(instance.Name), apiVolumes...)
 }
 
 // GetLogVolumeMount - Ironic API LogVolumeMount

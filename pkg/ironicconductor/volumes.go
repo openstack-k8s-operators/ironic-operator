@@ -11,13 +11,15 @@ import (
 // GetVolumes -
 func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 	var config0640AccessMode int32 = 0640
+	parentName := ironicv1.GetOwningIronicName(instance)
+	// TODO: add logging when there is no parentName returned
 	conductorVolumes := []corev1.Volume{
 		{
 			Name: "config-data-custom",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0640AccessMode,
-					SecretName:  fmt.Sprintf("%s-config-data", instance.Name),
+					SecretName:  fmt.Sprintf("%s-config-data", parentName),
 				},
 			},
 		},
