@@ -167,7 +167,7 @@ func StatefulSet(
 	httpbootVolumeMounts := GetVolumeMounts("httpboot")
 	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
 	ramdiskLogsVolumeMounts := GetVolumeMounts("ramdisk-logs")
-	initVolumeMounts := GetInitVolumeMounts()
+	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// Add the CA bundle
 	if instance.Spec.TLS.CaBundleSecretName != "" {
