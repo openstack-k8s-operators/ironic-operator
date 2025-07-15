@@ -77,9 +77,9 @@ func Deployment(
 	}
 
 	// create Volume and VolumeMounts
-	volumes := GetVolumes(instance.Name)
+	volumes := GetVolumes(instance)
 	volumeMounts := GetVolumeMounts()
-	initVolumeMounts := GetInitVolumeMounts()
+	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
