@@ -69,7 +69,7 @@ type IronicConductorReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// getlogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("IronicConductor")
 }
@@ -270,14 +270,14 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicConductor")
+	Log := r.GetLogger(ctx)
 
 	crList := &ironicv1.IronicConductorList{}
 	namespace := src.GetNamespace()
 	listOpts := []client.ListOption{client.InNamespace(namespace)}
 
 	if err := r.List(ctx, crList, listOpts...); err != nil {
-		l.Error(err, "Unable to retrieve Conductor CRs %v")
+		Log.Error(err, "Unable to retrieve Conductor CRs %v")
 	} else {
 		label := src.GetLabels()
 		// TODO: Just trying to verify that the Secret is owned by this CR's managing CR
@@ -286,7 +286,7 @@ func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src c
 				// return reconcil event for the CR where the Secret owner label AND the parentIronicName matches
 				if lbl == ironicv1.GetOwningIronicName(&item) {
 					// return Namespace and Name of CR
-					l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+					Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 					requests = append(
 						requests,
@@ -310,12 +310,12 @@ func (r *IronicConductorReconciler) findObjectsForSrc(ctx context.Context, src c
 		}
 		err := r.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{

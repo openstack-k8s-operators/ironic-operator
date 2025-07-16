@@ -67,7 +67,7 @@ type IronicNeutronAgentReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// getlogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicNeutronAgentReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
 }
@@ -289,7 +289,7 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range ironicNeutronAgentWatchFields {
 		crList := &ironicv1.IronicNeutronAgentList{}
@@ -299,12 +299,12 @@ func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, sr
 		}
 		err := r.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -323,7 +323,7 @@ func (r *IronicNeutronAgentReconciler) findObjectsForSrc(ctx context.Context, sr
 func (r *IronicNeutronAgentReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
+	Log := r.GetLogger(ctx)
 
 	crList := &ironicv1.IronicNeutronAgentList{}
 	listOps := &client.ListOptions{
@@ -331,12 +331,12 @@ func (r *IronicNeutronAgentReconciler) findObjectForSrc(ctx context.Context, src
 	}
 	err := r.Client.List(ctx, crList, listOps)
 	if err != nil {
-		l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
 	}
 
 	for _, item := range crList.Items {
-		l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 		requests = append(requests,
 			reconcile.Request{
@@ -423,6 +423,7 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, string, error) {
+	Log := r.GetLogger(ctx)
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
 
@@ -430,7 +431,7 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			log.FromContext(ctx).Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
+			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
 				condition.RequestedReason,
