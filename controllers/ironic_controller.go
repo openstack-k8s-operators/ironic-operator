@@ -935,8 +935,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	// all other files get placed into /etc/ironic to allow overwrite of e.g. policy.json
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{
-		common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig,
-		"my.cnf":                           db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+		"01-ironic-custom.conf": instance.Spec.CustomServiceConfig,
+		"my.cnf":                db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 
 	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
