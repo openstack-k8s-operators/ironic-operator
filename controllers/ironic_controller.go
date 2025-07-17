@@ -66,7 +66,7 @@ type IronicReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("Ironic")
 }
@@ -241,7 +241,7 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *IronicReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("Ironic")
+	Log := r.GetLogger(ctx)
 
 	crList := &ironicv1.IronicList{}
 	listOps := &client.ListOptions{
@@ -249,12 +249,12 @@ func (r *IronicReconciler) findObjectForSrc(ctx context.Context, src client.Obje
 	}
 	err := r.Client.List(ctx, crList, listOps)
 	if err != nil {
-		l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
 	}
 
 	for _, item := range crList.Items {
-		l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 		requests = append(requests,
 			reconcile.Request{

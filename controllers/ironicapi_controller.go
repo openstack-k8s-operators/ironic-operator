@@ -77,9 +77,9 @@ var keystoneServices = []map[string]string{
 	},
 }
 
-// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
-	return log.FromContext(ctx).WithName("Controllers").WithName("Ironic")
+	return log.FromContext(ctx).WithName("Controllers").WithName("IronicAPI")
 }
 
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicapis,verbs=get;list;watch;create;update;patch;delete
@@ -310,13 +310,13 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicAPI")
+	Log := r.GetLogger(ctx)
 
 	crList := &ironicv1.IronicAPIList{}
 	listOpts := []client.ListOption{client.InNamespace(src.GetNamespace())}
 
 	if err := r.List(ctx, crList, listOpts...); err != nil {
-		l.Error(err, "Unable to retrieve Conductor CRs %v")
+		Log.Error(err, "Unable to retrieve Conductor CRs %v")
 	} else {
 		label := src.GetLabels()
 		// TODO: Just trying to verify that the Secret is owned by this CR's managing CR
@@ -325,7 +325,7 @@ func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.
 				// return reconcile event for the CR where the Secret owner label AND the parentIronicName matches
 				if lbl == ironicv1.GetOwningIronicName(&item) {
 					// return Namespace and Name of CR
-					l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+					Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 					requests = append(requests,
 						reconcile.Request{
@@ -348,12 +348,12 @@ func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.
 		}
 		err := r.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{

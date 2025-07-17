@@ -88,7 +88,7 @@ var inspectorKeystoneServices = []map[string]string{
 	},
 }
 
-// GetLogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicInspectorReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("IronicInspector")
 }
@@ -394,7 +394,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicInspector")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range ironicInspectorWatchFields {
 		crList := &ironicv1.IronicInspectorList{}
@@ -404,12 +404,12 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 		}
 		err := r.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -428,7 +428,7 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 func (r *IronicInspectorReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("IronicInspector")
+	Log := r.GetLogger(ctx)
 
 	crList := &ironicv1.IronicInspectorList{}
 	listOps := &client.ListOptions{
@@ -436,12 +436,12 @@ func (r *IronicInspectorReconciler) findObjectForSrc(ctx context.Context, src cl
 	}
 	err := r.Client.List(ctx, crList, listOps)
 	if err != nil {
-		l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
 	}
 
 	for _, item := range crList.Items {
-		l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 		requests = append(requests,
 			reconcile.Request{
@@ -545,6 +545,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	helper *helper.Helper,
 	db *mariadbv1.Database,
 ) (ctrl.Result, string, error) {
+	Log := r.GetLogger(ctx)
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
 
@@ -559,7 +560,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 		instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			log.FromContext(ctx).Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
+			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
 			instance.Status.Conditions.Set(
 				condition.FalseCondition(
 					condition.InputReadyCondition,
