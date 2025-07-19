@@ -33,13 +33,13 @@ if [ $ret_val -gt 1 ] ; then
     # returned as greater than 1 which means there is a major upgrade
     # stopping issue which needs to be addressed.
     echo "WARNING: Status check failed, we're going to attempt to apply the schema update and then re-evaluate."
-    ironic-dbsync --config-file=/etc/ironic/ironic.conf upgrade
+    ironic-dbsync --config-file /etc/ironic/ironic.conf --config-dir /etc/ironic/ironic.conf.d/ upgrade
     ironic-status upgrade check && ret_val=$? || ret_val=$?
     if [ $ret_val -gt 1 ] ; then
         echo $LINENO "Ironic DB Status check failed, returned: $ret_val"
         exit $ret_val
     fi
 fi
-ironic-dbsync --config-file /etc/ironic/ironic.conf
+ironic-dbsync --config-file /etc/ironic/ironic.conf --config-dir /etc/ironic/ironic.conf.d/
 
-ironic-dbsync --config-file /etc/ironic/ironic.conf online_data_migrations
+ironic-dbsync --config-file /etc/ironic/ironic.conf --config-dir /etc/ironic/ironic.conf.d/ online_data_migrations

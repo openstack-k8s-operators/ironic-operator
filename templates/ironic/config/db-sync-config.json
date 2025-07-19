@@ -8,8 +8,8 @@
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/merged/custom.conf",
-            "dest": "/etc/ironic/ironic.conf.d/custom.conf",
+            "source": "/var/lib/config-data/merged/01-ironic-custom.conf",
+            "dest": "/etc/ironic/ironic.conf.d/01-ironic-custom.conf",
             "owner": "ironic",
             "perm": "0600"
         },
