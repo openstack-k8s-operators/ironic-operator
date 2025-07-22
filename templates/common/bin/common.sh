@@ -59,23 +59,6 @@ function common_ironic_config {
         merge_config_dir ${dir}
     done
 
-    # TODO: a cleaner way to handle this?
-    # Merge custom.conf with ironic.conf, since the Kolla config doesn't seem
-    # to allow us to customize the ironic command (it calls httpd instead).
-    # Can we just put custom.conf in something like /etc/ironic/ironic.conf.d/custom.conf
-    # and have it automatically detected, or would we have to somehow change the call
-    # to the ironic binary to tell it to use that custom conf dir?
-    echo merging /var/lib/config-data/default/custom.conf into ${SVC_CFG_MERGED}
-    crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/default/custom.conf
-
-    # TODO: a cleaner way to handle this?
-    # There might be service-specific extra custom conf that needs to be merged
-    # with the main ironic.conf for this particular service
-    if [ -n "$CUSTOMCONF" ]; then
-        echo merging /var/lib/config-data/custom/${CUSTOMCONF} into ${SVC_CFG_MERGED}
-        crudini --merge ${SVC_CFG_MERGED} < /var/lib/config-data/custom/${CUSTOMCONF}
-    fi
-
     # set secrets
     # Only set rpc_transport and transport_url if $TRANSPORTURL
     if [ -n "$TRANSPORTURL" ]; then

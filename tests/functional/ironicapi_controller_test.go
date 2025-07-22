@@ -349,7 +349,7 @@ var _ = Describe("IronicAPI controller", func() {
 			depl := th.GetDeployment(ironicNames.IronicName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(8))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			// cert deployment volumes
@@ -433,7 +433,7 @@ var _ = Describe("IronicAPI controller", func() {
 			depl := th.GetDeployment(ironicNames.IronicName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(8))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			// Grab the current config hash
