@@ -1,15 +1,18 @@
 package ironicconductor
 
 import (
+	"context"
 	"fmt"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // GetVolumes -
-func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
+func GetVolumes(ctx context.Context, instance *ironicv1.IronicConductor) []corev1.Volume {
+	Log := log.FromContext(ctx).WithName("IronicConductor").WithName("GetVolumes")
 	var config0640AccessMode int32 = 0640
 	parentName := ironicv1.GetOwningIronicName(instance)
 
@@ -28,8 +31,7 @@ func GetVolumes(instance *ironicv1.IronicConductor) []corev1.Volume {
 				},
 			})
 	} else {
-		// TODO: Add proper logging
-		fmt.Println("parentName is not present")
+		Log.Info("parentName is not present for IronicConductor instance", "instance", instance.Name, "namespace", instance.Namespace)
 	}
 
 	return append(ironic.GetVolumes(instance.Name), conductorVolumes...)

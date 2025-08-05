@@ -16,6 +16,8 @@ limitations under the License.
 package ironicapi
 
 import (
+	"context"
+
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
@@ -38,6 +40,7 @@ const (
 
 // Deployment func
 func Deployment(
+	ctx context.Context,
 	instance *ironicv1.IronicAPI,
 	configHash string,
 	labels map[string]string,
@@ -77,7 +80,7 @@ func Deployment(
 	}
 
 	// create Volume and VolumeMounts
-	volumes := GetVolumes(instance)
+	volumes := GetVolumes(ctx, instance)
 	volumeMounts := GetVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts(instance)
 
