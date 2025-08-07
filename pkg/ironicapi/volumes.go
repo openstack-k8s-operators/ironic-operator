@@ -1,23 +1,25 @@
 package ironicapi
 
 import (
+	"context"
 	"fmt"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // GetVolumes -
-func GetVolumes(instance *ironicv1.IronicAPI) []corev1.Volume {
+func GetVolumes(ctx context.Context, instance *ironicv1.IronicAPI) []corev1.Volume {
+	Log := log.FromContext(ctx).WithName("IronicAPI").WithName("GetVolumes")
 	var config0640AccessMode int32 = 0640
 	parentName := ironicv1.GetOwningIronicName(instance)
 
 	var apiVolumes []corev1.Volume
 
 	if parentName == "" {
-		// TODO: Add proper logging
-		fmt.Println("parentName is not present")
+		Log.Info("parentName is not present for IronicAPI instance", "instance", instance.Name, "namespace", instance.Namespace)
 		// Only include logs volume when parentName is not present
 		apiVolumes = append(apiVolumes,
 			corev1.Volume{

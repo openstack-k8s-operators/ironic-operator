@@ -927,7 +927,7 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	//
 
 	// Define a new Deployment object
-	deplDef, err := ironicapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology)
+	deplDef, err := ironicapi.Deployment(ctx, instance, inputHash, serviceLabels, serviceAnnotations, topology)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
