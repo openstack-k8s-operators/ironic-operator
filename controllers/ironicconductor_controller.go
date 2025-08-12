@@ -872,11 +872,9 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		tlsCfg = &tls.Service{}
 	}
 
-	// customData hold any customization for the service.
-	// custom.conf is going to be merged into /etc/ironic/ironic.conf
-	// TODO: make sure custom.conf can not be overwritten
+	// Build custom config data
 	customData := map[string]string{
-		"02-conductor-custom.conf": instance.Spec.CustomServiceConfig,
+		"04-conductor-custom.conf": instance.Spec.CustomServiceConfig,
 		"my.cnf":                   db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
@@ -933,6 +931,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 				"get_net_ip":     "/common/bin/get_net_ip",
 				"runlogwatch.sh": "/common/bin/runlogwatch.sh",
 				"pxe-init.sh":    "/common/bin/pxe-init.sh",
+				"init.sh":        "/ironicconductor/bin/init.sh",
 			},
 			Labels: cmLabels,
 		},
@@ -945,8 +944,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			CustomData:    customData,
 			ConfigOptions: templateParameters,
 			AdditionalTemplate: map[string]string{
-				"ironic.conf":  "/common/config/ironic.conf",
-				"dnsmasq.conf": "/common/config/dnsmasq.conf",
+				"ironic.conf":                      "/common/config/ironic.conf",
+				"01-conductor.conf":                "/ironicconductor/config/01-conductor.conf",
+				"03-init-container-conductor.conf": "/ironicconductor/config/03-init-container-conductor.conf",
+				"dnsmasq.conf":                     "/common/config/dnsmasq.conf",
 			},
 			Labels: cmLabels,
 		},

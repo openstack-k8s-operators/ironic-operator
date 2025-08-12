@@ -2,7 +2,7 @@
     "command": "/usr/sbin/httpd -DFOREGROUND",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/httpboot-httpd.conf",
+            "source": "/var/lib/config-data/default/httpboot-httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
             "owner": "root",
             "perm": "0644"

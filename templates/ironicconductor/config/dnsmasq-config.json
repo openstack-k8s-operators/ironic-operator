@@ -2,7 +2,7 @@
     "command": "/usr/sbin/dnsmasq -k",
     "config_files": [
         {
-            "source": "/var/lib/config-data/merged/dnsmasq.conf",
+            "source": "/var/lib/ironic/dnsmasq.conf",
             "dest": "/etc/dnsmasq.conf",
             "owner": "dnsmasq",
             "perm": "0644"
