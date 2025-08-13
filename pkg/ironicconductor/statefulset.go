@@ -16,6 +16,7 @@ limitations under the License.
 package ironicconductor
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -41,6 +42,7 @@ const (
 
 // StatefulSet func
 func StatefulSet(
+	ctx context.Context,
 	instance *ironicv1.IronicConductor,
 	configHash string,
 	labels map[string]string,
@@ -162,7 +164,7 @@ func StatefulSet(
 	ramdiskLogsEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
-	volumes := GetVolumes(instance)
+	volumes := GetVolumes(ctx, instance)
 	conductorVolumeMounts := GetVolumeMounts("ironic-conductor")
 	httpbootVolumeMounts := GetVolumeMounts("httpboot")
 	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")

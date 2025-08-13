@@ -748,7 +748,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	}
 
 	// Define a new StatefulSet object
-	ssSpec, err := ironicconductor.StatefulSet(instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations, topology)
+	ssSpec, err := ironicconductor.StatefulSet(ctx, instance, inputHash, serviceLabels, ingressDomain, serviceAnnotations, topology)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
