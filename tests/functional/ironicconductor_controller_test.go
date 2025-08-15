@@ -146,6 +146,9 @@ var _ = Describe("IronicConductor controller", func() {
 			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("01-conductor.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("03-init-container-conductor.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("04-conductor-custom.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
 			configData := string(configDataMap.Data["my.cnf"])
 			Expect(configData).To(
@@ -288,6 +291,9 @@ var _ = Describe("IronicConductor controller", func() {
 			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("01-conductor.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("03-init-container-conductor.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("04-conductor-custom.conf"))
 			Expect(configDataMap.Data).Should(HaveKey("my.cnf"))
 			configData := string(configDataMap.Data["my.cnf"])
 			Expect(configData).To(
