@@ -1125,6 +1125,7 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 			ConfigOptions: templateParameters,
 			AdditionalTemplate: map[string]string{
 				"ironic.conf": "/common/config/ironic.conf",
+				"01-api.conf": "/ironicapi/config/01-api.conf",
 			},
 			Labels: cmLabels,
 		},
