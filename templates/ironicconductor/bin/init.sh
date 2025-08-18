@@ -15,51 +15,29 @@
 # under the License.
 set -ex
 
-echo "Starting conductor init"
-
 # Get the statefulset pod index
 export PODINDEX=$(echo ${HOSTNAME##*-})
 
-# Get required environment variables
-IRONICPASSWORD=${IronicPassword:-""}
-TRANSPORTURL=${TransportURL:-""}
-PROVISION_NETWORK=${ProvisionNetwork:-""}
-DEPLOY_HTTP_URL=${DeployHTTPURL:-""}
+# expect that the common.sh is in the same dir as the calling script
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+. ${SCRIPTPATH}/common.sh --source-only
 
-INIT_CONFIG="/var/lib/config-data/merged/03-init-container-conductor.conf"
+common_ironic_config
 
-if [ -n "${PROVISION_NETWORK}" ]; then
-    export ProvisionNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${PROVISION_NETWORK})
-    crudini --set ${INIT_CONFIG} DEFAULT my_ip ${ProvisionNetworkIP}
+if [ -n "${ProvisionNetwork}" ]; then
+    export ProvisionNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${ProvisionNetwork})
+    crudini --set ${SVC_CFG_MERGED} DEFAULT my_ip $ProvisionNetworkIP
 fi
+export DEPLOY_HTTP_URL=$(python3 -c 'import os; print(os.environ["DeployHTTPURL"] % os.environ)')
+SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
+crudini --set ${SVC_CFG_MERGED} deploy http_url ${DEPLOY_HTTP_URL}
+crudini --set ${SVC_CFG_MERGED} conductor bootloader ${DEPLOY_HTTP_URL}esp.img
+crudini --set ${SVC_CFG_MERGED} conductor deploy_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+crudini --set ${SVC_CFG_MERGED} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+crudini --set ${SVC_CFG_MERGED} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+crudini --set ${SVC_CFG_MERGED} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
 
-if [ -n "${TRANSPORTURL}" ]; then
-    crudini --set ${INIT_CONFIG} DEFAULT transport_url ${TRANSPORTURL}
-    crudini --set ${INIT_CONFIG} DEFAULT rpc_transport oslo
-fi
-
-if [ -n "${DEPLOY_HTTP_URL}" ]; then
-    EXPANDED_URL=$(python3 -c 'import os; print(os.environ["DeployHTTPURL"] % os.environ)')
-
-    crudini --set ${INIT_CONFIG} deploy http_url ${EXPANDED_URL}
-    crudini --set ${INIT_CONFIG} conductor bootloader ${EXPANDED_URL}esp.img
-    crudini --set ${INIT_CONFIG} conductor deploy_kernel ${EXPANDED_URL}ironic-python-agent.kernel
-    crudini --set ${INIT_CONFIG} conductor deploy_ramdisk ${EXPANDED_URL}ironic-python-agent.initramfs
-    crudini --set ${INIT_CONFIG} conductor rescue_kernel ${EXPANDED_URL}ironic-python-agent.kernel
-    crudini --set ${INIT_CONFIG} conductor rescue_ramdisk ${EXPANDED_URL}ironic-python-agent.initramfs
-fi
-
-# Set service passwords
-if [ -n "${IRONICPASSWORD}" ]; then
-    for service in keystone_authtoken service_catalog cinder glance neutron nova swift inspector; do
-        crudini --set ${INIT_CONFIG} ${service} password ${IRONICPASSWORD}
-    done
-fi
-
-# Copy required config to modifiable location
-cp /var/lib/config-data/default/dnsmasq.conf /var/lib/ironic/
-
-export DNSMASQ_CFG=/var/lib/ironic/dnsmasq.conf
+export DNSMASQ_CFG=/var/lib/config-data/merged/dnsmasq.conf
 sed -e "/BLOCK_PODINDEX_${PODINDEX}_BEGIN/,/BLOCK_PODINDEX_${PODINDEX}_END/p" \
     -e "/BLOCK_PODINDEX_.*_BEGIN/,/BLOCK_PODINDEX_.*_END/d" \
     -i ${DNSMASQ_CFG}
@@ -76,5 +54,3 @@ fi
 if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
     mkdir /var/lib/ironic/ramdisk-logs
 fi
-
-echo "Conductor init successfully completed"

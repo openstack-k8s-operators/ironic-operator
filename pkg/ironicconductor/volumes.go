@@ -67,16 +67,6 @@ func GetVolumeMounts(serviceName string) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "config-data",
-			MountPath: "/var/lib/config-data/default",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "config-data-custom",
-			MountPath: "/var/lib/config-data/custom",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "config-data",
 			MountPath: "/var/lib/kolla/config_files/config.json",
 			SubPath:   serviceName + "-config.json",
 			ReadOnly:  true,

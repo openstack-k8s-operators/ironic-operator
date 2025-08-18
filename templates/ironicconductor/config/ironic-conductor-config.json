@@ -1,38 +1,26 @@
 {
-    "command": "/usr/bin/ironic-conductor --config-file /etc/ironic/ironic.conf --config-dir /etc/ironic/ironic.conf.d",
+    "command": "/usr/bin/ironic-conductor",
     "config_files": [
         {
-            "source": "/var/lib/config-data/default/ironic.conf",
+            "source": "/var/lib/config-data/merged/ironic.conf",
             "dest": "/etc/ironic/ironic.conf",
             "owner": "ironic",
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/default/01-conductor.conf",
-            "dest": "/etc/ironic/ironic.conf.d/01-conductor.conf",
+            "source": "/var/lib/config-data/merged/01-ironic-custom.conf",
+            "dest": "/etc/ironic/ironic.conf.d/01-ironic-custom.conf",
             "owner": "ironic",
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/custom/02-ironic-custom.conf",
-            "dest": "/etc/ironic/ironic.conf.d/02-ironic-custom.conf",
+            "source": "/var/lib/config-data/merged/02-conductor-custom.conf",
+            "dest": "/etc/ironic/ironic.conf.d/02-conductor-custom.conf",
             "owner": "ironic",
             "perm": "0600"
         },
         {
-            "source": "/var/lib/config-data/merged/03-init-container-conductor.conf",
-            "dest": "/etc/ironic/ironic.conf.d/03-init-container-conductor.conf",
-            "owner": "ironic",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/default/04-conductor-custom.conf",
-            "dest": "/etc/ironic/ironic.conf.d/04-conductor-custom.conf",
-            "owner": "ironic",
-            "perm": "0600"
-        },
-        {
-            "source": "/var/lib/config-data/default/my.cnf",
+            "source": "/var/lib/config-data/merged/my.cnf",
             "dest": "/etc/my.cnf",
             "owner": "ironic",
             "perm": "0644"
