@@ -1054,7 +1054,7 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	// custom.conf is going to be merged into /etc/ironic/ironic.conf
 	// TODO: make sure custom.conf can not be overwritten
 	customData := map[string]string{
-		"02-api-custom.conf": instance.Spec.CustomServiceConfig,
+		"03-api-custom.conf": instance.Spec.CustomServiceConfig,
 		"my.cnf":             db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
