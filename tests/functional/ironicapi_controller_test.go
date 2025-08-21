@@ -153,6 +153,8 @@ var _ = Describe("IronicAPI controller", func() {
 			configDataMap := th.GetSecret(ironicNames.APIConfigSecretName)
 			Expect(configDataMap).ShouldNot(BeNil())
 			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("01-api.conf"))
+			Expect(configDataMap.Data).Should(HaveKey("03-api-custom.conf"))
 			configData := string(configDataMap.Data["ironic.conf"])
 			// as part of additional hardening we now require service_token_roles_required
 			// to be set to true to ensure that the service token is not just a user token
