@@ -33,7 +33,6 @@ import (
 	job "github.com/openstack-k8s-operators/lib-common/modules/common/job"
 	nad "github.com/openstack-k8s-operators/lib-common/modules/common/networkattachment"
 	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	oko_secret "github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/statefulset"
@@ -44,7 +43,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
-	k8s_types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -54,6 +52,7 @@ import (
 
 	labels "github.com/openstack-k8s-operators/lib-common/modules/common/labels"
 
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 
@@ -369,6 +368,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
+		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
@@ -413,7 +413,7 @@ func (r *IronicInspectorReconciler) findObjectsForSrc(ctx context.Context, src c
 
 			requests = append(requests,
 				reconcile.Request{
-					NamespacedName: k8s_types.NamespacedName{
+					NamespacedName: types.NamespacedName{
 						Name:      item.GetName(),
 						Namespace: item.GetNamespace(),
 					},
@@ -464,7 +464,7 @@ func (r *IronicInspectorReconciler) getTransportURL(
 	if instance.Spec.RPCTransport != "oslo" {
 		return "fake://", nil
 	}
-	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	transportURLSecret, _, err := oko_secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
 	if err != nil {
 		return "", err
 	}
@@ -580,10 +580,34 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 
+	// check for required TransportURL secret and add hash to the vars map
+	if instance.Status.TransportURLSecret != "" {
+		transportURLSecret, hash, err := oko_secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				Log.Info(fmt.Sprintf("TransportURL secret %s not found", instance.Status.TransportURLSecret))
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.InputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.InputReadyWaitingMessage))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, "", err
+		}
+		configMapVars[transportURLSecret.Name] = env.SetValue(hash)
+	}
+
 	instance.Status.Conditions.MarkTrue(
 		condition.InputReadyCondition,
 		condition.InputReadyMessage)
-	// run check OpenStack secret - end
+	// run check secrets - end
 
 	//
 	// TLS input validation
@@ -593,7 +617,7 @@ func (r *IronicInspectorReconciler) reconcileConfigMapsAndSecrets(
 		hash, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
-			k8s_types.NamespacedName{
+			types.NamespacedName{
 				Name:      instance.Spec.TLS.CaBundleSecretName,
 				Namespace: instance.Namespace,
 			},
@@ -1503,6 +1527,15 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 	}
 	templateParameters["TransportURL"] = transportURL
 
+	quorumQueues := false
+	if instance.Spec.RPCTransport == "oslo" {
+		quorumQueues, err = getQuorumQueues(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+	templateParameters["QuorumQueues"] = quorumQueues
+
 	if !instance.Spec.Standalone {
 		keystoneAPI, err := keystonev1.GetKeystoneAPI(
 			ctx, h, instance.Namespace, map[string]string{})
@@ -1517,7 +1550,7 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		if err != nil {
 			return err
 		}
-		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+		ospSecret, _, err := oko_secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 		if err != nil {
 			return err
 		}
@@ -1667,7 +1700,7 @@ func (r *IronicInspectorReconciler) reconcileServices(
 			}
 			err = r.Get(
 				ctx,
-				k8s_types.NamespacedName{
+				types.NamespacedName{
 					Name:      inspectorService.Name,
 					Namespace: inspectorService.Namespace,
 				},
@@ -1703,7 +1736,7 @@ func (r *IronicInspectorReconciler) reconcileServices(
 			}
 			err = r.Get(
 				ctx,
-				k8s_types.NamespacedName{
+				types.NamespacedName{
 					Name:      inspectorRoute.Name,
 					Namespace: inspectorRoute.Namespace,
 				},

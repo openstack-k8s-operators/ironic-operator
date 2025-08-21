@@ -37,6 +37,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	util "github.com/openstack-k8s-operators/lib-common/modules/common/util"
 
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -229,6 +230,7 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
@@ -952,6 +954,15 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		return err
 	}
 	templateParameters["TransportURL"] = transportURL
+
+	quorumQueues := false
+	if instance.Spec.RPCTransport == "oslo" {
+		quorumQueues, err = getQuorumQueues(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	if !instance.Spec.Standalone {
 		ospSecret, _, err := oko_secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)

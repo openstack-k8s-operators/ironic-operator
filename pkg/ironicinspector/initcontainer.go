@@ -101,6 +101,20 @@ func InitContainer(init APIDetails) []corev1.Container {
 			},
 		}
 		envs = append(envs, envTransport)
+
+		envQuorumQueues := corev1.EnvVar{
+			Name: "QuorumQueues",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.TransportURLSecret,
+					},
+					Key:      "quorumqueues",
+					Optional: &[]bool{true}[0],
+				},
+			},
+		}
+		envs = append(envs, envQuorumQueues)
 	}
 	envs = env.MergeEnvs(envs, envVars)
 	imageCopyEnvs := []corev1.EnvVar{

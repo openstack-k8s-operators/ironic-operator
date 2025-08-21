@@ -19,11 +19,13 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,6 +35,7 @@ const (
 	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
 	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
+	transportURLSecretField = ".spec.transportURLSecret"
 	topologyField           = ".spec.topologyRef.Name"
 )
 
@@ -42,11 +45,13 @@ var (
 		caBundleSecretNameField,
 		tlsAPIInternalField,
 		tlsAPIPublicField,
+		transportURLSecretField,
 		topologyField,
 	}
 	ironicConductorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
+		transportURLSecretField,
 		topologyField,
 	}
 	ironicInspectorWatchFields = []string{
@@ -126,4 +131,19 @@ func ensureTopology(
 		)
 	}
 	return topology, nil
+}
+
+// getQuorumQueues - shared function to check for quorum queue setting in transportURL secret
+func getQuorumQueues(
+	ctx context.Context,
+	h *helper.Helper,
+	transportURLSecretName string,
+	namespace string,
+) (bool, error) {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, transportURLSecretName, namespace)
+	if err != nil {
+		return false, err
+	}
+	quorumQueues := string(transportURLSecret.Data["quorumqueues"]) == "true"
+	return quorumQueues, nil
 }

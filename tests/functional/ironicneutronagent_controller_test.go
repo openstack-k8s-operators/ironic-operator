@@ -305,4 +305,39 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	When("IronicNeutronAgent is created with quorum queue enabled transport URL", func() {
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				infra.CreateTransportURLSecret(ironicNames.Namespace, MessageBusSecretName, true),
+			)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
+
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+		It("generates config with oslo_messaging_rabbit section when quorum queues enabled", func() {
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := confSecret.Data["01-ironic_neutron_agent.conf"]
+				g.Expect(string(conf)).Should(
+					ContainSubstring("[oslo_messaging_rabbit]"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })

@@ -272,6 +272,18 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		return err
 	}
 
+	// index transportURLSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, transportURLSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicAPI)
+		if cr.Spec.TransportURLSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.TransportURLSecret}
+	}); err != nil {
+		return err
+	}
+
 	// index topologyField
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, topologyField, func(rawObj client.Object) []string {
 		// Extract the topology name from the spec, if one is provided
@@ -1090,6 +1102,15 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		return err
 	}
 	templateParameters["TransportURL"] = transportURL
+
+	quorumQueues := false
+	if instance.Spec.RPCTransport == "oslo" {
+		quorumQueues, err = getQuorumQueues(ctx, h, instance.Spec.TransportURLSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	if !instance.Spec.Standalone {
 		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
