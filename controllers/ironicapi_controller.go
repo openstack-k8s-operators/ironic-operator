@@ -1109,11 +1109,7 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
-			AdditionalTemplate: map[string]string{
-				"common.sh": "/common/bin/common.sh",
-				"init.sh":   "/common/bin/ironic-init.sh",
-			},
-			Labels: cmLabels,
+			Labels:       cmLabels,
 		},
 		// Custom ConfigMap
 		{

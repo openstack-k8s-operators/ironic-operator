@@ -80,7 +80,7 @@ func GetInitVolumeMounts(instance *ironicv1.IronicAPI) []corev1.VolumeMount {
 }
 
 // GetVolumeMounts - Ironic API VolumeMounts
-func GetVolumeMounts() []corev1.VolumeMount {
+func GetVolumeMounts(ctx context.Context, instance *ironicv1.IronicAPI) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "config-data",
@@ -88,8 +88,37 @@ func GetVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "ironic-api-config.json",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "config-data",
+			MountPath: "/var/lib/config-data/default",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "scripts",
+			MountPath: "/usr/local/bin/container-scripts",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "etc-podinfo",
+			MountPath: "/etc/podinfo",
+			ReadOnly:  false,
+		},
 		GetLogVolumeMount(),
 	}
 
-	return append(ironic.GetVolumeMounts(), volumeMounts...)
+	Log := log.FromContext(ctx).WithName("IronicAPI").WithName("GetVolumeMounts")
+
+	// Only include config-data-custom volume mount when parentName is present
+	parentName := ironicv1.GetOwningIronicName(instance)
+	if parentName != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		})
+	} else {
+		Log.Info("No parent Ironic instance - using standalone API configuration", "instance", instance.Name, "namespace", instance.Namespace)
+	}
+
+	return volumeMounts
 }

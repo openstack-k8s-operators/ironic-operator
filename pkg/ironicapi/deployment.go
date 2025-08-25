@@ -81,7 +81,7 @@ func Deployment(
 
 	// create Volume and VolumeMounts
 	volumes := GetVolumes(ctx, instance)
-	volumeMounts := GetVolumeMounts()
+	volumeMounts := GetVolumeMounts(ctx, instance)
 	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// add CA cert if defined
@@ -198,18 +198,6 @@ func Deployment(
 			corev1.LabelHostname,
 		)
 	}
-
-	initContainerDetails := ironic.APIDetails{
-		ContainerImage:       instance.Spec.ContainerImage,
-		DatabaseHost:         instance.Spec.DatabaseHostname,
-		DatabaseName:         ironic.DatabaseName,
-		OSPSecret:            instance.Spec.Secret,
-		TransportURLSecret:   instance.Spec.TransportURLSecret,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         initVolumeMounts,
-		PxeInit:              false,
-	}
-	deployment.Spec.Template.Spec.InitContainers = ironic.InitContainer(initContainerDetails)
 
 	return deployment, nil
 }
