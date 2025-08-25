@@ -1588,7 +1588,6 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
 			AdditionalTemplate: map[string]string{
-				"common.sh":      "/common/bin/common.sh",
 				"get_net_ip":     "/common/bin/get_net_ip",
 				"runlogwatch.sh": "/common/bin/runlogwatch.sh",
 				"pxe-init.sh":    "/common/bin/pxe-init.sh",
