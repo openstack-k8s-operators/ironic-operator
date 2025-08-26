@@ -130,7 +130,10 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) -v debug --bin-dir $(LOCALBIN) use $(ENVTEST_K8S_VERSION) -p path)" \
 	OPERATOR_TEMPLATES="$(PWD)/templates" \
 	$(GINKGO) --trace --cover --coverpkg=../../api/v1beta1,../../pkg/ironic,../../pkg/ironicapi,../../pkg/ironicconductor,../../pkg/ironicinspector,../../pkg/ironicneutronagent, --coverprofile cover.out --covermode=atomic --randomize-all ${PROC_CMD} $(GINKGO_ARGS) ./tests/...
-#	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... ./api/... -coverprofile cover.out
+
+.PHONY: test-api
+test-api: manifests generate fmt vet envtest ## Run unit test for the API package
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... -coverprofile cover.out
 
 ##@ Build
 
