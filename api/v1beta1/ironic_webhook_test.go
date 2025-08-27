@@ -234,3 +234,45 @@ func TestValidateConductorGroupsUnique(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRPCTransport(t *testing.T) {
+	testCases := []struct {
+		name		string
+		spec		*IronicSpecCore
+		basePath	*field.Path
+		expectedErrs	*field.Error
+	}{
+		{
+			name:		"Validate rpcTransport is oslo",
+			spec:		&IronicSpecCore{RPCTransport: "oslo"},
+			basePath:	field.NewPath("spec").Child("RPCTransport"),
+			expectedErrs:	nil,
+		},
+		{
+			name:		"Validate rpcTransport is json-rpc",
+			spec:		&IronicSpecCore{RPCTransport: "json-rpc"},
+			basePath:	field.NewPath("spec").Child("RPCTransport"),
+			expectedErrs:	nil,
+		},
+		{
+			name:		"Invalid rpcTransport Value",
+			spec:		&IronicSpecCore{RPCTransport: "yaml"},
+			basePath:	field.NewPath("spec"),
+			expectedErrs:	field.Invalid(
+					field.NewPath("spec").Child("rpcTransport"),
+					"yaml",
+					errInvalidRPCTransport,
+					),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := validateRPCTransport(tc.spec, tc.basePath)
+
+			if !reflect.DeepEqual(errs, tc.expectedErrs) {
+				t.Errorf("validateRPCTransport() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
+			}
+		})
+	}
+}
