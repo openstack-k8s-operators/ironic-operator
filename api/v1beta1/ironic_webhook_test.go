@@ -62,9 +62,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{
 			name: "Invalid Start IP Address",
 			dhcpRange: 	DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "not-an-ipaddr",
-						End: "192.168.1.20",
+						Cidr: 	"192.168.1.0/24",
+						Start: 	"not-an-ipaddr",
+						End: 	"192.168.1.20",
 			},
 			path: 		field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
 			expectedErrs:	field.ErrorList{
@@ -78,9 +78,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{
 			name: "Invalid End IP Address",
 			dhcpRange: 	DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "192.168.1.10",
-						End: "not-an-ipaddr",
+						Cidr: 	"192.168.1.0/24",
+						Start: 	"192.168.1.10",
+						End: 	"not-an-ipaddr",
 			},
 			path: 		field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
 			expectedErrs:	field.ErrorList{
@@ -94,9 +94,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{
 			name: "Invalid Gateway Address",
 			dhcpRange: 	DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "192.168.1.10",
-						End: "192.168.1.20",
+						Cidr: 	 "192.168.1.0/24",
+						Start: 	 "192.168.1.10",
+						End: 	 "192.168.1.20",
 						Gateway: "not-an-ipaddr",
 			},
 			path: 		field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
@@ -111,9 +111,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{
 			name: "Mixed Address Family (start)",
 			dhcpRange: 	DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "2001:db8::1",
-						End: "192.168.1.20",
+						Cidr: 	 "192.168.1.0/24",
+						Start: 	 "2001:db8::1",
+						End: 	 "192.168.1.20",
 						Gateway: "192.168.1.1",
 			},
 			path: 		field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
@@ -121,9 +121,9 @@ func TestValidateDHCPRange(t *testing.T) {
 				field.Invalid(
 					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
 					DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "2001:db8::1",
-						End: "192.168.1.20",
+						Cidr: 	 "192.168.1.0/24",
+						Start: 	 "2001:db8::1",
+						End: 	 "192.168.1.20",
 						Gateway: "192.168.1.1",
 					},
 					errMixedAddressFamily,
@@ -148,9 +148,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{
 			name: "Invalid IPRange",
 			dhcpRange: 	DHCPRange{
-						Cidr: "192.168.1.0/24",
-						Start: "192.168.1.20",
-						End: "192.168.1.10",
+						Cidr: 	 "192.168.1.0/24",
+						Start: 	 "192.168.1.20",
+						End: 	 "192.168.1.10",
 						Gateway: "192.168.1.1",
 			},
 			path: 		field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
@@ -272,6 +272,37 @@ func TestValidateRPCTransport(t *testing.T) {
 
 			if !reflect.DeepEqual(errs, tc.expectedErrs) {
 				t.Errorf("validateRPCTransport() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
+			}
+		})
+	}
+}
+
+func TestValidateConductorSpec(t *testing.T) {
+	testCases := []struct {
+		name		string
+		spec		*IronicSpecCore
+		basePath	*field.Path
+		expectedErrs	field.ErrorList
+	}{
+		{
+			name:		"IronicConductors is not",
+			spec:		&IronicSpecCore{},
+			basePath:	field.NewPath("spec"),
+			expectedErrs:	field.ErrorList{
+						field.Required(
+							field.NewPath("spec").Child("ironicConductors"),
+							"IonicConductors must be provided",
+						),
+					},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := validateConductorSpec(tc.spec, tc.basePath)
+
+			if !reflect.DeepEqual(errs, tc.expectedErrs) {
+				t.Errorf("validateConductorSpec() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
 			}
 		})
 	}
