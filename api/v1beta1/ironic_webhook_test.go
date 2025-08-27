@@ -180,3 +180,57 @@ func TestValidateDHCPRange(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConductorGroupsUnique(t *testing.T) {
+	testCases := []struct {
+		name 		string
+		spec 		*IronicSpecCore
+		basePath 	*field.Path
+		expectedErrs	*field.Error
+	}{
+		{
+			name: 		"No Conductor Group",
+			spec: 		&IronicSpecCore{IronicConductors: []IronicConductorTemplate{}},
+			basePath:	field.NewPath("spec"),
+			expectedErrs: 	nil,
+		},
+
+		{
+			name: 		"Empty Conductor and One Normal Group",
+			spec: 		&IronicSpecCore{IronicConductors: []IronicConductorTemplate{
+						{ConductorGroup: ""},
+						{ConductorGroup: "Group1"},
+			}},
+			basePath:	field.NewPath("spec"),
+			expectedErrs: 	nil,
+		},
+		{
+			name:		"Duplicate Conductor Group",
+			spec:		&IronicSpecCore{IronicConductors: []IronicConductorTemplate{
+						{ConductorGroup: "Group1"},
+						{ConductorGroup: "Group2"},
+						{ConductorGroup: "Group1"},
+			}},
+			basePath:	field.NewPath("spec"),
+			expectedErrs:	field.Invalid(
+						field.NewPath("spec").Child("ironicConductors"),
+						[]IronicConductorTemplate{
+							{ConductorGroup: "Group1"},
+							{ConductorGroup: "Group2"},
+							{ConductorGroup: "Group1"},
+						},
+						"ConductorGroup must be unique: #0: \"Group1\" duplicate of #2: \"Group1\"",
+				),
+		},
+	}
+
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := validateConductorGroupsUnique(tc.spec, tc.basePath)
+			if !reflect.DeepEqual(errs, tc.expectedErrs) {
+				t.Errorf("validateConductorGroupsUnique() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
+			}
+		})
+	}
+}
