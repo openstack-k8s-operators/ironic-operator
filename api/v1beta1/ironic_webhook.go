@@ -272,7 +272,7 @@ func validateConductorSpec(spec *IronicSpecCore, basePath *field.Path) field.Err
 	if spec.IronicConductors == nil || len(spec.IronicConductors) == 0 {
 		allErrs = append(allErrs, field.Required(
 			basePath.Child("ironicConductors"),
-			"IonicConductors must be provided",
+			"IronicConductors must be provided",
 		))
 	}
 
