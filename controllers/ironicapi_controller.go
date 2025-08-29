@@ -1026,6 +1026,25 @@ func (r *IronicAPIReconciler) reconcileUpgrade() (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+func (r *IronicAPIReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.IronicAPI,
+) (string, error) {
+	if instance.Spec.RPCTransport != "oslo" {
+		return "fake://", nil
+	}
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+	}
+	return string(transportURL), nil
+}
+
 // generateServiceConfigMaps - create custom configmap to hold service-specific config
 // TODO add DefaultConfigOverwrite
 func (r *IronicAPIReconciler) generateServiceConfigMaps(
@@ -1066,10 +1085,24 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	// Initialize ConductorGroup key to ensure template rendering does not fail
 	templateParameters["ConductorGroup"] = nil
 
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["TransportURL"] = transportURL
+
 	if !instance.Spec.Standalone {
+		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+
+		servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
+
 		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneEndpoints.Internal
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+		templateParameters["ServicePassword"] = servicePassword
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}

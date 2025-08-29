@@ -81,7 +81,7 @@ func Deployment(
 
 	// create Volume and VolumeMounts
 	volumes := GetVolumes(ctx, instance)
-	volumeMounts := GetVolumeMounts()
+	volumeMounts := GetVolumeMounts(instance)
 	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// add CA cert if defined
