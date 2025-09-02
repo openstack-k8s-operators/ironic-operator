@@ -947,10 +947,23 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	// Initialize ConductorGroup key to ensure template rendering does not fail
 	templateParameters["ConductorGroup"] = nil
 
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["TransportURL"] = transportURL
+
 	if !instance.Spec.Standalone {
+		ospSecret, _, err := oko_secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+
+		servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 		templateParameters["KeystoneInternalURL"] = keystoneEndpoints.Internal
 		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+		templateParameters["ServicePassword"] = servicePassword
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}
@@ -997,6 +1010,25 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 
 	return oko_secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+}
+
+func (r *IronicReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.Ironic,
+) (string, error) {
+	if instance.Spec.RPCTransport != "oslo" {
+		return "fake://", nil
+	}
+	transportURLSecret, _, err := oko_secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+	}
+	return string(transportURL), nil
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
