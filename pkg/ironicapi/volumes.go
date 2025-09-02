@@ -80,7 +80,7 @@ func GetInitVolumeMounts(instance *ironicv1.IronicAPI) []corev1.VolumeMount {
 }
 
 // GetVolumeMounts - Ironic API VolumeMounts
-func GetVolumeMounts() []corev1.VolumeMount {
+func GetVolumeMounts(instance *ironicv1.IronicAPI) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "config-data",
@@ -88,7 +88,22 @@ func GetVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "ironic-api-config.json",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "config-data",
+			MountPath: "/var/lib/config-data/default",
+			ReadOnly:  true,
+		},
 		GetLogVolumeMount(),
+	}
+
+	// Add config-data-custom volume mount if parentName is present
+	parentName := ironicv1.GetOwningIronicName(instance)
+	if parentName != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		})
 	}
 
 	return append(ironic.GetVolumeMounts(), volumeMounts...)
