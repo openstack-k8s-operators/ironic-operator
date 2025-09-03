@@ -35,9 +35,6 @@ function merge_config_dir {
 }
 
 function common_ironic_config {
-    # Secrets are obtained from ENV variables.
-    export IRONICPASSWORD=${IronicPassword:?"Please specify a IronicPassword variable."}
-    export TRANSPORTURL=${TransportURL:-""}
     # TODO: nova password
     #export NOVAPASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
 
@@ -58,19 +55,4 @@ function common_ironic_config {
     for dir in /var/lib/config-data/default /var/lib/config-data/custom; do
         merge_config_dir ${dir}
     done
-
-    # set secrets
-    # Only set rpc_transport and transport_url if $TRANSPORTURL
-    if [ -n "$TRANSPORTURL" ]; then
-        crudini --set ${SVC_CFG_MERGED} DEFAULT transport_url $TRANSPORTURL
-        crudini --set ${SVC_CFG_MERGED} DEFAULT rpc_transport oslo
-    fi
-    crudini --set ${SVC_CFG_MERGED} keystone_authtoken password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} service_catalog password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} cinder password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} glance password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} neutron password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} nova password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} swift password $IRONICPASSWORD
-    crudini --set ${SVC_CFG_MERGED} inspector password $IRONICPASSWORD
 }
