@@ -884,9 +884,16 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 
 	templateParameters := make(map[string]interface{})
 	if !instance.Spec.Standalone {
+		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+
+		servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 		templateParameters["KeystoneInternalURL"] = instance.Spec.KeystoneEndpoints.Internal
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
+		templateParameters["ServicePassword"] = servicePassword
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})
@@ -899,6 +906,13 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		}
 		templateParameters["IronicPublicURL"] = ironicPublicURL
 	}
+
+	// Add TransportURL for template-based transport URL injection
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["TransportURL"] = transportURL
 
 	dhcpRanges, err := ironic.PrefixOrNetmaskFromCIDR(instance.Spec.DHCPRanges)
 	if err != nil {
@@ -954,6 +968,25 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	}
 
 	return secret.EnsureSecrets(ctx, h, instance, cms, envVars)
+}
+
+func (r *IronicConductorReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *ironicv1.IronicConductor,
+) (string, error) {
+	if instance.Spec.RPCTransport != "oslo" {
+		return "fake://", nil
+	}
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+	}
+	return string(transportURL), nil
 }
 
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
