@@ -131,7 +131,7 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 		instance.Status.Conditions = condition.Conditions{}
 	}
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
@@ -373,7 +373,7 @@ func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
 	// Create RabbitMQ transport URL CR and get the actual URL from the
-	// associted secret that is created
+	// associated secret that is created
 	//
 	Log := r.GetLogger(ctx)
 

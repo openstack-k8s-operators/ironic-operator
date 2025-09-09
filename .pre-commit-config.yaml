@@ -55,6 +55,14 @@ repos:
     - id: trailing-whitespace
       exclude: ^vendor
 
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.2.6
+  hooks:
+    - id: codespell
+      args:
+      - --write-changes
+      - --ignore-words=.codespell.ignore
+
 - repo: https://github.com/openstack/bashate.git
   rev: 2.1.1
   hooks:

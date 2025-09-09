@@ -190,7 +190,7 @@ type IronicImages struct {
 	IronicPythonAgent string `json:"ironicPythonAgent"`
 }
 
-// DHCPRange to define address range for DHCP requestes
+// DHCPRange to define address range for DHCP requests
 type DHCPRange struct {
 	// +kubebuilder:validation:Optional
 	// Name - Name of the DHCPRange (used for tagging in dnsmasq)
@@ -215,7 +215,7 @@ type DHCPRange struct {
 	PodIndex int `json:"podIndex,omitempty"`
 	// Prefix - (Hidden) Internal use only, prefix (mask bits) for IPv6 is autopopulated from Cidr
 	Prefix int `json:"-"`
-	// Netmask - (Hidden) Inernal use only, netmask for IPv4 is autopopulated from Cidr
+	// Netmask - (Hidden) Internal use only, netmask for IPv4 is autopopulated from Cidr
 	Netmask string `json:"-"`
 }
 

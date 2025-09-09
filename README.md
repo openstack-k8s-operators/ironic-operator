@@ -81,7 +81,7 @@ spec:
 
 The following represents an example of Ironic resource that can be used
 to trigger the service deployment, and have the internal ironicAPI endpoint
-registerd as a MetalLB service using the IPAddressPool `osp-internal`,
+registered as a MetalLB service using the IPAddressPool `osp-internal`,
 request to use the IP `172.17.0.202` as the VIP and the IP is shared with
 other services.
 

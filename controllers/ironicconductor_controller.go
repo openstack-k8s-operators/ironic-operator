@@ -133,7 +133,7 @@ func (r *IronicConductorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		instance.Status.Conditions = condition.Conditions{}
 	}
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 

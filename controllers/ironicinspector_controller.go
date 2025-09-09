@@ -159,7 +159,7 @@ func (r *IronicInspectorReconciler) Reconcile(
 		instance.Status.Conditions = condition.Conditions{}
 	}
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
@@ -485,7 +485,7 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 	if instance.Spec.RPCTransport == "oslo" {
 		//
 		// Create RabbitMQ transport URL CR and get the actual URL from the
-		// associted secret that is created
+		// associated secret that is created
 		//
 		transportURL, op, err := ironic.TransportURLCreateOrUpdate(
 			instance.Name,
@@ -1569,7 +1569,7 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]interface{}{}
 		endptConfig["ServerName"] = fmt.Sprintf("%s-%s-%s.%s.svc", ironic.ServiceName, ironic.InspectorComponent, endpt.String(), instance.Namespace)
-		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
+		endptConfig["TLS"] = false // default TLS to false, and set it below to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			endptConfig["TLS"] = true
 			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
