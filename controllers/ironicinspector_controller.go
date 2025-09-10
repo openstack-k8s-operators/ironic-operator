@@ -867,10 +867,6 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	//
-	// TODO check when/if Init, Update, or Upgrade should/could be skipped
-	//
-
 	// networks to attach to
 	nadList := []networkv1.NetworkAttachmentDefinition{}
 	for _, netAtt := range instance.Spec.NetworkAttachments {
@@ -908,22 +904,6 @@ func (r *IronicInspectorReconciler) reconcileNormal(
 
 	// Handle service init
 	ctrlResult, err = r.reconcileInit(ctx, instance, helper, serviceLabels)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -1438,31 +1418,6 @@ func (r *IronicInspectorReconciler) reconcileInit(
 	}
 
 	Log.Info("Reconciled Ironic Inspector init successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicInspectorReconciler) reconcileUpdate(
-	ctx context.Context,
-) (ctrl.Result, error) {
-	Log := r.GetLogger(ctx)
-
-	Log.Info("Reconciling Ironic Inspector Service update")
-
-	// TODO: should have minor update tasks if required
-	// - delete dbsync hash from status to rerun it?
-
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicInspectorReconciler) reconcileUpgrade(
-	ctx context.Context,
-) (ctrl.Result, error) {
-	Log := r.GetLogger(ctx)
-	Log.Info("Reconciling Ironic Inspector Service upgrade")
-
-	// TODO: should have major version upgrade tasks
-	// -delete dbsync hash from status to rerun it?
-
 	return ctrl.Result{}, nil
 }
 
