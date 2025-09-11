@@ -52,7 +52,7 @@ const (
 	IronicAPIReadyInitMessage = "IronicAPI not started"
 
 	// IronicAPIReadyErrorMessage
-	IronicAPIReadyErrorMessage = "IronicAPI error occured %s"
+	IronicAPIReadyErrorMessage = "IronicAPI error occurred %s"
 
 	//
 	// IronicConductorReady condition messages
@@ -61,7 +61,7 @@ const (
 	IronicConductorReadyInitMessage = "IronicConductor not started"
 
 	// IronicConductorReadyErrorMessage
-	IronicConductorReadyErrorMessage = "IronicConductor error occured %s"
+	IronicConductorReadyErrorMessage = "IronicConductor error occurred %s"
 
 	//
 	// IronicInspectorReady condition messages
@@ -70,7 +70,7 @@ const (
 	IronicInspectorReadyInitMessage = "IronicInspector not started"
 
 	// IronicInspectorReadyErrorMessage
-	IronicInspectorReadyErrorMessage = "IronicInspector error occured %s"
+	IronicInspectorReadyErrorMessage = "IronicInspector error occurred %s"
 
 	//
 	// IronicNeutronAgentReady condition messages
@@ -79,5 +79,5 @@ const (
 	IronicNeutronAgentReadyInitMessage = "IronicNeutronAgent not started"
 
 	// IronicNeutronAgentReadyErrorMessage
-	IronicNeutronAgentReadyErrorMessage = "IronicNeutronAgent error occured %s"
+	IronicNeutronAgentReadyErrorMessage = "IronicNeutronAgent error occurred %s"
 )

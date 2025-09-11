@@ -147,7 +147,7 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		instance.Status.Conditions = condition.Conditions{}
 	}
 
-	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// Save a copy of the conditions so that we can restore the LastTransitionTime
 	// when a condition's state doesn't change.
 	savedConditions := instance.Status.Conditions.DeepCopy()
 
@@ -314,7 +314,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	if instance.Spec.RPCTransport == "oslo" {
 		//
-		// Create RabbitMQ transport URL CR and get the actual URL from the associted secret that is created
+		// Create RabbitMQ transport URL CR and get the actual URL from the associated secret that is created
 		//
 		transportURL, op, err := ironic.TransportURLCreateOrUpdate(
 			instance.Name,
@@ -1059,7 +1059,7 @@ func (r *IronicReconciler) createHashOfInputHashes(
 func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 ) (*ironicv1.IronicInspector, controllerutil.OperationResult, error) {
-	// TODO(tkajinam): Should we support using seprate DB/MQ for inspector ?
+	// TODO(tkajinam): Should we support using separate DB/MQ for inspector ?
 	IronicInspectorSpec := ironicv1.IronicInspectorSpec{
 		IronicInspectorTemplate: instance.Spec.IronicInspector,
 		ContainerImage:          instance.Spec.Images.Inspector,
