@@ -448,10 +448,35 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 		return ctrl.Result{}, "", err
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
+
+	// check for required TransportURL secret and add hash to the vars map
+	if instance.Status.TransportURLSecret != "" {
+		transportURLSecret, hash, err := secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				Log.Info(fmt.Sprintf("TransportURL secret %s not found", instance.Status.TransportURLSecret))
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.InputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.InputReadyWaitingMessage))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, "", err
+		}
+		configMapVars[transportURLSecret.Name] = env.SetValue(hash)
+	}
+
 	instance.Status.Conditions.MarkTrue(
 		condition.InputReadyCondition,
 		condition.InputReadyMessage)
-	// run check OpenStack secret - end
+	// run check secrets - end
 
 	//
 	// TLS input validation
@@ -802,6 +827,11 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 		return err
 	}
 
+	quorumQueues, err := getQuorumQueues(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
 	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		return err
@@ -812,6 +842,7 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 	templateParameters["TransportURL"] = transportURL
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])

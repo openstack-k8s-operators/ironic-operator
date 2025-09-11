@@ -222,7 +222,7 @@ var _ = Describe("Ironic controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.K8sClient.Get(th.Ctx, types.NamespacedName{
 					Namespace: ironicNames.Namespace,
-					Name:      "ironic-ironic-neutron-agent",
+					Name:      fmt.Sprintf("%s-ironic-neutron-agent", ironicNames.IronicName.Name),
 				}, &ironicv1.IronicNeutronAgent{})).Should(Succeed())
 			}, th.Timeout, th.Interval).Should(Succeed())
 		})
@@ -779,7 +779,10 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				confSecret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      fmt.Sprintf("%s-ironic-neutron-agent-config-data", ironicNames.IronicName.Name),
+				})
 				g.Expect(confSecret).ShouldNot(BeNil())
 
 				conf := confSecret.Data["01-ironic_neutron_agent.conf"]
@@ -1305,6 +1308,100 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+	})
+
+	When("Ironic is created with rpc=oslo and quorum queue enabled transport URL", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				infra.CreateTransportURLSecret(ironicNames.Namespace, MessageBusSecretName, true),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+		})
+
+		It("generates ironic config with oslo_messaging_rabbit section when quorum queues enabled", func() {
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.RabbitMqTransportURLReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			configDataMap := th.GetSecret(ironicNames.IronicConfigSecretName)
+			Expect(configDataMap).ShouldNot(BeNil())
+			Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+			configData := string(configDataMap.Data["ironic.conf"])
+
+			Expect(configData).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+			Expect(configData).Should(ContainSubstring("rabbit_quorum_queue=true"))
+			Expect(configData).Should(ContainSubstring("rabbit_transient_quorum_queue=true"))
+			Expect(configData).Should(ContainSubstring("amqp_durable_queues=true"))
+		})
 	})
 
 	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests

@@ -236,7 +236,7 @@ func GetIronicNames(
 		},
 		INAConfigSecretName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
-			Name:      "ironic-ironic-neutron-agent-config-data",
+			Name:      ironicNeutronAgent.Name + "-config-data",
 		},
 		InternalCertSecretName: types.NamespacedName{
 			Namespace: ironicName.Namespace,

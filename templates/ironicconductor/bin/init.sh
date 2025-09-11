@@ -23,6 +23,7 @@ export PODINDEX=$(echo ${HOSTNAME##*-})
 # Get required environment variables
 IRONICPASSWORD=${IronicPassword:-""}
 TRANSPORTURL=${TransportURL:-""}
+QUORUMQUEUES=${QuorumQueues:-"false"}
 
 INIT_CONFIG="/var/lib/config-data/merged/03-init-container-conductor.conf"
 
