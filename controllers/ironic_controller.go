@@ -465,16 +465,8 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		common.AppSelector: ironic.ServiceName,
 	}
 
-	// Handle service update
-	ctrlResult, err := r.reconcileUpdate()
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
+	ctrlResult, err := r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -732,13 +724,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			condition.ReadyCondition, condition.ReadyMessage)
 	}
 	Log.Info("Reconciled Ironic successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicReconciler) reconcileUpdate() (ctrl.Result, error) {
-	// Log.Info("Reconciling Ironic update")
-
-	// Log.Info("Reconciled Ironic update successfully")
 	return ctrl.Result{}, nil
 }
 

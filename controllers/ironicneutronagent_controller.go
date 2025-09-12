@@ -679,10 +679,6 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 		return ctrlResult, nil
 	}
 
-	//
-	// TODO check when/if Init, Update, or Upgrade should/could be skipped
-	//
-
 	serviceLabels := map[string]string{
 		common.AppSelector:       ironicneutronagent.ServiceName,
 		common.ComponentSelector: ironicneutronagent.ServiceName,
@@ -690,22 +686,6 @@ func (r *IronicNeutronAgentReconciler) reconcileNormal(
 
 	// Handle service init
 	ctrlResult, err = r.reconcileInit(ctx)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -763,28 +743,6 @@ func (r *IronicNeutronAgentReconciler) reconcileDelete(
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	Log.Info("Reconciled IronicNeutronAgent delete successfully")
-
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicNeutronAgentReconciler) reconcileUpdate(
-	ctx context.Context,
-) (ctrl.Result, error) {
-	Log := r.GetLogger(ctx)
-
-	Log.Info("Reconciling IronicNeutronAgent update")
-	Log.Info("Reconciled IronicNeutronAgent update successfully")
-
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicNeutronAgentReconciler) reconcileUpgrade(
-	ctx context.Context,
-) (ctrl.Result, error) {
-	Log := r.GetLogger(ctx)
-
-	Log.Info("Reconciling IronicNeutronAgent upgrade")
-	Log.Info("Reconciled IronicNeutronAgent upgrade successfully")
 
 	return ctrl.Result{}, nil
 }
