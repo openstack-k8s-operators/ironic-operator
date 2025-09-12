@@ -666,26 +666,6 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 	// Create ConfigMaps and Secrets - end
 
 	//
-	// TODO check when/if Init, Update, or Upgrade should/could be skipped
-	//
-
-	// Handle service update
-	ctrlResult, err := r.reconcileUpdate()
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade()
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	//
 	// normal reconcile tasks
 	//
 
@@ -769,7 +749,7 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 		time.Duration(5)*time.Second,
 	)
 
-	ctrlResult, err = ss.CreateOrPatch(ctx, helper)
+	ctrlResult, err := ss.CreateOrPatch(ctx, helper)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -843,20 +823,6 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			condition.ReadyCondition, condition.ReadyMessage)
 	}
 	Log.Info("Reconciled Conductor successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicConductorReconciler) reconcileUpdate() (ctrl.Result, error) {
-	// Log.Info("Reconciling Service update")
-
-	// Log.Info("Reconciled Service update successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicConductorReconciler) reconcileUpgrade() (ctrl.Result, error) {
-	// Log.Info("Reconciling Service upgrade")
-
-	// Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
