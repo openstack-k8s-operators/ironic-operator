@@ -845,10 +845,6 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 	// Create ConfigMaps and Secrets - end
 
-	//
-	// TODO check when/if Init, Update, or Upgrade should/could be skipped
-	//
-
 	serviceLabels := map[string]string{
 		common.AppSelector:       ironic.ServiceName,
 		common.ComponentSelector: ironic.APIComponent,
@@ -891,22 +887,6 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 
 	// Handle service init
 	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels)
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service update
-	ctrlResult, err = r.reconcileUpdate()
-	if err != nil {
-		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		return ctrlResult, nil
-	}
-
-	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade()
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -1021,20 +1001,6 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 			condition.ReadyCondition, condition.ReadyMessage)
 	}
 	Log.Info("Reconciled API successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicAPIReconciler) reconcileUpdate() (ctrl.Result, error) {
-	// Log.Info("Reconciling API update")
-
-	// Log.Info("Reconciled API update successfully")
-	return ctrl.Result{}, nil
-}
-
-func (r *IronicAPIReconciler) reconcileUpgrade() (ctrl.Result, error) {
-	// Log.Info("Reconciling API upgrade")
-
-	// Log.Info("Reconciled API upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
