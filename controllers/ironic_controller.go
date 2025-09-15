@@ -931,6 +931,10 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	}
 
 	templateParameters := make(map[string]interface{})
+
+	// Set RPC transport type for template rendering
+	templateParameters["RPCTransport"] = instance.Spec.RPCTransport
+
 	// Initialize ConductorGroup key to ensure template rendering does not fail
 	templateParameters["ConductorGroup"] = nil
 

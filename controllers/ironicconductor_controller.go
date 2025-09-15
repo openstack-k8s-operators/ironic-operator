@@ -861,6 +861,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	}
 
 	templateParameters := make(map[string]interface{})
+
+	// Set RPC transport type for template rendering
+	templateParameters["RPCTransport"] = instance.Spec.RPCTransport
+
 	if !instance.Spec.Standalone {
 		ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 		if err != nil {
