@@ -28,9 +28,12 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("IronicNeutronAgent controller", func() {
@@ -338,6 +341,100 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				g.Expect(string(conf)).Should(
 					ContainSubstring("[oslo_messaging_rabbit]"))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicNeutronAgent mirrors parent RBAC conditions", func() {
+
+		It("should mirror parent RBAC conditions when child service", func() {
+			parentIronic := &ironicv1.Ironic{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ironicNames.IronicName.Name,
+					Namespace: ironicNames.Namespace,
+				},
+				Spec: ironicv1.IronicSpec{
+					IronicSpecCore: ironicv1.IronicSpecCore{
+						DatabaseInstance: DatabaseInstance,
+						Secret:           SecretName,
+						APITimeout:       60,
+						ServiceUser:      "ironic",
+						IronicConductors: []ironicv1.IronicConductorTemplate{{
+							StorageRequest: "10G",
+						}},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, parentIronic)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, ctx, parentIronic)
+
+			// set parent RBAC conditions to true
+			Eventually(func(g Gomega) {
+				parent := &ironicv1.Ironic{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      ironicNames.IronicName.Name,
+					Namespace: ironicNames.Namespace,
+				}, parent)).Should(Succeed())
+
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.ServiceAccountReadyCondition,
+					"ServiceAccount created"))
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.RoleReadyCondition,
+					"Role created"))
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.RoleBindingReadyCondition,
+					"RoleBinding created"))
+
+				g.Expect(k8sClient.Status().Update(ctx, parent)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			spec := GetDefaultIronicNeutronAgentSpec()
+			neutronAgent := CreateIronicNeutronAgent(ironicNames.INAName, spec)
+			DeferCleanup(th.DeleteInstance, neutronAgent)
+
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// set neutron agent object is owned by parent ironic object
+			Eventually(func(g Gomega) {
+				parent := GetIronic(ironicNames.IronicName)
+				neutronAgentObj := GetIronicNeutronAgent(ironicNames.INAName)
+				neutronAgentObj.SetOwnerReferences([]metav1.OwnerReference{{
+					APIVersion:         "ironic.openstack.org/v1beta1",
+					Kind:               "Ironic",
+					Name:               parent.Name,
+					UID:                parent.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				}})
+				g.Expect(k8sClient.Update(ctx, neutronAgentObj)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// checks that ironic neutron agent mirrors parent conditions
+			Eventually(func(g Gomega) {
+				neutronAgentObj := GetIronicNeutronAgent(ironicNames.INAName)
+				serviceAccountCondition := neutronAgentObj.Status.Conditions.Get(condition.ServiceAccountReadyCondition)
+				g.Expect(serviceAccountCondition).ToNot(BeNil())
+				g.Expect(serviceAccountCondition.Status).To(Equal(corev1.ConditionTrue))
+				g.Expect(serviceAccountCondition.Message).To(Equal("ServiceAccount created"))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 })
