@@ -645,16 +645,20 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 			return rbacResult, nil
 		}
 	} else {
-		// TODO(hjensas): Mirror conditions from parent, or check resource exist first
-		instance.RbacConditionsSet(condition.TrueCondition(
-			condition.ServiceAccountReadyCondition,
-			condition.ServiceAccountReadyMessage))
-		instance.RbacConditionsSet(condition.TrueCondition(
-			condition.RoleReadyCondition,
-			condition.RoleReadyMessage))
-		instance.RbacConditionsSet(condition.TrueCondition(
-			condition.RoleBindingReadyCondition,
-			condition.RoleBindingReadyMessage))
+		// mirroring RBAC conditions from parent Ironic
+		ctrlResult, err := r.checkParentResourceExist(ctx, instance, helper)
+		if err != nil {
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
+
+		ctrlResult, err = r.checkParentRbacConditions(ctx, instance, helper)
+		if err != nil {
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			return ctrlResult, nil
+		}
 	}
 
 	// ConfigMap
@@ -1181,4 +1185,94 @@ func (r *IronicAPIReconciler) createHashOfInputHashes(
 		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return hash, changed, nil
+}
+
+// checks for existence of parent resource
+func (r *IronicAPIReconciler) checkParentResourceExist(
+	ctx context.Context,
+	instance *ironicv1.IronicAPI,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	parentName := ironicv1.GetOwningIronicName(instance)
+	parentIronic := &ironicv1.Ironic{}
+
+	rbacConditions := []condition.Type{
+		condition.ServiceAccountReadyCondition,
+		condition.RoleReadyCondition,
+		condition.RoleBindingReadyCondition,
+	}
+
+	err := helper.GetClient().Get(
+		ctx,
+		types.NamespacedName{
+			Name:      parentName,
+			Namespace: instance.Namespace,
+		},
+		parentIronic,
+	)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			for _, condType := range rbacConditions {
+				instance.RbacConditionsSet(condition.FalseCondition(
+					condType,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					"Parent Ironic resource not found"))
+			}
+			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// checks parent RBAC conditions and requeues if not ready
+func (r *IronicAPIReconciler) checkParentRbacConditions(
+	ctx context.Context,
+	instance *ironicv1.IronicAPI,
+	helper *helper.Helper,
+) (ctrl.Result, error) {
+	parentName := ironicv1.GetOwningIronicName(instance)
+	parentIronic := &ironicv1.Ironic{}
+
+	rbacConditions := []condition.Type{
+		condition.ServiceAccountReadyCondition,
+		condition.RoleReadyCondition,
+		condition.RoleBindingReadyCondition,
+	}
+
+	err := helper.GetClient().Get(
+		ctx,
+		types.NamespacedName{
+			Name:      parentName,
+			Namespace: instance.Namespace,
+		},
+		parentIronic,
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	allConditionsReady := true
+	for _, condType := range rbacConditions {
+		if parentCondition := parentIronic.Status.Conditions.Get(condType); parentCondition != nil {
+			instance.RbacConditionsSet(parentCondition)
+			if parentCondition.Status != corev1.ConditionTrue {
+				allConditionsReady = false
+			}
+		} else {
+			instance.RbacConditionsSet(condition.UnknownCondition(
+				condType,
+				condition.InitReason,
+				"Parent RBAC condition not yet available"))
+			allConditionsReady = false
+		}
+	}
+
+	// requeue if any condition returns false
+	if !allConditionsReady {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+
+	return ctrl.Result{}, nil
 }
