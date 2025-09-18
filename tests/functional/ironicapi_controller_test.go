@@ -29,7 +29,9 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("IronicAPI controller", func() {
@@ -568,6 +570,117 @@ var _ = Describe("IronicAPI controller", func() {
 			}).Should(Succeed())
 		})
 
+	})
+
+	When("IronicAPI mirrors parent RBAC conditions", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateIronicSecret(ironicNames.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(
+				ironicNames.Namespace,
+				"openstack",
+				corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Port: 3306}},
+				},
+			))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("should mirror parent RBAC conditions when child service", func() {
+			parentIronic := &ironicv1.Ironic{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ironicNames.IronicName.Name,
+					Namespace: ironicNames.Namespace,
+				},
+				Spec: ironicv1.IronicSpec{
+					IronicSpecCore: ironicv1.IronicSpecCore{
+						DatabaseInstance: DatabaseInstance,
+						Secret:           SecretName,
+						APITimeout:       60,
+						ServiceUser:      "ironic",
+						IronicConductors: []ironicv1.IronicConductorTemplate{{
+							StorageRequest: "10G",
+						}},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, parentIronic)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, ctx, parentIronic)
+
+			// set parent RBAC conditions to true
+			Eventually(func(g Gomega) {
+				parent := &ironicv1.Ironic{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      ironicNames.IronicName.Name,
+					Namespace: ironicNames.Namespace,
+				}, parent)).Should(Succeed())
+
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.ServiceAccountReadyCondition,
+					"ServiceAccount created"))
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.RoleReadyCondition,
+					"Role created"))
+				parent.Status.Conditions.Set(condition.TrueCondition(
+					condition.RoleBindingReadyCondition,
+					"RoleBinding created"))
+
+				g.Expect(k8sClient.Status().Update(ctx, parent)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			spec := GetDefaultIronicAPISpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			api := CreateIronicAPI(ironicNames.APIName, spec)
+			DeferCleanup(th.DeleteInstance, api)
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.ServiceAccountReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			// set ironicAPI object is owned by parent ironic object
+			Eventually(func(g Gomega) {
+				parent := GetIronic(ironicNames.IronicName)
+				apiObj := GetIronicAPI(ironicNames.APIName)
+				apiObj.SetOwnerReferences([]metav1.OwnerReference{{
+					APIVersion:         "ironic.openstack.org/v1beta1",
+					Kind:               "Ironic",
+					Name:               parent.Name,
+					UID:                parent.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				}})
+				g.Expect(k8sClient.Update(ctx, apiObj)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// checks that ironicAPI mirrors parent conditions
+			Eventually(func(g Gomega) {
+				apiObj := GetIronicAPI(ironicNames.APIName)
+				serviceAccountCondition := apiObj.Status.Conditions.Get(condition.ServiceAccountReadyCondition)
+				g.Expect(serviceAccountCondition).ToNot(BeNil())
+				g.Expect(serviceAccountCondition.Status).To(Equal(corev1.ConditionTrue))
+				g.Expect(serviceAccountCondition.Message).To(Equal("ServiceAccount created"))
+			}, timeout, interval).Should(Succeed())
+
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.RoleReadyCondition,
+				corev1.ConditionTrue,
+			)
+			th.ExpectCondition(
+				ironicNames.APIName,
+				ConditionGetterFunc(IronicAPIConditionGetter),
+				condition.RoleBindingReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
 	})
 
 })
