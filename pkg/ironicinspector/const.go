@@ -1,3 +1,4 @@
+// Package ironicinspector contains ironic inspector constants and configuration.
 package ironicinspector
 
 const (

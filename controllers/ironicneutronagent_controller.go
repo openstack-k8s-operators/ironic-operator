@@ -67,7 +67,7 @@ type IronicNeutronAgentReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-// getlogger returns a logger object with a prefix of "controller.name" and additional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *IronicNeutronAgentReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("IronicNeutronAgent")
 }
@@ -101,7 +101,7 @@ func (r *IronicNeutronAgentReconciler) Reconcile(
 
 	// Fetch the IronicNeutronAgent instance
 	instance := &ironicv1.IronicNeutronAgent{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -329,7 +329,7 @@ func (r *IronicNeutronAgentReconciler) findObjectForSrc(ctx context.Context, src
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.Client.List(ctx, crList, listOps)
+	err := r.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -497,7 +497,7 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
