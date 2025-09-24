@@ -464,11 +464,6 @@ func (r *IronicConductorReconciler) reconcileServices(
 		}
 	}
 
-	//
-	// create users and endpoints
-	// TODO: rework this
-	//
-
 	Log.Info("Reconciled Conductor Services successfully")
 	return ctrl.Result{}, nil
 }
