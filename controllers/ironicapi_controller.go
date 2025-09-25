@@ -333,7 +333,7 @@ func (r *IronicAPIReconciler) findObjectsForSrc(ctx context.Context, src client.
 		Log.Error(err, "Unable to retrieve Conductor CRs %v")
 	} else {
 		label := src.GetLabels()
-		// TODO: Just trying to verify that the Secret is owned by this CR's managing CR
+		// NOTE: not enforcing ownership due to risk of breakage
 		if lbl, ok := label[labels.GetOwnerNameLabelSelector(labels.GetGroupLabel(ironic.ServiceName))]; ok {
 			for _, item := range crList.Items {
 				// return reconcile event for the CR where the Secret owner label AND the parentIronicName matches
