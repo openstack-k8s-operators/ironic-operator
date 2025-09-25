@@ -66,6 +66,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystone "github.com/openstack-k8s-operators/ironic-operator/pkg/keystone"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -1347,64 +1348,25 @@ func (r *IronicInspectorReconciler) reconcileUsersAndEndpoints(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 ) (ctrl.Result, error) {
-	//
-	// create users and endpoints
-	// TODO: rework this
-	//
 	if !instance.Spec.Standalone {
 		for _, ksSvc := range inspectorKeystoneServices {
-			ksSvcSpec := keystonev1.KeystoneServiceSpec{
+			registration := keystone.ServiceRegistration{
+				Namespace:          instance.Namespace,
 				ServiceType:        ksSvc["type"],
 				ServiceName:        ksSvc["name"],
 				ServiceDescription: ksSvc["desc"],
-				Enabled:            true,
 				ServiceUser:        instance.Spec.ServiceUser,
 				Secret:             instance.Spec.Secret,
 				PasswordSelector:   instance.Spec.PasswordSelectors.Service,
+				Endpoints:          instance.Status.APIEndpoints[ksSvc["name"]],
+				Labels:             serviceLabels,
+				TimeoutSeconds:     10,
 			}
-
-			ksSvcObj := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
-			ctrlResult, err := ksSvcObj.CreateOrPatch(ctx, helper)
+			// shared helper to create Keystone service and generate endpoints
+			ctrlResult, err := keystone.EnsureRegistration(ctx, helper, registration, &instance.Status.Conditions)
 			if err != nil {
 				return ctrlResult, err
-			}
-
-			// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
-			// into a local condition with the type condition.KeystoneServiceReadyCondition
-			c := ksSvcObj.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
-			if c != nil {
-				instance.Status.Conditions.Set(c)
-			}
-
-			if (ctrlResult != ctrl.Result{}) {
-				return ctrlResult, nil
-			}
-
-			//
-			// register endpoints
-			//
-			ksEndptSpec := keystonev1.KeystoneEndpointSpec{
-				ServiceName: ksSvc["name"],
-				Endpoints:   instance.Status.APIEndpoints[ksSvc["name"]],
-			}
-			ksEndpt := keystonev1.NewKeystoneEndpoint(
-				ksSvc["name"],
-				instance.Namespace,
-				ksEndptSpec,
-				serviceLabels,
-				10)
-			ctrlResult, err = ksEndpt.CreateOrPatch(ctx, helper)
-			if err != nil {
-				return ctrlResult, err
-			}
-			// // mirror the Status, Reason, Severity and Message of the latest keystoneendpoint condition
-			// // into a local condition with the type condition.KeystoneEndpointReadyCondition
-			c = ksEndpt.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
-			if c != nil {
-				instance.Status.Conditions.Set(c)
-			}
-
-			if (ctrlResult != ctrl.Result{}) {
+			} else if (ctrlResult != ctrl.Result{}) {
 				return ctrlResult, nil
 			}
 		}
@@ -1803,11 +1765,6 @@ func (r *IronicInspectorReconciler) reconcileServices(
 			}
 		}
 	}
-
-	//
-	// create users and endpoints
-	// TODO: rework this
-	//
 
 	Log.Info("Reconciled Inspector Services successfully")
 	return ctrl.Result{}, nil
