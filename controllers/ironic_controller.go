@@ -106,10 +106,6 @@ func (r *IronicReconciler) GetLogger(ctx context.Context) logr.Logger {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Ironic object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
@@ -457,10 +453,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
-	//
-	// TODO check when/if Init, Update, or Upgrade should/could be skipped
-	//
-
 	serviceLabels := map[string]string{
 		common.AppSelector: ironic.ServiceName,
 	}
@@ -477,8 +469,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// normal reconcile tasks
 	//
 
-	// TODO: Should validate and refuse to continue if instance.Spec.IronicConductors
-	//       container multiple elements with the same ConductorGroup defined.
 	// deploy ironic-conductors
 	for _, conductorSpec := range instance.Spec.IronicConductors {
 
@@ -645,7 +635,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 					err.Error()))
 			return ctrl.Result{}, err
 		}
-		// TODO: We do not have a specific message for not-requested services
 		instance.Status.Conditions.MarkTrue(ironicv1.IronicInspectorReadyCondition, "")
 	}
 
@@ -708,7 +697,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 					err.Error()))
 			return ctrl.Result{}, err
 		}
-		// TODO: We do not have a specific message for not-requested services
 		instance.Status.Conditions.MarkTrue(ironicv1.IronicNeutronAgentReadyCondition, "")
 	}
 
@@ -1059,7 +1047,6 @@ func (r *IronicReconciler) createHashOfInputHashes(
 func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 ) (*ironicv1.IronicInspector, controllerutil.OperationResult, error) {
-	// TODO(tkajinam): Should we support using separate DB/MQ for inspector ?
 	IronicInspectorSpec := ironicv1.IronicInspectorSpec{
 		IronicInspectorTemplate: instance.Spec.IronicInspector,
 		ContainerImage:          instance.Spec.Images.Inspector,
