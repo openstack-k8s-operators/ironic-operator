@@ -302,7 +302,7 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		}
 
 		label := o.GetLabels()
-		// TODO: Just trying to verify that the CM is owned by this CR's managing CR
+		// NOTE: not enforcing ownership due to risk of breakage
 		if l, ok := label[labels.GetOwnerNameLabelSelector(
 			labels.GetGroupLabel(ironic.ServiceName))]; ok {
 			for _, cr := range apis.Items {
