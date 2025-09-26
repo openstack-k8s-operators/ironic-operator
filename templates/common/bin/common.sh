@@ -35,9 +35,6 @@ function merge_config_dir {
 }
 
 function common_ironic_config {
-    # TODO: nova password
-    #export NOVAPASSWORD=${NovaPassword:?"Please specify a NovaPassword variable."}
-
     export CUSTOMCONF=${CustomConf:-""}
 
     SVC_CFG=/etc/ironic/ironic.conf

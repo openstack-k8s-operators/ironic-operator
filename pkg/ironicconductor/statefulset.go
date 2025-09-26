@@ -90,7 +90,6 @@ func StatefulSet(
 	//
 
 	if instance.Spec.RPCTransport == "json-rpc" {
-		// (TODO) Make a http request to the JSON-RPC port ?
 		livenessProbe.TCPSocket = &corev1.TCPSocketAction{
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
 		}
@@ -98,13 +97,11 @@ func StatefulSet(
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
 		}
 	} else {
-		// TODO
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
 			},
 		}
-		// TODO
 		readinessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
