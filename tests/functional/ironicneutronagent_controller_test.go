@@ -223,7 +223,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 			spec := GetDefaultIronicNeutronAgentSpec()
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
 			}
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))

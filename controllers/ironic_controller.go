@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -567,9 +568,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		))
 	} else {
 		// Mirror IronicAPI status' APIEndpoints and ReadyCount to this parent CR
-		for k, v := range ironicAPI.Status.APIEndpoints {
-			instance.Status.APIEndpoints[k] = v
-		}
+		maps.Copy(instance.Status.APIEndpoints, ironicAPI.Status.APIEndpoints)
 		instance.Status.IronicAPIReadyCount = ironicAPI.Status.ReadyCount
 
 		// Mirror IronicAPI's condition status
@@ -619,9 +618,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			))
 		} else {
 			// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-			for k, v := range ironicInspector.Status.APIEndpoints {
-				instance.Status.APIEndpoints[k] = v
-			}
+			maps.Copy(instance.Status.APIEndpoints, ironicInspector.Status.APIEndpoints)
 			instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
 
 			// Mirror IronicInspector's condition status
@@ -926,11 +923,9 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		"my.cnf":                db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
 
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 
 	// Set RPC transport type for template rendering
 	templateParameters["RPCTransport"] = instance.Spec.RPCTransport

@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -854,11 +855,9 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		"my.cnf":                   db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
 
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 
 	// Set RPC transport type for template rendering
 	templateParameters["RPCTransport"] = instance.Spec.RPCTransport

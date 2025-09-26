@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -1021,11 +1022,9 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		"my.cnf":             db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
 
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
 
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 
 	// Set RPC transport type for template rendering
 	templateParameters["RPCTransport"] = instance.Spec.RPCTransport
@@ -1077,9 +1076,9 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	)
 
 	// create httpd  vhost template parameters
-	httpdVhostConfig := map[string]interface{}{}
+	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
-		endptConfig := map[string]interface{}{}
+		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("%s-%s.%s.svc", ironic.ServiceName, endpt.String(), instance.Namespace)
 		endptConfig["TLS"] = false // default TLS to false, and set it below to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {

@@ -91,7 +91,7 @@ func getCommonRbacRules() []rbacv1.PolicyRule {
 
 type conditionUpdater interface {
 	Set(c *condition.Condition)
-	MarkTrue(t condition.Type, messageFormat string, messageArgs ...interface{})
+	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
 }
 
 type topologyHandler interface {
