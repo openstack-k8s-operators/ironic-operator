@@ -238,7 +238,7 @@ var _ = Describe("IronicConductor controller", func() {
 			spec := GetDefaultIronicConductorSpec()
 			spec["rpcTransport"] = "oslo"
 			spec["transportURLSecret"] = MessageBusSecretName
-			spec["tls"] = map[string]interface{}{
+			spec["tls"] = map[string]any{
 				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
 			}
 			DeferCleanup(

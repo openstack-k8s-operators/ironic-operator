@@ -829,7 +829,7 @@ var _ = Describe("Ironic controller", func() {
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
-			spec["topologyRef"] = map[string]interface{}{
+			spec["topologyRef"] = map[string]any{
 				"name": topologyRef.Name,
 			}
 			DeferCleanup(
@@ -1092,7 +1092,7 @@ var _ = Describe("Ironic controller", func() {
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
-			spec["nodeSelector"] = map[string]interface{}{
+			spec["nodeSelector"] = map[string]any{
 				"foo": "bar",
 			}
 			DeferCleanup(
@@ -1514,18 +1514,18 @@ var _ = Describe("Ironic Webhook", func() {
 	It("rejects with wrong IronicAPI service override endpoint type", func() {
 		spec := GetDefaultIronicSpec()
 		apiSpec := GetDefaultIronicAPISpec()
-		apiSpec["override"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"internal": map[string]interface{}{},
-				"wrooong":  map[string]interface{}{},
+		apiSpec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{},
+				"wrooong":  map[string]any{},
 			},
 		}
 		spec["ironicAPI"] = apiSpec
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "ironic.openstack.org/v1beta1",
 			"kind":       "Ironic",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      ironicNames.IronicName.Name,
 				"namespace": ironicNames.IronicName.Namespace,
 			},
@@ -1545,18 +1545,18 @@ var _ = Describe("Ironic Webhook", func() {
 	It("rejects with wrong IronicInspector service override endpoint type", func() {
 		spec := GetDefaultIronicSpec()
 		apiSpec := GetDefaultIronicInspectorSpec()
-		apiSpec["override"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"internal": map[string]interface{}{},
-				"wrooong":  map[string]interface{}{},
+		apiSpec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{},
+				"wrooong":  map[string]any{},
 			},
 		}
 		spec["ironicInspector"] = apiSpec
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "ironic.openstack.org/v1beta1",
 			"kind":       "Ironic",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      ironicNames.IronicName.Name,
 				"namespace": ironicNames.IronicName.Namespace,
 			},
@@ -1584,8 +1584,8 @@ var _ = Describe("Ironic Webhook", func() {
 
 			// API, Inspector, NeutronAgent
 			if component != "top-level" && component != "ironicConductors" {
-				spec[component] = map[string]interface{}{
-					"topologyRef": map[string]interface{}{
+				spec[component] = map[string]any{
+					"topologyRef": map[string]any{
 						"name":      "bar",
 						"namespace": "foo",
 					},
@@ -1593,9 +1593,9 @@ var _ = Describe("Ironic Webhook", func() {
 			}
 			// Conductors
 			if component == "ironicConductors" {
-				condList := []map[string]interface{}{
+				condList := []map[string]any{
 					{
-						"topologyRef": map[string]interface{}{
+						"topologyRef": map[string]any{
 							"name":      "foo",
 							"namespace": "bar",
 						},
@@ -1604,16 +1604,16 @@ var _ = Describe("Ironic Webhook", func() {
 				spec["ironicConductors"] = condList
 				// top-level topologyRef
 			} else {
-				spec["topologyRef"] = map[string]interface{}{
+				spec["topologyRef"] = map[string]any{
 					"name":      "bar",
 					"namespace": "foo",
 				}
 			}
 			// Build the ironic CR
-			raw := map[string]interface{}{
+			raw := map[string]any{
 				"apiVersion": "ironic.openstack.org/v1beta1",
 				"kind":       "Ironic",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      ironicNames.IronicName.Name,
 					"namespace": ironicNames.IronicName.Namespace,
 				},

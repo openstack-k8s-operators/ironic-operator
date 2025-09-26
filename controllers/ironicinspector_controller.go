@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -1436,10 +1437,8 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		"02-inspector-custom.conf": instance.Spec.CustomServiceConfig,
 		"my.cnf":                   db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
-	templateParameters := make(map[string]interface{})
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
+	templateParameters := make(map[string]any)
 
 	transportURL, err := r.getTransportURL(ctx, h, instance)
 	if err != nil {
@@ -1518,9 +1517,9 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 	)
 
 	// create httpd  vhost template parameters
-	httpdVhostConfig := map[string]interface{}{}
+	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
-		endptConfig := map[string]interface{}{}
+		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("%s-%s-%s.%s.svc", ironic.ServiceName, ironic.InspectorComponent, endpt.String(), instance.Namespace)
 		endptConfig["TLS"] = false // default TLS to false, and set it below to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {

@@ -256,12 +256,12 @@ var _ = Describe("IronicAPI controller", func() {
 			spec := GetDefaultIronicAPISpec()
 			spec["rpcTransport"] = "oslo"
 			spec["transportURLSecret"] = MessageBusSecretName
-			spec["tls"] = map[string]interface{}{
-				"api": map[string]interface{}{
-					"internal": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"api": map[string]any{
+					"internal": map[string]any{
 						"secretName": ironicNames.InternalCertSecretName.Name,
 					},
-					"public": map[string]interface{}{
+					"public": map[string]any{
 						"secretName": ironicNames.PublicCertSecretName.Name,
 					},
 				},

@@ -54,7 +54,7 @@ func GetIngressDomain(
 	ingressDomain := ""
 
 	ingressStatus := ingress.UnstructuredContent()["status"]
-	ingressStatusMap, ok := ingressStatus.(map[string]interface{})
+	ingressStatusMap, ok := ingressStatus.(map[string]any)
 	if !ok {
 		return "", fmt.Errorf("%w: wanted type map[string]interface{}; got %T", ErrIngressDomainTypeAssertion, ingressStatus)
 	}

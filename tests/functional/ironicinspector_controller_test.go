@@ -305,12 +305,12 @@ var _ = Describe("IronicInspector controller", func() {
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
 			spec := GetDefaultIronicInspectorSpec()
 			spec["rpcTransport"] = "oslo"
-			spec["tls"] = map[string]interface{}{
-				"api": map[string]interface{}{
-					"internal": map[string]interface{}{
+			spec["tls"] = map[string]any{
+				"api": map[string]any{
+					"internal": map[string]any{
 						"secretName": ironicNames.InternalCertSecretName.Name,
 					},
-					"public": map[string]interface{}{
+					"public": map[string]any{
 						"secretName": ironicNames.PublicCertSecretName.Name,
 					},
 				},

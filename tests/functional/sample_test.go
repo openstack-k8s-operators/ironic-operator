@@ -28,8 +28,8 @@ import (
 
 const SamplesDir = "../../config/samples/"
 
-func ReadSample(sampleFileName string) map[string]interface{} {
-	rawSample := make(map[string]interface{})
+func ReadSample(sampleFileName string) map[string]any {
+	rawSample := make(map[string]any)
 
 	bytes, err := os.ReadFile(filepath.Join(SamplesDir, sampleFileName)) // #nosec G304
 	Expect(err).ShouldNot(HaveOccurred())
@@ -40,35 +40,35 @@ func ReadSample(sampleFileName string) map[string]interface{} {
 
 func CreateIronicFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateIronic(name, raw["spec"].(map[string]interface{}))
+	instance := CreateIronic(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateIronicAPIFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateIronicAPI(name, raw["spec"].(map[string]interface{}))
+	instance := CreateIronicAPI(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateIronicConductorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateIronicConductor(name, raw["spec"].(map[string]interface{}))
+	instance := CreateIronicConductor(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateIronicInspectorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateIronicInspector(name, raw["spec"].(map[string]interface{}))
+	instance := CreateIronicInspector(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
 func CreateIronicNeutronAgentFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
-	instance := CreateIronicNeutronAgent(name, raw["spec"].(map[string]interface{}))
+	instance := CreateIronicNeutronAgent(name, raw["spec"].(map[string]any))
 	DeferCleanup(th.DeleteInstance, instance)
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }

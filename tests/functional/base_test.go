@@ -297,7 +297,7 @@ func CreateMessageBusSecret(
 	s := th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"transport_url": []byte(fmt.Sprintf("rabbit://%s/fake", name)),
+			"transport_url": fmt.Appendf(nil, "rabbit://%s/fake", name),
 		},
 	)
 	logger.Info("Secret created", "name", name)
@@ -306,12 +306,12 @@ func CreateMessageBusSecret(
 
 func CreateIronic(
 	name types.NamespacedName,
-	spec map[string]interface{},
+	spec map[string]any,
 ) client.Object {
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "ironic.openstack.org/v1beta1",
 		"kind":       "Ironic",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -335,15 +335,15 @@ func IronicConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
-func GetDefaultIronicSpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultIronicSpec() map[string]any {
+	return map[string]any{
 		"databaseInstance":   DatabaseInstance,
 		"secret":             SecretName,
 		"ironicAPI":          GetDefaultIronicAPISpec(),
-		"ironicConductors":   []map[string]interface{}{GetDefaultIronicConductorSpec()},
+		"ironicConductors":   []map[string]any{GetDefaultIronicConductorSpec()},
 		"ironicInspector":    GetDefaultIronicInspectorSpec(),
 		"ironicNeutronAgent": GetDefaultIronicNeutronAgentSpec(),
-		"images": map[string]interface{}{
+		"images": map[string]any{
 			"api":               ContainerImage,
 			"conductor":         ContainerImage,
 			"inspector":         ContainerImage,
@@ -356,12 +356,12 @@ func GetDefaultIronicSpec() map[string]interface{} {
 
 func CreateIronicAPI(
 	name types.NamespacedName,
-	spec map[string]interface{},
+	spec map[string]any,
 ) client.Object {
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "ironic.openstack.org/v1beta1",
 		"kind":       "IronicAPI",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -395,8 +395,8 @@ func IronicAPIConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
-func GetDefaultIronicAPISpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultIronicAPISpec() map[string]any {
+	return map[string]any{
 		"secret":           SecretName,
 		"databaseHostname": DatabaseHostname,
 		"containerImage":   ContainerImage,
@@ -406,12 +406,12 @@ func GetDefaultIronicAPISpec() map[string]interface{} {
 
 func CreateIronicConductor(
 	name types.NamespacedName,
-	spec map[string]interface{},
+	spec map[string]any,
 ) client.Object {
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "ironic.openstack.org/v1beta1",
 		"kind":       "IronicConductor",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -445,8 +445,8 @@ func IronicConductorConditionGetter(name types.NamespacedName) condition.Conditi
 	return instance.Status.Conditions
 }
 
-func GetDefaultIronicConductorSpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultIronicConductorSpec() map[string]any {
+	return map[string]any{
 		"databaseHostname":       DatabaseHostname,
 		"databaseInstance":       DatabaseInstance,
 		"secret":                 SecretName,
@@ -460,12 +460,12 @@ func GetDefaultIronicConductorSpec() map[string]interface{} {
 
 func CreateIronicInspector(
 	name types.NamespacedName,
-	spec map[string]interface{},
+	spec map[string]any,
 ) client.Object {
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "ironic.openstack.org/v1beta1",
 		"kind":       "IronicInspector",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -494,8 +494,8 @@ func GetIronicInspectorSpec(
 	return instance.Spec.IronicInspectorTemplate
 }
 
-func GetDefaultIronicInspectorSpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultIronicInspectorSpec() map[string]any {
+	return map[string]any{
 		"databaseInstance":       DatabaseInstance,
 		"secret":                 SecretName,
 		"containerImage":         ContainerImage,
@@ -511,12 +511,12 @@ func IronicInspectorConditionGetter(name types.NamespacedName) condition.Conditi
 
 func CreateIronicNeutronAgent(
 	name types.NamespacedName,
-	spec map[string]interface{},
+	spec map[string]any,
 ) client.Object {
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "ironic.openstack.org/v1beta1",
 		"kind":       "IronicNeutronAgent",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
@@ -535,8 +535,8 @@ func GetIronicNeutronAgent(
 	return instance
 }
 
-func GetDefaultIronicNeutronAgentSpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultIronicNeutronAgentSpec() map[string]any {
+	return map[string]any{
 		"secret":         SecretName,
 		"containerImage": ContainerImage,
 		"serviceAccount": "ironic",
@@ -565,33 +565,33 @@ func CreateFakeIngressController() {
 	}
 
 	// Fake IngressController custom resource
-	fakeCustomResorce := map[string]interface{}{
+	fakeCustomResorce := map[string]any{
 		"apiVersion": "apiextensions.k8s.io/v1",
 		"kind":       "CustomResourceDefinition",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name": "ingresscontrollers.operator.openshift.io",
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"group": "operator.openshift.io",
-			"names": map[string]interface{}{
+			"names": map[string]any{
 				"kind":     "IngressController",
 				"listKind": "IngressControllerList",
 				"plural":   "ingresscontrollers",
 				"singular": "ingresscontroller",
 			},
 			"scope": "Namespaced",
-			"versions": []map[string]interface{}{{
+			"versions": []map[string]any{{
 				"name":    "v1",
 				"served":  true,
 				"storage": true,
-				"schema": map[string]interface{}{
-					"openAPIV3Schema": map[string]interface{}{
+				"schema": map[string]any{
+					"openAPIV3Schema": map[string]any{
 						"type": "object",
-						"properties": map[string]interface{}{
-							"status": map[string]interface{}{
+						"properties": map[string]any{
+							"status": map[string]any{
 								"type": "object",
-								"properties": map[string]interface{}{
-									"domain": map[string]interface{}{
+								"properties": map[string]any{
+									"domain": map[string]any{
 										"type": "string",
 									},
 								},
@@ -604,14 +604,14 @@ func CreateFakeIngressController() {
 	}
 
 	// Fake ingresscontroller
-	fakeIngressController := map[string]interface{}{
+	fakeIngressController := map[string]any{
 		"apiVersion": "operator.openshift.io/v1",
 		"kind":       "IngressController",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      name.Name,
 			"namespace": name.Namespace,
 		},
-		"status": map[string]interface{}{
+		"status": map[string]any{
 			"domain": "test.example.com",
 		},
 	}
@@ -650,7 +650,7 @@ func CreateFakeIngressController() {
 
 }
 
-func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructured {
+func CreateUnstructured(rawObj map[string]any) *unstructured.Unstructured {
 	logger.Info("Creating", "raw", rawObj)
 	unstructuredObj := &unstructured.Unstructured{Object: rawObj}
 	Eventually(func(g Gomega) {
@@ -664,16 +664,16 @@ func CreateUnstructured(rawObj map[string]interface{}) *unstructured.Unstructure
 // test Service components. It returns both the user input representation
 // in the form of map[string]string, and the Golang expected representation
 // used in the test asserts.
-func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.TopologySpreadConstraint) {
+func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySpreadConstraint) {
 	// Build the topology Spec
-	topologySpec := map[string]interface{}{
-		"topologySpreadConstraints": []map[string]interface{}{
+	topologySpec := map[string]any{
+		"topologySpreadConstraints": []map[string]any{
 			{
 				"maxSkew":           1,
 				"topologyKey":       corev1.LabelHostname,
 				"whenUnsatisfiable": "ScheduleAnyway",
-				"labelSelector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{
+				"labelSelector": map[string]any{
+					"matchLabels": map[string]any{
 						"component": label,
 					},
 				},
