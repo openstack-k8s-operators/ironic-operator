@@ -282,7 +282,7 @@ var _ = Describe("IronicAPI controller", func() {
 				ConditionGetterFunc(IronicAPIConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", ironicNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(

@@ -125,7 +125,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				ConditionGetterFunc(INAConditionGetter),
 				condition.InputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				"Input data resources missing",
 			)
 		})
@@ -161,7 +161,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 					ConditionGetterFunc(INAConditionGetter),
 					condition.InputReadyCondition,
 					corev1.ConditionFalse,
-					condition.RequestedReason,
+					condition.ErrorReason,
 					"Input data resources missing",
 				)
 			})
@@ -238,7 +238,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				ConditionGetterFunc(INAConditionGetter),
 				condition.TLSInputReadyCondition,
 				corev1.ConditionFalse,
-				condition.RequestedReason,
+				condition.ErrorReason,
 				fmt.Sprintf("TLSInput is missing: %s", ironicNames.CaBundleSecretName.Name),
 			)
 			th.ExpectCondition(
