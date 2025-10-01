@@ -432,11 +432,13 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// Since the OpenStack secret should have been manually created by the user and referenced in the spec,
+			// we treat this as a warning because it means that the service will not be able to start.
 			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
+				condition.ErrorReason,
+				condition.SeverityWarning,
 				condition.InputReadyWaitingMessage))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 		}
@@ -455,6 +457,7 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 		transportURLSecret, hash, err := secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// This controller itself creates the TransportURL secret, so we treat this as an info.
 				Log.Info(fmt.Sprintf("TransportURL secret %s not found", instance.Status.TransportURLSecret))
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.InputReadyCondition,
@@ -494,10 +497,12 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 		)
 		if err != nil {
 			if k8s_errors.IsNotFound(err) {
+				// Since the CA cert secret should have been manually created by the user and provided in the spec,
+				// we treat this as a warning because it means that the service will not be able to start.
 				instance.Status.Conditions.Set(condition.FalseCondition(
 					condition.TLSInputReadyCondition,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
 			}
@@ -875,11 +880,12 @@ func (r *IronicNeutronAgentReconciler) checkParentResourceExist(
 	)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			// If the parent Ironic is somehow missing, we treat this as a warning.
 			for _, condType := range rbacConditions {
 				instance.RbacConditionsSet(condition.FalseCondition(
 					condType,
-					condition.RequestedReason,
-					condition.SeverityInfo,
+					condition.ErrorReason,
+					condition.SeverityWarning,
 					"Parent Ironic resource not found"))
 			}
 			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
