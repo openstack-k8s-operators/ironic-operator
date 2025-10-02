@@ -120,6 +120,20 @@ type IronicConductorSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.Ca `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=Disabled
+	// +kubebuilder:validation:Enum:=Enabled;Disabled;""
+	// Whether to enable graphical consoles. NOTE: Setting this to Enabled is not supported.
+	GraphicalConsoles string `json:"graphicalConsoles"`
+
+	// +kubebuilder:validation:Optional
+	// NoVNCProxyImage - Ironic NoVNCProxy Container Image
+	NoVNCProxyImage string `json:"novncproxyImage,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// ConsoleImage - Ironic Graphical Console Container Image
+	ConsoleImage string `json:"consoleImage"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor
