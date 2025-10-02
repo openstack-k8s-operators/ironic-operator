@@ -20,7 +20,48 @@ export PODINDEX=$(echo ${HOSTNAME##*-})
 
 # DHCP server configuration
 export InspectorNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${InspectionNetwork})
-export INSPECTOR_HTTP_URL=$(python3 -c 'import os; print(os.environ["InspectorHTTPURL"] % os.environ)')
+export INSPECTOR_HTTP_URL=$(python3 -c '
+import os
+import ipaddress
+
+# Get the IP address
+ip_str = os.environ.get("InspectorNetworkIP", "")
+
+# Check if it is an IPv6 address and format accordingly
+try:
+    ip = ipaddress.ip_address(ip_str)
+    if isinstance(ip, ipaddress.IPv6Address):
+        # For IPv6, we need to wrap the IP in brackets for URL formatting
+        formatted_env = dict(os.environ)
+        formatted_env["InspectorNetworkIP"] = f"[{ip_str}]"
+        print(os.environ["InspectorHTTPURL"] % formatted_env)
+    else:
+        # For IPv4, use as-is
+        print(os.environ["InspectorHTTPURL"] % os.environ)
+except ValueError:
+    # If IP parsing fails, use as-is (fallback)
+    print(os.environ["InspectorHTTPURL"] % os.environ)
+')
+
+# Export URL-formatted IP for use in config templates
+export InspectorNetworkIPForURL=$(python3 -c '
+import os
+import ipaddress
+
+# Get the IP address
+ip_str = os.environ.get("InspectorNetworkIP", "")
+
+# Check if it is an IPv6 address and format accordingly
+try:
+    ip = ipaddress.ip_address(ip_str)
+    if isinstance(ip, ipaddress.IPv6Address):
+        print(f"[{ip_str}]")
+    else:
+        print(ip_str)
+except ValueError:
+    # If IP parsing fails, use as-is (fallback)
+    print(ip_str)
+')
 
 # Copy required config to modifiable location
 cp /var/lib/config-data/default/dnsmasq.conf /var/lib/ironic/

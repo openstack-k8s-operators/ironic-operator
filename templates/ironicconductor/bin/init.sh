@@ -33,7 +33,28 @@ if [ -n "${ProvisionNetwork}" ]; then
 fi
 
 
-export DEPLOY_HTTP_URL=$(python3 -c 'import os; print(os.environ["DeployHTTPURL"] % os.environ)')
+export DEPLOY_HTTP_URL=$(python3 -c '
+import os
+import ipaddress
+
+# Get the IP address
+ip_str = os.environ.get("ProvisionNetworkIP", "")
+
+# Check if it is an IPv6 address and format accordingly
+try:
+    ip = ipaddress.ip_address(ip_str)
+    if isinstance(ip, ipaddress.IPv6Address):
+        # For IPv6, we need to wrap the IP in brackets for URL formatting
+        formatted_env = dict(os.environ)
+        formatted_env["ProvisionNetworkIP"] = f"[{ip_str}]"
+        print(os.environ["DeployHTTPURL"] % formatted_env)
+    else:
+        # For IPv4, use as-is
+        print(os.environ["DeployHTTPURL"] % os.environ)
+except ValueError:
+    # If IP parsing fails, use as-is (fallback)
+    print(os.environ["DeployHTTPURL"] % os.environ)
+')
 
 crudini --set ${INIT_CONFIG} deploy http_url ${DEPLOY_HTTP_URL}
 crudini --set ${INIT_CONFIG} conductor bootloader ${DEPLOY_HTTP_URL}esp.img
