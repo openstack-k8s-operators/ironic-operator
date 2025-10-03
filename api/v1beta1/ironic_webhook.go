@@ -57,12 +57,14 @@ type netIPStartEnd struct {
 
 // IronicDefaults - TODO remove when openstack-operator has moved to IronicImages
 type IronicDefaults struct {
-	APIContainerImageURL       string
-	ConductorContainerImageURL string
-	InspectorContainerImageURL string
-	PXEContainerImageURL       string
-	INAContainerImageURL       string
-	IPAContainerImageURL       string
+	APIContainerImageURL              string
+	ConductorContainerImageURL        string
+	InspectorContainerImageURL        string
+	PXEContainerImageURL              string
+	INAContainerImageURL              string
+	IPAContainerImageURL              string
+	NoVNCProxyContainerImageURL       string
+	GraphicalConsoleContainerImageURL string
 }
 
 // SetupIronicDefaults - TODO remove when openstack-operator has moved to SetupIronicImageDefaults
@@ -74,6 +76,8 @@ func SetupIronicDefaults(defaults IronicDefaults) {
 		Pxe:               defaults.PXEContainerImageURL,
 		NeutronAgent:      defaults.INAContainerImageURL,
 		IronicPythonAgent: defaults.IPAContainerImageURL,
+		NoVNCProxy:        defaults.NoVNCProxyContainerImageURL,
+		GraphicalConsole:  defaults.GraphicalConsoleContainerImageURL,
 	})
 }
 

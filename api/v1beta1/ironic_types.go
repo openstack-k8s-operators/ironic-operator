@@ -47,6 +47,10 @@ const (
 	IronicNeutronAgentContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified"
 	// IronicPythonAgentContainerImage is the fall-back container image for IronicPythonAgent
 	IronicPythonAgentContainerImage = "quay.io/podified-antelope-centos9/ironic-python-agent:current-podified"
+	// IronicNoVNCProxyContainerImage is the fall-back container image for NoVNCProxy
+	IronicNoVNCProxyContainerImage = "quay.io/podified-antelope-centos9/ironic-novncproxy:current-podified"
+	// IronicGraphicalConsoleContainer image is the fall-back container image for GraphicalConsole
+	IronicGraphicalConsoleContainerImage = "quay.io/podified-antelope-centos9/ironic-graphical-console:current-podified"
 )
 
 // IronicSpec defines the desired state of Ironic
@@ -161,6 +165,12 @@ type IronicSpecCore struct {
 	// +kubebuilder:validation:Minimum=10
 	// APITimeout for HAProxy, Apache
 	APITimeout int `json:"apiTimeout"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=Disabled
+	// +kubebuilder:validation:Enum:=Enabled;Disabled;""
+	// Whether to enable graphical consoles. NOTE: Setting this to Enabled is not supported.
+	GraphicalConsoles string `json:"graphicalConsoles"`
 }
 
 // IronicImages to specify container images required by all ironic services
@@ -188,6 +198,14 @@ type IronicImages struct {
 	// +kubebuilder:validation:Optional
 	// IronicPythonAgent - Image containing the ironic-python-agent kernel and ramdisk
 	IronicPythonAgent string `json:"ironicPythonAgent"`
+
+	// +kubebuilder:validation:Optional
+	// NoVNCProxy - Ironic NoVNCProxy Container Image (will be set to environmental default if empty)
+	NoVNCProxy string `json:"novncproxy,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// GraphicalConsole - Ironic Graphical Console Container Image (will be set to environmental default if empty)
+	GraphicalConsole string `json:"graphicalConsole,omitempty"`
 }
 
 // DHCPRange to define address range for DHCP requests
@@ -320,6 +338,8 @@ func SetupDefaults() {
 		Pxe:               util.GetEnvVar("RELATED_IMAGE_IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
 		NeutronAgent:      util.GetEnvVar("RELATED_IMAGE_IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
 		IronicPythonAgent: util.GetEnvVar("RELATED_IMAGE_IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
+		NoVNCProxy:        util.GetEnvVar("RELATED_IMAGE_IRONIC_NOVNC_PROXY_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
+		GraphicalConsole:  util.GetEnvVar("RELATED_IMAGE_IRONIC_GRAPHICAL_CONSOLE_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),
 	}
 
 	SetupIronicImageDefaults(imageDefaults)
