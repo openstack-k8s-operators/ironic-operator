@@ -55,32 +55,6 @@ type netIPStartEnd struct {
 	path  *field.Path // Field path to DHCP Range in Ironic spec
 }
 
-// IronicDefaults - TODO remove when openstack-operator has moved to IronicImages
-type IronicDefaults struct {
-	APIContainerImageURL              string
-	ConductorContainerImageURL        string
-	InspectorContainerImageURL        string
-	PXEContainerImageURL              string
-	INAContainerImageURL              string
-	IPAContainerImageURL              string
-	NoVNCProxyContainerImageURL       string
-	GraphicalConsoleContainerImageURL string
-}
-
-// SetupIronicDefaults - TODO remove when openstack-operator has moved to SetupIronicImageDefaults
-func SetupIronicDefaults(defaults IronicDefaults) {
-	SetupIronicImageDefaults(IronicImages{
-		API:               defaults.APIContainerImageURL,
-		Conductor:         defaults.ConductorContainerImageURL,
-		Inspector:         defaults.InspectorContainerImageURL,
-		Pxe:               defaults.PXEContainerImageURL,
-		NeutronAgent:      defaults.INAContainerImageURL,
-		IronicPythonAgent: defaults.IPAContainerImageURL,
-		NoVNCProxy:        defaults.NoVNCProxyContainerImageURL,
-		GraphicalConsole:  defaults.GraphicalConsoleContainerImageURL,
-	})
-}
-
 var imageDefaults IronicImages
 
 // SetupIronicImageDefaults - initialize Ironic spec defaults for use with either internal or external webhooks
