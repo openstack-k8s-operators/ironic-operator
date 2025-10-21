@@ -794,6 +794,9 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		TransportURLSecret:      instance.Status.TransportURLSecret,
 		KeystoneEndpoints:       *keystoneEndpoints,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
+		GraphicalConsoles:       instance.Spec.GraphicalConsoles,
+		ConsoleImage:            instance.Spec.Images.GraphicalConsole,
+		NoVNCProxyImage:         instance.Spec.Images.NoVNCProxy,
 	}
 
 	if IronicConductorSpec.NodeSelector == nil {

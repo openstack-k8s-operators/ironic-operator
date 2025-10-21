@@ -85,4 +85,13 @@ if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
     mkdir /var/lib/ironic/ramdisk-logs
 fi
 
+NOVNC_PROXY_URL=$(python3 -c '
+import os
+
+url_template = os.environ.get("NoVNCProxyURL", "")
+if url_template:
+    print(url_template % os.environ)
+')
+crudini --set ${INIT_CONFIG} vnc public_url ${NOVNC_PROXY_URL}
+
 echo "Conductor init successfully completed"
