@@ -367,6 +367,8 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicInspector{}).
+		Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&corev1.Secret{}).
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Service{}).
