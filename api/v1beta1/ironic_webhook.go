@@ -204,11 +204,10 @@ func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.P
 	return allErrs
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// NOTE: webhook.Validator requires this function to exist even as a no-op
 func (r *Ironic) ValidateDelete() (admission.Warnings, error) {
 	ironiclog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
 }
 
