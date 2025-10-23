@@ -110,7 +110,6 @@ func StatefulSet(
 		startupProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 	}
 
-	// (TODO): Use http request if we can create a good request path
 	httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
 	}
