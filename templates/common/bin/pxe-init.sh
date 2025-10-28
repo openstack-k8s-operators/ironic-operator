@@ -37,7 +37,10 @@ fi
 for dir in httpboot tftpboot; do
     cp /usr/share/ipxe/ipxe-snponly-x86_64.efi /var/lib/ironic/$dir/snponly.efi
     cp /usr/share/ipxe/undionly.kpxe           /var/lib/ironic/$dir/undionly.kpxe
-    cp /usr/share/ipxe/ipxe.lkrn               /var/lib/ironic/$dir/ipxe.lkrn
+    # ipxe.lkrn is not packaged in RHEL 10
+    if [ -f "/usr/share/ipxe/ipxe.lkrn" ]; then
+        cp /usr/share/ipxe/ipxe.lkrn           /var/lib/ironic/$dir/ipxe.lkrn
+    fi
     cp /boot/efi/EFI/$efi_dir/shimx64.efi      /var/lib/ironic/$dir/bootx64.efi
     cp /boot/efi/EFI/$efi_dir/grubx64.efi      /var/lib/ironic/$dir/grubx64.efi
     # Ensure all files are readable
@@ -60,6 +63,8 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     # Repack the initramfs
     pushd initramfs
     find . | cpio -o -c --quiet -R root:root | gzip -1 > /var/lib/ironic/httpboot/ironic-python-agent.initramfs
+    popd
+    rm -rf /initramfs
 fi
 
 # Build an ESP image
@@ -67,7 +72,7 @@ pushd /var/lib/ironic/httpboot
 if ! command -v dd || ! command -v mkfs.msdos || ! command -v mmd; then
     echo "WARNING: esp.img will not be created because dd/mkfs.msdos/mmd are missing. Please patch the OpenstackVersion to update container images."
 elif [ ! -a "esp.img" ]; then
-    dd if=/dev/zero of=esp.img bs=4096 count=1024
+    dd if=/dev/zero of=esp.img bs=4096 count=2048
     mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
 
     mmd -i esp.img EFI
