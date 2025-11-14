@@ -45,7 +45,8 @@ import (
 
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/ironic-operator/controllers"
+	"github.com/openstack-k8s-operators/ironic-operator/internal/controller"
+	webhookv1beta1 "github.com/openstack-k8s-operators/ironic-operator/internal/webhook/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
@@ -185,38 +186,38 @@ var _ = BeforeSuite(func() {
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
-	err = (&ironicv1.Ironic{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupIronicWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&controllers.IronicNeutronAgentReconciler{
+	err = (&controller.IronicNeutronAgentReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
 	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&controllers.IronicInspectorReconciler{
+	err = (&controller.IronicInspectorReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
 	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&controllers.IronicConductorReconciler{
+	err = (&controller.IronicConductorReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
 	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&controllers.IronicAPIReconciler{
+	err = (&controller.IronicAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,
 	}).SetupWithManager(context.Background(), k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&controllers.IronicReconciler{
+	err = (&controller.IronicReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,

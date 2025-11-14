@@ -26,7 +26,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
+	"github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
