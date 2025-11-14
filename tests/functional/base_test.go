@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironic"
-	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/pkg/ironicinspector"
+	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
+	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironicinspector"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
