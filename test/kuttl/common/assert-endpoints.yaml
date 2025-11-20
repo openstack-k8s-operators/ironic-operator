@@ -1,0 +1,123 @@
+#
+# Check for:
+#
+# apiEndpoints
+# service port connectivity
+#
+
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the endpoints are defined and their addresses follow the default pattern
+# This test is for the ironic endpoints
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
+      template='{{.status.apiEndpoints.ironic.public}}{{":"}}{{.status.apiEndpoints.ironic.internal}}{{"\n"}}'
+      regex="http:\/\/ironic-public\.$NAMESPACE\..*:http:\/\/ironic-internal\.$NAMESPACE\..*"
+      apiEndpoints=$(oc get ironics.ironic.openstack.org ironic -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [ -z "$matches" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the endpoints are defined and their addresses follow the default pattern
+# This test is for the ironic inspector endpoints
+  - script: |
+      set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
+      template='{{index .status.apiEndpoints "ironic-inspector" "public"}}{{":"}}{{index .status.apiEndpoints "ironic-inspector" "internal"}}{{"\n"}}'
+      regex="http:\/\/ironic-inspector-public\.$NAMESPACE\..*:http:\/\/ironic-inspector-internal\.$NAMESPACE\..*"
+      apiEndpoints=$(oc get ironics.ironic.openstack.org ironic -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [ -z "$matches" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+# Test the status code is correct for each endpoint
+# This test is for ironic endpoints
+  - script: |
+      set -euxo pipefail
+      RETURN_CODE=0
+      oc config set-context --current --namespace=$NAMESPACE
+      PUBLIC_URL=$(oc get ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic.public}')
+      CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
+      if [ -z "$PUBLIC_URL" ]; then
+          RETURN_CODE=1
+          echo "Endpoint: apiEndpoints.ironic.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$($CURL_CMD $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
+      fi
+      exit $RETURN_CODE
+# Test the status code is correct for each endpoint
+# This test is for ironic inspector endpoints
+  - script: |
+      set -euxo pipefail
+      RETURN_CODE=0
+      oc config set-context --current --namespace=$NAMESPACE
+      PUBLIC_URL=$(oc get ironics.ironic.openstack.org ironic -o jsonpath='{.status.apiEndpoints.ironic-inspector.public}')
+      CURL_CMD='oc run --restart=Never --rm=true --image quay.io/curl/curl:8.8.0 -ti --quiet=true -- curl curl --silent --output /dev/null --head --write-out "%{http_code}"'
+      if [ -z "$PUBLIC_URL" ]; then
+          RETURN_CODE=1
+          echo "Endpoint: .status.apiEndpoints.ironic-inspector.public not ready."
+          sleep 10
+      else
+          STATUSCODE=$($CURL_CMD $PUBLIC_URL)
+          if test $STATUSCODE -ne 200; then
+              RETURN_CODE=1
+              echo "${PUBLIC_URL} status code expected is 200 but was ${STATUSCODE}"
+          fi
+      fi
+      exit $RETURN_CODE
+# when using image digests the containerImage URLs are SHAs so we verify them with a script
+  - script: |
+      set -euxo pipefail
+      oc config set-context --current --namespace=$NAMESPACE
+      tupleTemplate='{{ range (index .spec.template.spec.containers 0).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
+      imageTuples=$(oc get -n openstack-operators deployment ironic-operator-controller-manager -o go-template="$tupleTemplate")
+      for ITEM in $(echo $imageTuples); do
+        # it is an image
+        if echo $ITEM | grep 'RELATED_IMAGE' &> /dev/null; then
+          NAME=$(echo $ITEM | sed -e 's|^RELATED_IMAGE_IRONIC_\(.*\)_IMAGE.*|\1|')
+          IMG_FROM_ENV=$(echo $ITEM | sed -e 's|^.*#\(.*\)|\1|')
+          template='{{.spec.containerImage}}'
+          case $NAME in
+            API)
+              SERVICE_IMAGE=$(oc get ironicapi ironic-api -o go-template="$template")
+              ;;
+            CONDUCTOR)
+              SERVICE_IMAGE=$(oc get ironicconductor ironic-conductor -o go-template="$template")
+              ;;
+            INSPECTOR)
+              SERVICE_IMAGE=$(oc get ironicinspector ironic-inspector -o go-template="$template")
+              ;;
+            PXE)
+              SERVICE_IMAGE=$(oc get ironicconductor ironic-conductor -o go-template="{{.spec.pxeContainerImage}}")
+              ;;
+            NEUTRON_AGENT)
+              # this isn't deployed in all tests
+              continue
+              ;;
+            PYTHON_AGENT)
+              # this doesn't seem to be used ATM
+              continue
+              ;;
+          esac
+          if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then
+            echo "$NAME image does not equal $VALUE"
+            exit 1
+          fi
+        fi
+      done
+      exit 0
