@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-ironic-openstack-org-v1beta1-ironic
   failurePolicy: Fail
-  name: mironic.kb.io
+  name: mironic-v1beta1.kb.io
   rules:
   - apiGroups:
     - ironic.openstack.org
@@ -38,7 +38,7 @@ webhooks:
       namespace: system
       path: /validate-ironic-openstack-org-v1beta1-ironic
   failurePolicy: Fail
-  name: vironic.kb.io
+  name: vironic-v1beta1.kb.io
   rules:
   - apiGroups:
     - ironic.openstack.org
