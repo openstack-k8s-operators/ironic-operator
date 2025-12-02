@@ -46,6 +46,7 @@ const (
 	errInvalidRange            = "Start address: %s > End address %s"
 	errForbiddenAddressOverlap = "%v overlap with %v: %v"
 	errInvalidRPCTransport     = "RPCTransport must be either oslo or json-rpc"
+	errIPv6Gateway             = "gateway is not supported for IPv6 DHCP ranges, use Router Advertisement (RA) instead"
 )
 
 type netIPStartEnd struct {
@@ -367,8 +368,11 @@ func validateDHCPRange(
 	if k8snet.IsIPv6CIDR(ipPrefix) {
 		if !(k8snet.IsIPv6(startAddr) && k8snet.IsIPv6(endAddr)) {
 			allErrs = append(allErrs, field.Invalid(path, dhcpRange, errMixedAddressFamily))
-		} else if gateway != "" && !k8snet.IsIPv6(gatewayAddr) {
-			allErrs = append(allErrs, field.Invalid(path, dhcpRange, errMixedAddressFamily))
+		}
+		// Gateway is not supported for IPv6 DHCP ranges
+		// The dnsmasq template generates DHCPv4-only option:router which fails validation
+		if gateway != "" {
+			allErrs = append(allErrs, field.Invalid(path.Child("gateway"), gateway, errIPv6Gateway))
 		}
 	}
 
