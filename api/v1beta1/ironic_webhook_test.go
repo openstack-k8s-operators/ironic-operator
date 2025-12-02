@@ -166,6 +166,33 @@ func TestValidateDHCPRange(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "IPv6 DHCP range",
+			dhcpRange: DHCPRange{
+				Cidr:  "2620:cf:cf:ffff::/64",
+				Start: "2620:cf:cf:ffff::190",
+				End:   "2620:cf:cf:ffff::199",
+			},
+			path:         field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			expectedErrs: nil,
+		},
+		{
+			name: "Invalid IPv6 DHCP range with gateway",
+			dhcpRange: DHCPRange{
+				Cidr:    "2620:cf:cf:ffff::/64",
+				Start:   "2620:cf:cf:ffff::190",
+				End:     "2620:cf:cf:ffff::199",
+				Gateway: "2620:cf:cf:ffff::1",
+			},
+			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			expectedErrs: field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("gateway"),
+					"2620:cf:cf:ffff::1",
+					errIPv6Gateway,
+				),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
