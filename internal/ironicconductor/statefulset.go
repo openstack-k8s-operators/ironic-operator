@@ -53,14 +53,15 @@ func StatefulSet(
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
-		TimeoutSeconds:      5,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+		TimeoutSeconds: 5,
+		// [conductor]heartbeat_timeout is set to 120 so make PeriodSeconds
+		// more frequent to catch an offline conductor earlier
+		PeriodSeconds: 30,
 	}
-	readinessProbe := &corev1.Probe{
-		TimeoutSeconds:      5,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
+	startupProbe := &corev1.Probe{
+		TimeoutSeconds:   5,
+		FailureThreshold: 30,
+		PeriodSeconds:    2,
 	}
 	dnsmasqLivenessProbe := &corev1.Probe{
 		TimeoutSeconds:      10,
@@ -89,24 +90,15 @@ func StatefulSet(
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	//
 
-	if instance.Spec.RPCTransport == "json-rpc" {
-		livenessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
-		}
-		readinessProbe.TCPSocket = &corev1.TCPSocketAction{
-			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8089)},
-		}
-	} else {
-		livenessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
-		readinessProbe.Exec = &corev1.ExecAction{
-			Command: []string{
-				"/bin/true",
-			},
-		}
+	livenessProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/local/bin/container-scripts/live_check_conductor",
+		},
+	}
+	startupProbe.Exec = &corev1.ExecAction{
+		Command: []string{
+			"/usr/local/bin/container-scripts/live_check_conductor",
+		},
 	}
 
 	httpbootLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
@@ -188,12 +180,11 @@ func StatefulSet(
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser: &runAsUser,
 		},
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		VolumeMounts:   conductorVolumeMounts,
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: readinessProbe,
-		LivenessProbe:  livenessProbe,
-		// StartupProbe:   startupProbe,
+		Env:           env.MergeEnvs([]corev1.EnvVar{}, envVars),
+		VolumeMounts:  conductorVolumeMounts,
+		Resources:     instance.Spec.Resources,
+		LivenessProbe: livenessProbe,
+		StartupProbe:  startupProbe,
 	}
 	httpbootContainer := corev1.Container{
 		Name: "httpboot",
