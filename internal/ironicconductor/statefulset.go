@@ -267,8 +267,8 @@ func StatefulSet(
 		}
 	}
 
-	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
-	terminationGracePeriod := int64(60)
+	// Use terminationGracePeriodSeconds from CR
+	terminationGracePeriod := *instance.Spec.TerminationGracePeriodSeconds
 
 	statefulset := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{

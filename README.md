@@ -32,6 +32,7 @@ spec:
     containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
     pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
     provisionNetwork: provision-net
+    terminationGracePeriodSeconds: 120
   secret: ironic-secret
 ```
 

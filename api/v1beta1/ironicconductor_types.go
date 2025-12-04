@@ -17,10 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // IronicConductorTemplate defines the input parameters for Ironic Conductor service
@@ -52,6 +52,17 @@ type IronicConductorTemplate struct {
 	// +kubebuilder:validation:Optional
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=120
+	// +kubebuilder:validation:Minimum=30
+	// terminationGracePeriodSeconds - Pod termination grace period in seconds.
+	// Controls how long to wait for conductor pods to shut down gracefully before they are forcefully terminated.
+	// The default value is long enough for periodic tasks to complete but not for long-running tasks (deployment, cleaning).
+	// A node reserved for a long running task will be put into a failed state when the conductor reserving it is forcefully terminated.
+	// The terminationGracePeriodSeconds should be chosen with this and maintenance processes in mind.
+	// Changing terminationGracePeriodSeconds results in conductor pods being restarted with the old value.
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds"`
 }
 
 // IronicConductorSpec defines the desired state of IronicConductor
