@@ -365,6 +365,18 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		return err
 	}
 
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicInspector{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicInspector)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicInspector{}).
 		Owns(&keystonev1.KeystoneService{}).
@@ -1496,6 +1508,28 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		templateParameters["service_catalog"] = servicePassword
 		templateParameters["ironic"] = servicePassword
 		templateParameters["swift"] = servicePassword
+
+		// Try to get Application Credential from the secret specified in the CR
+		templateParameters["UseApplicationCredentials"] = false
+		if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			secret := &corev1.Secret{}
+			key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Auth.ApplicationCredentialSecret}
+			if err := r.Get(ctx, key, secret); err != nil {
+				if !k8s_errors.IsNotFound(err) {
+					Log.Error(err, "Failed to get ApplicationCredential secret", "secret", key)
+					return err
+				}
+			} else {
+				acID, okID := secret.Data[keystonev1.ACIDSecretKey]
+				acSecret, okSecret := secret.Data[keystonev1.ACSecretSecretKey]
+				if okID && len(acID) > 0 && okSecret && len(acSecret) > 0 {
+					templateParameters["UseApplicationCredentials"] = true
+					templateParameters["ACID"] = string(acID)
+					templateParameters["ACSecret"] = string(acSecret)
+					Log.Info("Using ApplicationCredentials auth", "secret", key)
+				}
+			}
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

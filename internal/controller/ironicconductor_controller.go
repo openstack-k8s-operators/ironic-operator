@@ -48,6 +48,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	ironicconductor "github.com/openstack-k8s-operators/ironic-operator/internal/ironicconductor"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -252,6 +253,18 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 			return nil
 		}
 		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicConductor{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicConductor)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}
@@ -885,6 +898,28 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential from the secret specified in the CR
+		templateParameters["UseApplicationCredentials"] = false
+		if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			secret := &corev1.Secret{}
+			key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Auth.ApplicationCredentialSecret}
+			if err := r.Get(ctx, key, secret); err != nil {
+				if !k8s_errors.IsNotFound(err) {
+					Log.Error(err, "Failed to get ApplicationCredential secret", "secret", key)
+					return err
+				}
+			} else {
+				acID, okID := secret.Data[keystonev1.ACIDSecretKey]
+				acSecret, okSecret := secret.Data[keystonev1.ACSecretSecretKey]
+				if okID && len(acID) > 0 && okSecret && len(acSecret) > 0 {
+					templateParameters["UseApplicationCredentials"] = true
+					templateParameters["ACID"] = string(acID)
+					templateParameters["ACSecret"] = string(acSecret)
+					Log.Info("Using ApplicationCredentials auth", "secret", key)
+				}
+			}
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

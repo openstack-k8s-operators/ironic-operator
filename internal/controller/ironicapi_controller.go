@@ -299,6 +299,18 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		return err
 	}
 
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicAPI)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
 		Owns(&keystonev1.KeystoneService{}).
@@ -1010,6 +1022,8 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	instance *ironicv1.IronicAPI,
 	envVars *map[string]env.Setter,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create custom Configmap for ironic-api-specific config input
 	// - %-config-data configmap holding custom config for the service's ironic.conf
@@ -1071,6 +1085,28 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential from the secret specified in the CR
+		templateParameters["UseApplicationCredentials"] = false
+		if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			secret := &corev1.Secret{}
+			key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Auth.ApplicationCredentialSecret}
+			if err := r.Get(ctx, key, secret); err != nil {
+				if !k8s_errors.IsNotFound(err) {
+					Log.Error(err, "Failed to get ApplicationCredential secret", "secret", key)
+					return err
+				}
+			} else {
+				acID, okID := secret.Data[keystonev1.ACIDSecretKey]
+				acSecret, okSecret := secret.Data[keystonev1.ACSecretSecretKey]
+				if okID && len(acID) > 0 && okSecret && len(acSecret) > 0 {
+					templateParameters["UseApplicationCredentials"] = true
+					templateParameters["ACID"] = string(acID)
+					templateParameters["ACSecret"] = string(acSecret)
+					Log.Info("Using ApplicationCredentials auth", "secret", key)
+				}
+			}
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}

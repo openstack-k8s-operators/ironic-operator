@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -572,6 +573,15 @@ func (spec *IronicSpec) Default() {
 func (spec *IronicSpecCore) Default() {
 	if spec.RPCTransport == "" {
 		spec.RPCTransport = "json-rpc"
+	}
+	// Default ApplicationCredentialSecret to standard AC secret name if not specified
+	// Set it in the parent spec for IronicAPI, IronicConductor, and IronicNeutronAgent (all use "ironic" user)
+	if spec.Auth.ApplicationCredentialSecret == "" {
+		spec.Auth.ApplicationCredentialSecret = keystonev1.GetACSecretName("ironic")
+	}
+	// IronicInspector uses its own keystone user "ironic-inspector"
+	if spec.IronicInspector.Auth.ApplicationCredentialSecret == "" {
+		spec.IronicInspector.Auth.ApplicationCredentialSecret = keystonev1.GetACSecretName("ironic-inspector")
 	}
 }
 
