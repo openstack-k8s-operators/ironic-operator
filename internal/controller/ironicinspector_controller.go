@@ -365,6 +365,42 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		return err
 	}
 
+	// Application Credential secret watching function
+	acSecretFn := func(_ context.Context, o client.Object) []reconcile.Request {
+		name := o.GetName()
+		ns := o.GetNamespace()
+		result := []reconcile.Request{}
+
+		// Only handle Secret objects
+		if _, isSecret := o.(*corev1.Secret); !isSecret {
+			return nil
+		}
+
+		// Check if this is an ironic-inspector AC secret by name pattern (ac-ironic-inspector-secret)
+		expectedSecretName := keystonev1.GetACSecretName("ironic-inspector")
+		if name == expectedSecretName {
+			// get all IronicInspector CRs in this namespace
+			ironicInspectors := &ironicv1.IronicInspectorList{}
+			listOpts := []client.ListOption{
+				client.InNamespace(ns),
+			}
+			if err := r.List(context.Background(), ironicInspectors, listOpts...); err != nil {
+				return nil
+			}
+
+			// Enqueue reconcile for all ironic inspector instances
+			for _, cr := range ironicInspectors.Items {
+				objKey := client.ObjectKey{
+					Namespace: ns,
+					Name:      cr.Name,
+				}
+				result = append(result, reconcile.Request{NamespacedName: objKey})
+			}
+		}
+
+		return result
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicInspector{}).
 		Owns(&keystonev1.KeystoneService{}).
@@ -386,6 +422,8 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(acSecretFn)).
 		Watches(&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
@@ -1496,6 +1534,18 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		templateParameters["service_catalog"] = servicePassword
 		templateParameters["ironic"] = servicePassword
 		templateParameters["swift"] = servicePassword
+
+		// Try to get Application Credential for this service
+		templateParameters["UseApplicationCredentials"] = false
+		if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, instance.Spec.ServiceUser); err != nil {
+			Log.Error(err, "Failed to get ApplicationCredential for service", "service", instance.Spec.ServiceUser)
+			return err
+		} else if acData != nil {
+			templateParameters["UseApplicationCredentials"] = true
+			templateParameters["ACID"] = acData.ID
+			templateParameters["ACSecret"] = acData.Secret
+			Log.Info("Using ApplicationCredentials auth", "service", ironic.ServiceName)
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

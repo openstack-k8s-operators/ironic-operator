@@ -264,6 +264,42 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 		return err
 	}
 
+	// Application Credential secret watching function
+	acSecretFn := func(_ context.Context, o client.Object) []reconcile.Request {
+		name := o.GetName()
+		ns := o.GetNamespace()
+		result := []reconcile.Request{}
+
+		// Only handle Secret objects
+		if _, isSecret := o.(*corev1.Secret); !isSecret {
+			return nil
+		}
+
+		// Check if this is an ironic AC secret by name pattern (ac-ironic-secret)
+		expectedSecretName := keystonev1.GetACSecretName("ironic")
+		if name == expectedSecretName {
+			// get all IronicNeutronAgent CRs in this namespace
+			ironicNeutronAgents := &ironicv1.IronicNeutronAgentList{}
+			listOpts := []client.ListOption{
+				client.InNamespace(ns),
+			}
+			if err := r.List(context.Background(), ironicNeutronAgents, listOpts...); err != nil {
+				return nil
+			}
+
+			// Enqueue reconcile for all ironic neutron agent instances
+			for _, cr := range ironicNeutronAgents.Items {
+				objKey := client.ObjectKey{
+					Namespace: ns,
+					Name:      cr.Name,
+				}
+				result = append(result, reconcile.Request{NamespacedName: objKey})
+			}
+		}
+
+		return result
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicNeutronAgent{}).
 		Owns(&appsv1.Deployment{}).
@@ -278,6 +314,8 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(acSecretFn)).
 		Watches(&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
@@ -763,6 +801,8 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	instance *ironicv1.IronicNeutronAgent,
 	envVars *map[string]env.Setter,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	// Create/update secrets from templates
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironicneutronagent.ServiceName), map[string]string{})
 
@@ -815,6 +855,18 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["keystone_authtoken"] = servicePassword
 	templateParameters["service_catalog"] = servicePassword
 	templateParameters["ironic"] = servicePassword
+
+	// Try to get Application Credential for this service
+	templateParameters["UseApplicationCredentials"] = false
+	if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, ironic.ServiceName); err != nil {
+		Log.Error(err, "Failed to get ApplicationCredential for service", "service", ironic.ServiceName)
+		return err
+	} else if acData != nil {
+		templateParameters["UseApplicationCredentials"] = true
+		templateParameters["ACID"] = acData.ID
+		templateParameters["ACSecret"] = acData.Secret
+		Log.Info("Using ApplicationCredentials auth", "service", ironic.ServiceName)
+	}
 
 	cms := []util.Template{
 		{

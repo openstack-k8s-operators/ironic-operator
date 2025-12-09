@@ -890,6 +890,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 	db *mariadbv1.Database,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create Configmap/Secret required for ironic input
 	// - %-scripts configmap holding scripts to e.g. bootstrap the service
@@ -949,6 +951,18 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential for this service
+		templateParameters["UseApplicationCredentials"] = false
+		if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, ironic.ServiceName); err != nil {
+			Log.Error(err, "Failed to get ApplicationCredential for service", "service", ironic.ServiceName)
+			return err
+		} else if acData != nil {
+			templateParameters["UseApplicationCredentials"] = true
+			templateParameters["ACID"] = acData.ID
+			templateParameters["ACSecret"] = acData.Secret
+			Log.Info("Using ApplicationCredentials auth", "service", ironic.ServiceName)
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}
