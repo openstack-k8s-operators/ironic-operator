@@ -385,6 +385,19 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 	// run check OpenStack secret - end
 
+	// Verify Application Credentials if available
+	ctrlResult, err := keystonev1.VerifyApplicationCredentialsForService(
+		ctx,
+		r.Client,
+		instance.Namespace,
+		ironic.ServiceName,
+		&configMapVars,
+		10*time.Second,
+	)
+	if (err != nil || ctrlResult != ctrl.Result{}) {
+		return ctrlResult, err
+	}
+
 	// Get Keystone endpoints
 	keystoneEndpoints := ironicv1.KeystoneEndpoints{}
 	if !instance.Spec.Standalone {
@@ -461,7 +474,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Handle service upgrade
-	ctrlResult, err := r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
+	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -890,6 +903,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 	db *mariadbv1.Database,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create Configmap/Secret required for ironic input
 	// - %-scripts configmap holding scripts to e.g. bootstrap the service
@@ -949,6 +964,18 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential for this service
+		templateParameters["UseApplicationCredentials"] = false
+		if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, ironic.ServiceName); err != nil {
+			Log.Error(err, "Failed to get ApplicationCredential for service", "service", ironic.ServiceName)
+			return err
+		} else if acData != nil {
+			templateParameters["UseApplicationCredentials"] = true
+			templateParameters["ACID"] = acData.ID
+			templateParameters["ACSecret"] = acData.Secret
+			Log.Info("Using ApplicationCredentials auth", "service", ironic.ServiceName)
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}
