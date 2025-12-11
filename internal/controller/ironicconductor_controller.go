@@ -923,6 +923,9 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
 
+	// Set GracefulShutdownTimeout for conductor pods
+	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
+
 	databaseAccount := db.GetAccount()
 	dbSecret := db.GetSecret()
 

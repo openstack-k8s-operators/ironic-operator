@@ -447,14 +447,15 @@ func IronicConductorConditionGetter(name types.NamespacedName) condition.Conditi
 
 func GetDefaultIronicConductorSpec() map[string]any {
 	return map[string]any{
-		"databaseHostname":       DatabaseHostname,
-		"databaseInstance":       DatabaseInstance,
-		"secret":                 SecretName,
-		"containerImage":         ContainerImage,
-		"pxeContainerImage":      PxeContainerImage,
-		"ironicPythonAgentImage": IronicPythonAgentImage,
-		"serviceAccount":         "ironic",
-		"storageRequest":         "10G",
+		"databaseHostname":              DatabaseHostname,
+		"databaseInstance":              DatabaseInstance,
+		"secret":                        SecretName,
+		"containerImage":                ContainerImage,
+		"pxeContainerImage":             PxeContainerImage,
+		"ironicPythonAgentImage":        IronicPythonAgentImage,
+		"serviceAccount":                "ironic",
+		"storageRequest":                "10G",
+		"terminationGracePeriodSeconds": 120,
 	}
 }
 
