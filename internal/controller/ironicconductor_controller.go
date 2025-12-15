@@ -48,6 +48,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	ironicconductor "github.com/openstack-k8s-operators/ironic-operator/internal/ironicconductor"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -256,6 +257,42 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 		return err
 	}
 
+	// Application Credential secret watching function
+	acSecretFn := func(_ context.Context, o client.Object) []reconcile.Request {
+		name := o.GetName()
+		ns := o.GetNamespace()
+		result := []reconcile.Request{}
+
+		// Only handle Secret objects
+		if _, isSecret := o.(*corev1.Secret); !isSecret {
+			return nil
+		}
+
+		// Check if this is an ironic AC secret by name pattern (ac-ironic-secret)
+		expectedSecretName := keystonev1.GetACSecretName("ironic")
+		if name == expectedSecretName {
+			// get all IronicConductor CRs in this namespace
+			ironicConductors := &ironicv1.IronicConductorList{}
+			listOpts := []client.ListOption{
+				client.InNamespace(ns),
+			}
+			if err := r.List(context.Background(), ironicConductors, listOpts...); err != nil {
+				return nil
+			}
+
+			// Enqueue reconcile for all ironic conductor instances
+			for _, cr := range ironicConductors.Items {
+				objKey := client.ObjectKey{
+					Namespace: ns,
+					Name:      cr.Name,
+				}
+				result = append(result, reconcile.Request{NamespacedName: objKey})
+			}
+		}
+
+		return result
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicConductor{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -272,6 +309,8 @@ func (r *IronicConductorReconciler) SetupWithManager(ctx context.Context, mgr ct
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(acSecretFn)).
 		Watches(
 			&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
@@ -885,6 +924,18 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential for this service
+		templateParameters["UseApplicationCredentials"] = false
+		if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, ironic.ServiceName); err != nil {
+			Log.Error(err, "Failed to get ApplicationCredential for service", "service", ironic.ServiceName)
+			return err
+		} else if acData != nil {
+			templateParameters["UseApplicationCredentials"] = true
+			templateParameters["ACID"] = acData.ID
+			templateParameters["ACSecret"] = acData.Secret
+			Log.Info("Using ApplicationCredentials auth", "service", ironic.ServiceName)
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})
