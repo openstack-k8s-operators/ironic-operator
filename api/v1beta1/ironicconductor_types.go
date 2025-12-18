@@ -115,6 +115,10 @@ type IronicConductorSpec struct {
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// Secret containing RabbitMq notifications URL
+	NotificationsURLSecret string `json:"notificationsURLSecret,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum:=oslo;json-rpc
 	// +kubebuilder:default=json-rpc
 	// RPC transport type - Which RPC transport implementation to use between

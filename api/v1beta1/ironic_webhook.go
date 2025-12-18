@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -161,6 +162,13 @@ func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path, nam
 
 func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
+
+	// Reject changes to deprecated RabbitMqClusterName field - users should use the new messagingBus.cluster field instead
+	if spec.RabbitMqClusterName != old.RabbitMqClusterName {
+		allErrs = append(allErrs, field.Forbidden(
+			basePath.Child("rabbitMqClusterName"),
+			"rabbitMqClusterName is deprecated and cannot be changed. Please use messagingBus.cluster instead"))
+	}
 
 	if err := validateRPCTransport(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
@@ -573,6 +581,17 @@ func (spec *IronicSpecCore) Default() {
 	if spec.RPCTransport == "" {
 		spec.RPCTransport = "json-rpc"
 	}
+
+	// Mirror kubebuilder default for RabbitMqClusterName (see ironic_types.go line 135)
+	if spec.RabbitMqClusterName == "" {
+		spec.RabbitMqClusterName = "rabbitmq"
+	}
+
+	// Default MessagingBus from legacy RabbitMqClusterName
+	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, spec.RabbitMqClusterName)
+
+	// Default embedded templates that have MessagingBus configuration
+	spec.IronicNeutronAgent.Default()
 }
 
 // ValidateIronicTopology - Returns an ErrorList if the Topology is referenced

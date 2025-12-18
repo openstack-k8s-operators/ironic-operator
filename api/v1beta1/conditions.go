@@ -32,6 +32,9 @@ const (
 
 	// IronicNeutronAgentReadyCondition Status=True condition which indicates if the ML2 baremetal Ironic Neutron Agent is configured and operational
 	IronicNeutronAgentReadyCondition condition.Type = "IronicNeutronAgentReady"
+
+	// NotificationBusReadyCondition Status=True condition which indicates if the notification bus is ready
+	NotificationBusReadyCondition condition.Type = "NotificationBusReady"
 )
 
 // Ironic Reasons used by API objects.
@@ -80,4 +83,16 @@ const (
 
 	// IronicNeutronAgentReadyErrorMessage
 	IronicNeutronAgentReadyErrorMessage = "IronicNeutronAgent error occurred %s"
+
+	//
+	// NotificationBusReady condition messages
+	//
+	// NotificationBusReadyMessage
+	NotificationBusReadyMessage = "Notification bus ready"
+
+	// NotificationBusReadyErrorMessage
+	NotificationBusReadyErrorMessage = "Notification bus error occurred %s"
+
+	// NotificationBusReadyRunningMessage
+	NotificationBusReadyRunningMessage = "Notification bus in progress"
 )
