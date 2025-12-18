@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -43,7 +44,6 @@ import (
 	"github.com/go-logr/logr"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
-	ironic "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	"github.com/openstack-k8s-operators/ironic-operator/internal/ironicneutronagent"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
@@ -380,22 +380,49 @@ func (r *IronicNeutronAgentReconciler) getTransportURL(
 	return string(transportURL), nil
 }
 
+// transportURLCreateOrUpdate - creates or updates a TransportURL CR with the given suffix and config
+func (r *IronicNeutronAgentReconciler) transportURLCreateOrUpdate(
+	ctx context.Context,
+	instance *ironicv1.IronicNeutronAgent,
+	suffix string,
+	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
+) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-transport%s", instance.Name, suffix),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, transportURL, func() error {
+		transportURL.Spec.RabbitmqClusterName = rabbitMqConfig.Cluster
+		// Always set Username and Vhost to allow clearing/resetting them
+		// The infra-operator TransportURL controller handles empty values:
+		// - Empty Username: uses default cluster admin credentials
+		// - Empty Vhost: defaults to "/" vhost
+		transportURL.Spec.Username = rabbitMqConfig.User
+		transportURL.Spec.Vhost = rabbitMqConfig.Vhost
+		return controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
+	})
+
+	return transportURL, op, err
+}
+
 func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicNeutronAgent,
 	helper *helper.Helper,
 ) (ctrl.Result, error) {
-	// Create RabbitMQ transport URL CR and get the actual URL from the
-	// associated secret that is created
-	//
 	Log := r.GetLogger(ctx)
 
-	transportURL, op, err := ironic.TransportURLCreateOrUpdate(
-		instance.Name,
-		instance.Namespace,
-		instance.Spec.RabbitMqClusterName,
+	//
+	// Create RabbitMQ transport URL CR for messaging and get the actual URL from the associated secret
+	//
+	transportURL, op, err := r.transportURLCreateOrUpdate(
+		ctx,
 		instance,
-		helper,
+		"", // Empty suffix for main transport
+		instance.Spec.MessagingBus,
 	)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -422,11 +449,57 @@ func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 			condition.RequestedReason,
 			condition.SeverityInfo,
 			condition.RabbitMqTransportURLReadyRunningMessage))
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return ctrl.Result{}, nil
 	}
 	instance.Status.Conditions.MarkTrue(
 		condition.RabbitMqTransportURLReadyCondition,
 		condition.RabbitMqTransportURLReadyMessage)
+
+	//
+	// Create notifications TransportURL if configured
+	//
+	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
+		// Initialize status field
+		instance.Status.NotificationsURLSecret = new(string)
+		*instance.Status.NotificationsURLSecret = ""
+
+		notificationURL, op, err := r.transportURLCreateOrUpdate(
+			ctx,
+			instance,
+			"-notifications", // Suffix for notifications transport
+			*instance.Spec.NotificationsBus,
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NotificationBusInstanceReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+
+		if op != controllerutil.OperationResultNone {
+			Log.Info(fmt.Sprintf("Notifications TransportURL %s successfully reconciled - operation: %s", notificationURL.Name, string(op)))
+		}
+
+		*instance.Status.NotificationsURLSecret = notificationURL.Status.SecretName
+
+		if *instance.Status.NotificationsURLSecret == "" {
+			Log.Info(fmt.Sprintf("Waiting for Notifications TransportURL %s secret to be created", notificationURL.Name))
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.NotificationBusInstanceReadyRunningMessage))
+			return ctrl.Result{}, nil
+		}
+
+		instance.Status.Conditions.MarkTrue(condition.NotificationBusInstanceReadyCondition, condition.NotificationBusInstanceReadyMessage)
+	} else {
+		// Clear notifications URL if not configured
+		instance.Status.NotificationsURLSecret = nil
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -806,6 +879,23 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 		return err
 	}
 
+	// Get notifications transport URL if configured
+	var notificationsTransportURL string
+	if instance.Status.NotificationsURLSecret != nil && *instance.Status.NotificationsURLSecret != "" {
+		notificationsURLSecret, _, err := secret.GetSecret(ctx, h, *instance.Status.NotificationsURLSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+		notificationURL, ok := notificationsURLSecret.Data["transport_url"]
+		if !ok {
+			return fmt.Errorf("transport_url %w in Notifications Transport Secret", util.ErrNotFound)
+		}
+		notificationsTransportURL = string(notificationURL)
+	} else {
+		// Fall back to main transport URL for notifications
+		notificationsTransportURL = transportURL
+	}
+
 	quorumQueues, err := getQuorumQueues(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
 	if err != nil {
 		return err
@@ -821,6 +911,7 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 	templateParameters["TransportURL"] = transportURL
+	templateParameters["NotificationsTransportURL"] = notificationsTransportURL
 	templateParameters["QuorumQueues"] = quorumQueues
 	templateParameters["Region"] = keystoneAPI.GetRegion()
 

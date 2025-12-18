@@ -189,6 +189,12 @@ var _ = BeforeSuite(func() {
 	err = webhookv1beta1.SetupIronicWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = webhookv1beta1.SetupIronicInspectorWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = webhookv1beta1.SetupIronicNeutronAgentWebhookWithManager(k8sManager)
+	Expect(err).NotTo(HaveOccurred())
+
 	err = (&controller.IronicNeutronAgentReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
