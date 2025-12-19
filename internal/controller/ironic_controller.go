@@ -313,14 +313,13 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	if instance.Spec.RPCTransport == "oslo" {
 		//
-		// Create RabbitMQ transport URL CR and get the actual URL from the associated secret that is created
+		// Create RabbitMQ transport URL CR for messaging and get the actual URL from the associated secret
 		//
-		transportURL, op, err := ironic.TransportURLCreateOrUpdate(
-			instance.Name,
-			instance.Namespace,
-			instance.Spec.RabbitMqClusterName,
+		transportURL, op, err := r.transportURLCreateOrUpdate(
+			ctx,
 			instance,
-			helper,
+			"", // Empty suffix for main transport
+			instance.Spec.MessagingBus,
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -346,12 +345,59 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.RabbitMqTransportURLReadyRunningMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			return ctrl.Result{}, nil
 		}
 
 		instance.Status.Conditions.MarkTrue(condition.RabbitMqTransportURLReadyCondition, condition.RabbitMqTransportURLReadyMessage)
+
+		//
+		// Create notifications TransportURL if configured
+		//
+		if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
+			// Initialize status field
+			instance.Status.NotificationsURLSecret = new(string)
+			*instance.Status.NotificationsURLSecret = ""
+
+			notificationURL, op, err := r.transportURLCreateOrUpdate(
+				ctx,
+				instance,
+				"-notifications", // Suffix for notifications transport
+				*instance.Spec.NotificationsBus,
+			)
+			if err != nil {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					ironicv1.NotificationBusReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					ironicv1.NotificationBusReadyErrorMessage,
+					err.Error()))
+				return ctrl.Result{}, err
+			}
+
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Notifications TransportURL %s successfully reconciled - operation: %s", notificationURL.Name, string(op)))
+			}
+
+			*instance.Status.NotificationsURLSecret = notificationURL.Status.SecretName
+
+			if *instance.Status.NotificationsURLSecret == "" {
+				Log.Info(fmt.Sprintf("Waiting for Notifications TransportURL %s secret to be created", notificationURL.Name))
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					ironicv1.NotificationBusReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					ironicv1.NotificationBusReadyRunningMessage))
+				return ctrl.Result{}, nil
+			}
+
+			instance.Status.Conditions.MarkTrue(ironicv1.NotificationBusReadyCondition, ironicv1.NotificationBusReadyMessage)
+		} else {
+			// Clear notifications URL if not configured
+			instance.Status.NotificationsURLSecret = nil
+		}
 	} else {
 		instance.Status.TransportURLSecret = ""
+		instance.Status.NotificationsURLSecret = nil
 		instance.Status.Conditions.MarkTrue(condition.RabbitMqTransportURLReadyCondition, ironicv1.RabbitMqTransportURLDisabledMessage)
 	}
 	// end transportURL
@@ -370,7 +416,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 				condition.ErrorReason,
 				condition.SeverityWarning,
 				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+			return ctrl.Result{}, nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -796,6 +842,10 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 	}
 
+	if instance.Status.NotificationsURLSecret != nil {
+		IronicConductorSpec.NotificationsURLSecret = *instance.Status.NotificationsURLSecret
+	}
+
 	if IronicConductorSpec.NodeSelector == nil {
 		IronicConductorSpec.NodeSelector = instance.Spec.NodeSelector
 	}
@@ -844,6 +894,10 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
 		KeystoneEndpoints:  *keystoneEndpoints,
+	}
+
+	if instance.Status.NotificationsURLSecret != nil {
+		IronicAPISpec.NotificationsURLSecret = *instance.Status.NotificationsURLSecret
 	}
 
 	if IronicAPISpec.NodeSelector == nil {
@@ -928,6 +982,24 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		return err
 	}
 	templateParameters["TransportURL"] = transportURL
+
+	// Get notifications transport URL if configured
+	var notificationsTransportURL string
+	if instance.Status.NotificationsURLSecret != nil && *instance.Status.NotificationsURLSecret != "" {
+		notificationsURLSecret, _, err := oko_secret.GetSecret(ctx, h, *instance.Status.NotificationsURLSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+		notificationURL, ok := notificationsURLSecret.Data["transport_url"]
+		if !ok {
+			return fmt.Errorf("transport_url %w in Notifications Transport Secret", util.ErrNotFound)
+		}
+		notificationsTransportURL = string(notificationURL)
+		templateParameters["NotificationsTransportURL"] = notificationsTransportURL
+	} else {
+		// Fall back to main transport URL for notifications
+		templateParameters["NotificationsTransportURL"] = transportURL
+	}
 
 	quorumQueues := false
 	if instance.Spec.RPCTransport == "oslo" {
@@ -1016,6 +1088,33 @@ func (r *IronicReconciler) getTransportURL(
 	return string(transportURL), nil
 }
 
+// transportURLCreateOrUpdate - creates or updates a TransportURL CR with the given suffix and config
+func (r *IronicReconciler) transportURLCreateOrUpdate(
+	ctx context.Context,
+	instance *ironicv1.Ironic,
+	suffix string,
+	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
+) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-transport%s", instance.Name, suffix),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, transportURL, func() error {
+		transportURL.Spec.RabbitmqClusterName = rabbitMqConfig.Cluster
+		if rabbitMqConfig.User != "" {
+			transportURL.Spec.Username = rabbitMqConfig.User
+		}
+		// Always set Vhost - empty string means use default "/" vhost
+		transportURL.Spec.Vhost = rabbitMqConfig.Vhost
+		return controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
+	})
+
+	return transportURL, op, err
+}
+
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
 //
@@ -1069,6 +1168,10 @@ func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
 	if IronicInspectorSpec.APITimeout == 0 {
 		IronicInspectorSpec.APITimeout = instance.Spec.APITimeout
 	}
+
+	// Call Default() to populate MessagingBus from RabbitMqClusterName
+	// (IronicInspector doesn't have a webhook, so we need to call this manually)
+	IronicInspectorSpec.Default()
 
 	deployment := &ironicv1.IronicInspector{
 		ObjectMeta: metav1.ObjectMeta{

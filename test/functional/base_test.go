@@ -304,6 +304,39 @@ func CreateMessageBusSecret(
 	return s
 }
 
+func CreateTransportURL(name types.NamespacedName, rabbitmqClusterName string, username string, vhost string) client.Object {
+	spec := map[string]any{
+		"rabbitmqClusterName": rabbitmqClusterName,
+	}
+	if username != "" {
+		spec["username"] = username
+	}
+	// Always set vhost - empty string means default "/" vhost
+	spec["vhost"] = vhost
+
+	raw := map[string]any{
+		"apiVersion": "rabbitmq.openstack.org/v1beta1",
+		"kind":       "TransportURL",
+		"metadata": map[string]any{
+			"name":      name.Name,
+			"namespace": name.Namespace,
+		},
+		"spec": spec,
+	}
+	return CreateUnstructured(raw)
+}
+
+func CreateTransportURLSecret(name types.NamespacedName) *corev1.Secret {
+	s := th.CreateSecret(
+		name,
+		map[string][]byte{
+			"transport_url": fmt.Appendf(nil, "rabbit://%s/fake", name.Name),
+		},
+	)
+	logger.Info("TransportURL secret created", "name", name.Name)
+	return s
+}
+
 func CreateIronic(
 	name types.NamespacedName,
 	spec map[string]any,

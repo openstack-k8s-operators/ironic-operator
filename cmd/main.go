@@ -295,6 +295,14 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Ironic")
 			os.Exit(1)
 		}
+		if err := webhookv1beta1.SetupIronicInspectorWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "IronicInspector")
+			os.Exit(1)
+		}
+		if err := webhookv1beta1.SetupIronicNeutronAgentWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "IronicNeutronAgent")
+			os.Exit(1)
+		}
 
 		checker = mgr.GetWebhookServer().StartedChecker()
 	}

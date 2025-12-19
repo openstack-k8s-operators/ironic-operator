@@ -24,6 +24,46 @@ webhooks:
     resources:
     - ironics
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-ironic-openstack-org-v1beta1-ironicinspector
+  failurePolicy: Fail
+  name: mironicinspector-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - ironic.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ironicinspectors
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-ironic-openstack-org-v1beta1-ironicneutronagent
+  failurePolicy: Fail
+  name: mironicneutronagent-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - ironic.openstack.org
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ironicneutronagents
+  sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
