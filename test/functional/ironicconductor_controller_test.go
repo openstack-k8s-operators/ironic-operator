@@ -337,9 +337,9 @@ var _ = Describe("IronicConductor controller", func() {
 		})
 	})
 
-	// FIXME(zzzeek) - build and/or update mariadb harness.go to have a URL
-	// set/update test that handles all MariaDBAccount creation and does not
-	// assume finalizers present
+	// NOTE: MariaDB harness is not used here because IronicAPI shares the same ironic database
+	// as the main Ironic controller and the harness requires each service to manage its own database.
+	// The existing manual tests provide proper coverage.
 	When("IronicConductor is created for a particular MariaDBAccount", func() {
 
 		BeforeEach(func() {
