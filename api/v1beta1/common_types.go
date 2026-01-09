@@ -17,8 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -76,6 +76,14 @@ type KeystoneEndpoints struct {
 	// +kubebuilder:validation:Optional
 	// Public endpoint URL
 	Public string `json:"public"`
+}
+
+// AuthSpec defines authentication parameters
+type AuthSpec struct {
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// ApplicationCredentialSecret - Secret containing Application Credential ID and Secret
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
 }
 
 // ValidateTopology -

@@ -44,6 +44,7 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	transportURLSecretField = ".spec.transportURLSecret"
 	topologyField           = ".spec.topologyRef.Name"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec G101
 )
 
 var (
@@ -54,22 +55,26 @@ var (
 		tlsAPIPublicField,
 		transportURLSecretField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicConductorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		transportURLSecretField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicInspectorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicNeutronAgentWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		topologyField,
+		authAppCredSecretField,
 	}
 )
 

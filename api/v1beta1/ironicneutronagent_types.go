@@ -17,8 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -62,6 +62,11 @@ type IronicNeutronAgentSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.Ca `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (inherited from parent Ironic CR)
+	Auth AuthSpec `json:"auth,omitempty"`
 }
 
 // IronicNeutronAgentStatus defines the observed state of ML2 baremetal - ironic-neutron-agent

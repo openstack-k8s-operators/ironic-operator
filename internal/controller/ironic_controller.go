@@ -794,6 +794,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		TransportURLSecret:      instance.Status.TransportURLSecret,
 		KeystoneEndpoints:       *keystoneEndpoints,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
+		Auth:                    instance.Spec.Auth,
 	}
 
 	if IronicConductorSpec.NodeSelector == nil {
@@ -844,6 +845,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
 		KeystoneEndpoints:  *keystoneEndpoints,
+		Auth:               instance.Spec.Auth,
 	}
 
 	if IronicAPISpec.NodeSelector == nil {
@@ -890,6 +892,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
 	db *mariadbv1.Database,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create Configmap/Secret required for ironic input
 	// - %-scripts configmap holding scripts to e.g. bootstrap the service
@@ -949,6 +953,28 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+
+		// Try to get Application Credential from the secret specified in the CR
+		templateParameters["UseApplicationCredentials"] = false
+		if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+			secret := &corev1.Secret{}
+			key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Auth.ApplicationCredentialSecret}
+			if err := r.Get(ctx, key, secret); err != nil {
+				if !k8s_errors.IsNotFound(err) {
+					Log.Error(err, "Failed to get ApplicationCredential secret", "secret", key)
+					return err
+				}
+			} else {
+				acID, okID := secret.Data[keystonev1.ACIDSecretKey]
+				acSecret, okSecret := secret.Data[keystonev1.ACSecretSecretKey]
+				if okID && len(acID) > 0 && okSecret && len(acSecret) > 0 {
+					templateParameters["UseApplicationCredentials"] = true
+					templateParameters["ACID"] = string(acID)
+					templateParameters["ACSecret"] = string(acSecret)
+					Log.Info("Using ApplicationCredentials auth", "secret", key)
+				}
+			}
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}
@@ -1135,6 +1161,7 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
 		TLS:                        instance.Spec.IronicAPI.TLS.Ca,
+		Auth:                       instance.Spec.Auth,
 	}
 
 	if IronicNeutronAgentSpec.NodeSelector == nil {
