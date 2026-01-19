@@ -1489,6 +1489,7 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		templateParameters["ServicePassword"] = servicePassword
 		templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 		templateParameters["KeystonePublicURL"] = keystonePublicURL
+		templateParameters["Region"] = keystoneAPI.GetRegion()
 
 		// Other OpenStack services
 		templateParameters["ServicePassword"] = servicePassword
