@@ -108,6 +108,10 @@ type IronicAPISpec struct {
 	KeystoneEndpoints KeystoneEndpoints `json:"keystoneEndpoints"`
 
 	// +kubebuilder:validation:Optional
+	// Region - OpenStack region name
+	Region string `json:"region,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=60
 	// +kubebuilder:validation:Minimum=10
 	// APITimeout for HAProxy, Apache

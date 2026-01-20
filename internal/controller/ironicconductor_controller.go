@@ -885,6 +885,9 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+		if instance.Spec.Region != "" {
+			templateParameters["Region"] = instance.Spec.Region
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

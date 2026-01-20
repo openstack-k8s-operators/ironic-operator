@@ -387,6 +387,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 
 	// Get Keystone endpoints
 	keystoneEndpoints := ironicv1.KeystoneEndpoints{}
+	var keystoneRegion string
 	if !instance.Spec.Standalone {
 		keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, helper, instance.Namespace, map[string]string{})
 		if err != nil {
@@ -400,6 +401,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		keystoneRegion = keystoneAPI.GetRegion()
 	}
 
 	//
@@ -423,7 +425,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	// - %-config configmap holding minimal ironic config required to get the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, &keystoneEndpoints, db)
+	err = r.generateServiceConfigMaps(ctx, instance, helper, &configMapVars, &keystoneEndpoints, keystoneRegion, db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -479,6 +481,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			instance,
 			conductorSpec,
 			&keystoneEndpoints,
+			keystoneRegion,
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -527,7 +530,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// deploy ironic-api
-	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance, &keystoneEndpoints)
+	ironicAPI, op, err := r.apiDeploymentCreateOrUpdate(instance, &keystoneEndpoints, keystoneRegion)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			ironicv1.IronicAPIReadyCondition,
@@ -773,6 +776,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 	conductorSpec ironicv1.IronicConductorTemplate,
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
+	keystoneRegion string,
 ) (*ironicv1.IronicConductor, controllerutil.OperationResult, error) {
 	name := fmt.Sprintf("%s-%s", instance.Name, ironic.ConductorComponent)
 	if conductorSpec.ConductorGroup != "" {
@@ -793,6 +797,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		DatabaseHostname:        instance.Status.DatabaseHostname,
 		TransportURLSecret:      instance.Status.TransportURLSecret,
 		KeystoneEndpoints:       *keystoneEndpoints,
+		Region:                  keystoneRegion,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 	}
 
@@ -831,6 +836,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
+	keystoneRegion string,
 ) (*ironicv1.IronicAPI, controllerutil.OperationResult, error) {
 	IronicAPISpec := ironicv1.IronicAPISpec{
 		IronicAPITemplate:  instance.Spec.IronicAPI,
@@ -844,6 +850,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		DatabaseHostname:   instance.Status.DatabaseHostname,
 		TransportURLSecret: instance.Status.TransportURLSecret,
 		KeystoneEndpoints:  *keystoneEndpoints,
+		Region:             keystoneRegion,
 	}
 
 	if IronicAPISpec.NodeSelector == nil {
@@ -888,6 +895,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	h *helper.Helper,
 	envVars *map[string]env.Setter,
 	keystoneEndpoints *ironicv1.KeystoneEndpoints,
+	keystoneRegion string,
 	db *mariadbv1.Database,
 ) error {
 	//
@@ -949,6 +957,9 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = keystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+		if keystoneRegion != "" {
+			templateParameters["Region"] = keystoneRegion
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}

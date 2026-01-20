@@ -128,6 +128,10 @@ type IronicConductorSpec struct {
 	KeystoneEndpoints KeystoneEndpoints `json:"keystoneEndpoints"`
 
 	// +kubebuilder:validation:Optional
+	// Region - OpenStack region name
+	Region string `json:"region,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// TLS - Parameters related to the TLS
 	TLS tls.Ca `json:"tls,omitempty"`

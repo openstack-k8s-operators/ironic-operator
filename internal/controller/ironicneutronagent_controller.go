@@ -808,6 +808,7 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 	templateParameters["TransportURL"] = transportURL
 	templateParameters["QuorumQueues"] = quorumQueues
+	templateParameters["Region"] = keystoneAPI.GetRegion()
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])

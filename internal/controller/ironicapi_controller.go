@@ -1071,6 +1071,9 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		templateParameters["KeystonePublicURL"] = instance.Spec.KeystoneEndpoints.Public
 		templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 		templateParameters["ServicePassword"] = servicePassword
+		if instance.Spec.Region != "" {
+			templateParameters["Region"] = instance.Spec.Region
+		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
 	}
