@@ -166,11 +166,10 @@ type IronicInspectorSpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic Inspector
 	// Deprecated: Use MessagingBus.Cluster instead
-	RabbitMqClusterName string `json:"rabbitMqClusterName" deprecated:"messagingBus.cluster"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster) for RPC messaging
@@ -238,13 +237,9 @@ func (spec *IronicInspectorSpec) Default() {
 		spec.RPCTransport = "json-rpc"
 	}
 
-	// Mirror kubebuilder default for RabbitMqClusterName (see ironicinspector_types.go line 164)
-	if spec.RabbitMqClusterName == "" {
-		spec.RabbitMqClusterName = "rabbitmq"
-	}
-
-	// Default MessagingBus from legacy RabbitMqClusterName
-	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, spec.RabbitMqClusterName)
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated RabbitMqClusterName is handled by openstack-operator
+	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, "rabbitmq")
 }
 
 //+kubebuilder:object:root=true

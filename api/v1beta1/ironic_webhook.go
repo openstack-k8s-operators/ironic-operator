@@ -22,7 +22,6 @@ import (
 	"net"
 	"strings"
 
-	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	common_webhook "github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
@@ -641,15 +640,10 @@ func (spec *IronicSpecCore) Default() {
 		spec.RPCTransport = "json-rpc"
 	}
 
-	// Mirror kubebuilder default for RabbitMqClusterName (see ironic_types.go line 135)
-	if spec.RabbitMqClusterName == "" {
-		spec.RabbitMqClusterName = "rabbitmq"
-	}
-
-	// Default MessagingBus from legacy RabbitMqClusterName
-	// Only migrate from deprecated field if the new field is not already set
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated fields is handled by openstack-operator
 	if spec.MessagingBus.Cluster == "" {
-		rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, spec.RabbitMqClusterName)
+		spec.MessagingBus.Cluster = "rabbitmq"
 	}
 
 	// Default embedded templates that have MessagingBus configuration

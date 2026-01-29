@@ -411,7 +411,7 @@ func (r *IronicNeutronAgentReconciler) transportURLCreateOrUpdate(
 func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicNeutronAgent,
-	helper *helper.Helper,
+	_ *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 

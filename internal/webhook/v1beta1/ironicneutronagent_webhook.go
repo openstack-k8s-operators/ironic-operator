@@ -1,5 +1,4 @@
 /*
-Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,7 +68,7 @@ func (d *IronicNeutronAgentCustomDefaulter) Default(_ context.Context, obj runti
 	ironicneutronagentlog.Info("Defaulting for IronicNeutronAgent", "name", ironicneutronagent.GetName())
 
 	// Call the defaulting logic from the API package
-	ironicneutronagent.Spec.IronicNeutronAgentTemplate.Default()
+	ironicneutronagent.Spec.Default()
 
 	return nil
 }

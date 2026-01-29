@@ -1074,7 +1074,6 @@ spec:
                     - cluster
                     type: object
                   rabbitMqClusterName:
-                    default: rabbitmq
                     description: |-
                       RabbitMQ instance name
                       Needed to request a transportURL that is created and used in Ironic
@@ -1227,7 +1226,6 @@ spec:
                   e.g. to check logs
                 type: boolean
               rabbitMqClusterName:
-                default: rabbitmq
                 description: |-
                   RabbitMQ instance name
                   Needed to request a transportURL that is created and used in Ironic

@@ -132,11 +132,10 @@ type IronicSpecCore struct {
 	IronicNeutronAgent IronicNeutronAgentTemplate `json:"ironicNeutronAgent"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic
 	// Deprecated: Use MessagingBus.Cluster instead
-	RabbitMqClusterName string `json:"rabbitMqClusterName" deprecated:"messagingBus.cluster"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty" deprecated:"messagingBus.cluster"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster) for RPC messaging

@@ -58,6 +58,18 @@ var _ = Describe("Ironic webhook", func() {
 			_ = k8sClient.Delete(ctx, unstructuredObj)
 		})
 
+		// Verify that messagingBus.cluster was defaulted to "rabbitmq"
+		// Note: The webhook does NOT migrate the deprecated field - migration is handled
+		// by openstack-operator. The webhook just defaults messagingBus.cluster.
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, ironicName, unstructuredObj)).Should(Succeed())
+			specMap := unstructuredObj.Object["spec"].(map[string]any)
+			messagingBus, exists := specMap["messagingBus"].(map[string]any)
+			g.Expect(exists).To(BeTrue(), "messagingBus should exist")
+			g.Expect(messagingBus["cluster"]).To(Equal("rabbitmq"),
+				"messagingBus.cluster should be defaulted to 'rabbitmq'")
+		}, timeout, interval).Should(Succeed())
+
 		// Try to update rabbitMqClusterName
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, ironicName, unstructuredObj)).Should(Succeed())

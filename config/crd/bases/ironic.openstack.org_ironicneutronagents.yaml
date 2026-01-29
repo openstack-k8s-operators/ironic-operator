@@ -135,7 +135,6 @@ spec:
                     type: string
                 type: object
               rabbitMqClusterName:
-                default: rabbitmq
                 description: |-
                   RabbitMQ instance name
                   Needed to request a transportURL that is created and used in Ironic

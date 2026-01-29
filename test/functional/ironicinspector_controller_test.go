@@ -73,7 +73,7 @@ var _ = Describe("IronicInspector controller", func() {
 		It("should have the Spec fields initialized", func() {
 			instance := GetIronicInspector(ironicNames.InspectorName)
 			Expect(instance.Spec.DatabaseInstance).Should(Equal("openstack"))
-			Expect(instance.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+			Expect(instance.Spec.MessagingBus.Cluster).Should(Equal("rabbitmq"))
 			Expect(instance.Spec.ServiceUser).Should(Equal("ironic-inspector"))
 		})
 		It("initializes Status fields", func() {

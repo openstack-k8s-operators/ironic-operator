@@ -84,7 +84,7 @@ var _ = Describe("Ironic controller", func() {
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
 			Expect(instance.Spec.PreserveJobs).Should(BeTrue())
-			Expect(instance.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+			Expect(instance.Spec.MessagingBus.Cluster).Should(Equal("rabbitmq"))
 		})
 		It("initializes Status fields", func() {
 			instance := GetIronic(ironicNames.IronicName)
@@ -1740,8 +1740,6 @@ var _ = Describe("Ironic Webhook", func() {
 			spec := GetDefaultIronicSpec()
 			spec["rpcTransport"] = "oslo"
 			spec["transportURLSecret"] = MessageBusSecretName
-			// Null out deprecated field before setting new notificationsBus field
-			spec["rabbitMqClusterName"] = ""
 			spec["notificationsBus"] = map[string]any{
 				"cluster": "notifications-rabbitmq",
 				"user":    "ironic-notifications",

@@ -30,11 +30,10 @@ type IronicNeutronAgentTemplate struct {
 	IronicServiceTemplate `json:",inline"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic
 	// Deprecated: Use MessagingBus.Cluster instead
-	RabbitMqClusterName string `json:"rabbitMqClusterName" deprecated:"messagingBus.cluster"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty" deprecated:"messagingBus.cluster"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster) for RPC messaging
@@ -108,13 +107,9 @@ type IronicNeutronAgentStatus struct {
 
 // Default implements webhook defaulting
 func (spec *IronicNeutronAgentTemplate) Default() {
-	// Mirror kubebuilder default for RabbitMqClusterName (see ironicneutronagent_types.go line 33)
-	if spec.RabbitMqClusterName == "" {
-		spec.RabbitMqClusterName = "rabbitmq"
-	}
-
-	// Default MessagingBus from legacy RabbitMqClusterName
-	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, spec.RabbitMqClusterName)
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated RabbitMqClusterName is handled by openstack-operator
+	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, "rabbitmq")
 }
 
 //+kubebuilder:object:root=true

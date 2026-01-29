@@ -523,7 +523,7 @@ func (r *IronicInspectorReconciler) transportURLCreateOrUpdate(
 func (r *IronicInspectorReconciler) reconcileTransportURL(
 	ctx context.Context,
 	instance *ironicv1.IronicInspector,
-	helper *helper.Helper,
+	_ *helper.Helper,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 
