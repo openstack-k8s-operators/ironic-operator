@@ -144,6 +144,11 @@ type IronicSpecCore struct {
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (shared by IronicAPI, IronicConductor, and IronicNeutronAgent)
+	Auth AuthSpec `json:"auth,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service. Setting
 	// NodeSelector here acts as a default value and can be overridden by service
 	// specific NodeSelector Settings.

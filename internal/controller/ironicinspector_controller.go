@@ -365,6 +365,18 @@ func (r *IronicInspectorReconciler) SetupWithManager(
 		return err
 	}
 
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicInspector{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicInspector)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicInspector{}).
 		Owns(&keystonev1.KeystoneService{}).
@@ -1497,6 +1509,11 @@ func (r *IronicInspectorReconciler) generateServiceSecrets(
 		templateParameters["service_catalog"] = servicePassword
 		templateParameters["ironic"] = servicePassword
 		templateParameters["swift"] = servicePassword
+
+		// Try to get Application Credential from the secret specified in the CR
+		if err := setApplicationCredentialParams(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace, templateParameters, Log); err != nil {
+			return err
+		}
 	} else {
 		ironicAPI, err := ironicv1.GetIronicAPI(
 			ctx, h, instance.Namespace, map[string]string{})

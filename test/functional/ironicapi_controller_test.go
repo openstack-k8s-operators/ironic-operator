@@ -24,8 +24,10 @@ import (
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
+	"github.com/google/uuid"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -680,6 +682,106 @@ var _ = Describe("IronicAPI controller", func() {
 				condition.RoleBindingReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("An ApplicationCredential is created for IronicAPI", func() {
+		var (
+			namespace             string
+			apiName               types.NamespacedName
+			acSecretName          string
+			servicePasswordSecret string
+		)
+		BeforeEach(func() {
+			namespace = uuid.New().String()
+			th.CreateNamespace(namespace)
+			DeferCleanup(th.DeleteNamespace, namespace)
+
+			apiName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      "ironic-api-appcred",
+			}
+			servicePasswordSecret = "ac-test-osp-secret" //nolint:gosec // G101
+
+			// Create OSP secret with passwords (required even when using AppCreds)
+			DeferCleanup(k8sClient.Delete, ctx, CreateIronicSecret(namespace, servicePasswordSecret))
+
+			transportURLName := "transporturl-secret"
+			DeferCleanup(k8sClient.Delete, ctx, CreateMessageBusSecret(namespace, transportURLName))
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+			// Create AC secret - the controller reads this directly
+			acSecretName = "ac-ironic-secret"
+			acSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Name:      acSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("test-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, acSecret)
+			Expect(k8sClient.Create(ctx, acSecret)).To(Succeed())
+
+			spec := GetDefaultIronicAPISpec()
+			spec["secret"] = servicePasswordSecret
+			spec["databaseHostname"] = "openstack." + namespace + ".svc"
+			spec["databaseAccount"] = "ironic"
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = transportURLName
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": acSecretName,
+			}
+
+			ironicAccount := types.NamespacedName{Namespace: namespace, Name: "ironic"}
+			_, _ = mariadb.CreateMariaDBAccountAndSecret(ironicAccount, mariadbv1.MariaDBAccountSpec{})
+			mariadb.CreateMariaDBDatabase(namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+
+			DeferCleanup(th.DeleteInstance, CreateIronicAPI(apiName, spec))
+
+			mariadb.SimulateMariaDBAccountCompleted(ironicAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{
+				Namespace: namespace,
+				Name:      ironic.DatabaseName,
+			})
+		})
+
+		It("should render ApplicationCredential auth in IronicAPI config", func() {
+			configSecretName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      fmt.Sprintf("%s-config-data", apiName.Name),
+			}
+
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(configSecretName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["01-api.conf"])
+
+				// AC auth is configured
+				g.Expect(conf).To(ContainSubstring("auth_type=v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+				// Password auth fields should not be present
+				g.Expect(conf).NotTo(ContainSubstring("auth_type=password"))
+				g.Expect(conf).NotTo(ContainSubstring("username=ironic"))
+				g.Expect(conf).NotTo(ContainSubstring("project_name=service"))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 

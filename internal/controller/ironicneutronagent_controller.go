@@ -264,6 +264,18 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 		return err
 	}
 
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicNeutronAgent{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicNeutronAgent)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicNeutronAgent{}).
 		Owns(&appsv1.Deployment{}).
@@ -763,6 +775,8 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	instance *ironicv1.IronicNeutronAgent,
 	envVars *map[string]env.Setter,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	// Create/update secrets from templates
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(ironicneutronagent.ServiceName), map[string]string{})
 
@@ -816,6 +830,11 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["keystone_authtoken"] = servicePassword
 	templateParameters["service_catalog"] = servicePassword
 	templateParameters["ironic"] = servicePassword
+
+	// Try to get Application Credential from the secret specified in the CR
+	if err := setApplicationCredentialParams(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace, templateParameters, Log); err != nil {
+		return err
+	}
 
 	cms := []util.Template{
 		{
