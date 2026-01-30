@@ -799,6 +799,7 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		KeystoneEndpoints:       *keystoneEndpoints,
 		Region:                  keystoneRegion,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
+		Auth:                    instance.Spec.Auth,
 	}
 
 	if IronicConductorSpec.NodeSelector == nil {
@@ -851,6 +852,7 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 		TransportURLSecret: instance.Status.TransportURLSecret,
 		KeystoneEndpoints:  *keystoneEndpoints,
 		Region:             keystoneRegion,
+		Auth:               instance.Spec.Auth,
 	}
 
 	if IronicAPISpec.NodeSelector == nil {
@@ -898,6 +900,8 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 	keystoneRegion string,
 	db *mariadbv1.Database,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create Configmap/Secret required for ironic input
 	// - %-scripts configmap holding scripts to e.g. bootstrap the service
@@ -959,6 +963,11 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["ServicePassword"] = servicePassword
 		if keystoneRegion != "" {
 			templateParameters["Region"] = keystoneRegion
+		}
+
+		// Try to get Application Credential from the secret specified in the CR
+		if err := setApplicationCredentialParams(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace, templateParameters, Log); err != nil {
+			return err
 		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""
@@ -1146,6 +1155,7 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
 		TLS:                        instance.Spec.IronicAPI.TLS.Ca,
+		Auth:                       instance.Spec.Auth,
 	}
 
 	if IronicNeutronAgentSpec.NodeSelector == nil {

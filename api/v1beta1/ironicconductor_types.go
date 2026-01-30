@@ -149,6 +149,11 @@ type IronicConductorSpec struct {
 	// +kubebuilder:validation:Optional
 	// ConsoleImage - Ironic Graphical Console Container Image
 	ConsoleImage string `json:"consoleImage"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (inherited from parent Ironic CR)
+	Auth AuthSpec `json:"auth,omitempty"`
 }
 
 // IronicConductorStatus defines the observed state of IronicConductor

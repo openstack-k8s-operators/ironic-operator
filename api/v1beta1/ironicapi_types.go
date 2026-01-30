@@ -19,11 +19,11 @@ package v1beta1
 import (
 	"fmt"
 
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -116,6 +116,11 @@ type IronicAPISpec struct {
 	// +kubebuilder:validation:Minimum=10
 	// APITimeout for HAProxy, Apache
 	APITimeout int `json:"apiTimeout"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// Auth - Parameters related to authentication (inherited from parent Ironic CR)
+	Auth AuthSpec `json:"auth,omitempty"`
 }
 
 // IronicAPIStatus defines the observed state of IronicAPI

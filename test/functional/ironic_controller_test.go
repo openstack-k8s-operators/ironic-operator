@@ -34,6 +34,7 @@ import (
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -1500,6 +1501,91 @@ var _ = Describe("Ironic controller", func() {
 					username, password, ironicNames.Namespace)))
 		}).Should(Succeed())
 
+	})
+
+	When("An ApplicationCredential is created for Ironic", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				infra.CreateTransportURLSecret(ironicNames.Namespace, MessageBusSecretName, false),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			// Create AC secret - the controller reads this directly
+			acSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ironicNames.Namespace,
+					Name:      "ac-ironic-secret",
+				},
+				Data: map[string][]byte{
+					"AC_ID":     []byte("test-ac-id"),
+					"AC_SECRET": []byte("test-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, acSecret)
+			Expect(k8sClient.Create(ctx, acSecret)).To(Succeed())
+
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			// Explicitly set the AC secret name to enable AC auth
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": "ac-ironic-secret",
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+		})
+
+		It("should render ApplicationCredential auth in ironic.conf (parent/dbsync)", func() {
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+
+			th.ExpectCondition(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(ironicNames.IronicConfigSecretName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["ironic.conf"])
+
+				// AC auth is configured
+				g.Expect(conf).To(ContainSubstring("auth_type=v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+				// Password auth fields should not be present
+				g.Expect(conf).NotTo(ContainSubstring("auth_type=password"))
+				g.Expect(conf).NotTo(ContainSubstring("username=ironic"))
+				g.Expect(conf).NotTo(ContainSubstring("project_name=service"))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 })

@@ -299,6 +299,18 @@ func (r *IronicAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		return err
 	}
 
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicAPI{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicAPI)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicAPI{}).
 		Owns(&keystonev1.KeystoneService{}).
@@ -1010,6 +1022,8 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 	instance *ironicv1.IronicAPI,
 	envVars *map[string]env.Setter,
 ) error {
+	Log := r.GetLogger(ctx)
+
 	//
 	// create custom Configmap for ironic-api-specific config input
 	// - %-config-data configmap holding custom config for the service's ironic.conf
@@ -1073,6 +1087,11 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 		templateParameters["ServicePassword"] = servicePassword
 		if instance.Spec.Region != "" {
 			templateParameters["Region"] = instance.Spec.Region
+		}
+
+		// Try to get Application Credential from the secret specified in the CR
+		if err := setApplicationCredentialParams(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace, templateParameters, Log); err != nil {
+			return err
 		}
 	} else {
 		templateParameters["IronicPublicURL"] = ""

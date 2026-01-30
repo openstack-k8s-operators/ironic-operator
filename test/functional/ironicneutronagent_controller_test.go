@@ -29,6 +29,7 @@ import (
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -435,6 +436,67 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				condition.RoleBindingReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+	})
+
+	When("An ApplicationCredential is created for IronicNeutronAgent", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				infra.CreateTransportURLSecret(ironicNames.Namespace, MessageBusSecretName, false),
+			)
+
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			acSecretName := "ac-ironic-secret"
+			acSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ironicNames.Namespace,
+					Name:      acSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("test-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, acSecret)
+			Expect(k8sClient.Create(ctx, acSecret)).To(Succeed())
+
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": acSecretName,
+			}
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+
+		It("should render ApplicationCredential auth in IronicNeutronAgent config", func() {
+			Eventually(func(g Gomega) {
+				cfgSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				g.Expect(cfgSecret).NotTo(BeNil())
+
+				conf := string(cfgSecret.Data["01-ironic_neutron_agent.conf"])
+
+				// AC auth is configured
+				g.Expect(conf).To(ContainSubstring("auth_type=v3applicationcredential"))
+				g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+				g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+				// Password auth fields should not be present
+				g.Expect(conf).NotTo(ContainSubstring("auth_type=password"))
+				g.Expect(conf).NotTo(ContainSubstring("username=ironic"))
+				g.Expect(conf).NotTo(ContainSubstring("project_name=service"))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })

@@ -22,8 +22,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
@@ -34,6 +37,8 @@ import (
 // Static errors for ironic controllers
 var (
 	ErrNetworkAttachmentConfig = errors.New("not all pods have interfaces with ips as configured in NetworkAttachments")
+	ErrACSecretNotFound        = errors.New("ApplicationCredential secret not found")
+	ErrACSecretMissingKeys     = errors.New("ApplicationCredential secret missing required keys")
 )
 
 // fields to index to reconcile when change
@@ -44,6 +49,7 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	transportURLSecretField = ".spec.transportURLSecret"
 	topologyField           = ".spec.topologyRef.Name"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec G101
 )
 
 var (
@@ -54,22 +60,26 @@ var (
 		tlsAPIPublicField,
 		transportURLSecretField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicConductorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		transportURLSecretField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicInspectorWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		topologyField,
+		authAppCredSecretField,
 	}
 	ironicNeutronAgentWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,
 		topologyField,
+		authAppCredSecretField,
 	}
 )
 
@@ -153,4 +163,43 @@ func getQuorumQueues(
 	}
 	quorumQueues := string(transportURLSecret.Data["quorumqueues"]) == "true"
 	return quorumQueues, nil
+}
+
+// setApplicationCredentialParams - shared function to set ApplicationCredential template parameters
+// secretName is the name of the secret containing the application credentials
+// Returns true if application credentials are available and configured
+func setApplicationCredentialParams(
+	ctx context.Context,
+	h *helper.Helper,
+	secretName string,
+	namespace string,
+	templateParameters map[string]interface{},
+	log logr.Logger,
+) error {
+	templateParameters["UseApplicationCredentials"] = false
+
+	if secretName == "" {
+		return nil
+	}
+
+	acSecretObj, _, err := secret.GetSecret(ctx, h, secretName, namespace)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			log.Info("ApplicationCredential secret not found, waiting", "secret", secretName)
+			return fmt.Errorf("%w: %s", ErrACSecretNotFound, secretName)
+		}
+		log.Error(err, "Failed to get ApplicationCredential secret", "secret", secretName)
+		return err
+	}
+	acID, okID := acSecretObj.Data[keystonev1.ACIDSecretKey]
+	acSecretVal, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
+	if !okID || !okSecret || len(acID) == 0 || len(acSecretVal) == 0 {
+		log.Info("ApplicationCredential secret missing required keys", "secret", secretName)
+		return fmt.Errorf("%w: %s", ErrACSecretMissingKeys, secretName)
+	}
+	templateParameters["UseApplicationCredentials"] = true
+	templateParameters["ACID"] = string(acID)
+	templateParameters["ACSecret"] = string(acSecretVal)
+	log.Info("Using ApplicationCredentials auth", "secret", secretName)
+	return nil
 }
