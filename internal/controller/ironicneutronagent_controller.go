@@ -458,50 +458,16 @@ func (r *IronicNeutronAgentReconciler) reconcileTransportURL(
 	//
 	// Create notifications TransportURL if configured
 	//
-	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
-		// Initialize status field
-		instance.Status.NotificationsURLSecret = new(string)
-		*instance.Status.NotificationsURLSecret = ""
-
-		notificationURL, op, err := r.transportURLCreateOrUpdate(
-			ctx,
-			instance,
-			"-notifications", // Suffix for notifications transport
-			*instance.Spec.NotificationsBus,
-		)
-		if err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.NotificationBusInstanceReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.NotificationBusInstanceReadyErrorMessage,
-				err.Error()))
-			return ctrl.Result{}, err
-		}
-
-		if op != controllerutil.OperationResultNone {
-			Log.Info(fmt.Sprintf("Notifications TransportURL %s successfully reconciled - operation: %s", notificationURL.Name, string(op)))
-		}
-
-		*instance.Status.NotificationsURLSecret = notificationURL.Status.SecretName
-
-		if *instance.Status.NotificationsURLSecret == "" {
-			Log.Info(fmt.Sprintf("Waiting for Notifications TransportURL %s secret to be created", notificationURL.Name))
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.NotificationBusInstanceReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.NotificationBusInstanceReadyRunningMessage))
-			return ctrl.Result{}, nil
-		}
-
-		instance.Status.Conditions.MarkTrue(condition.NotificationBusInstanceReadyCondition, condition.NotificationBusInstanceReadyMessage)
-	} else {
-		// Clear notifications URL if not configured
-		instance.Status.NotificationsURLSecret = nil
-	}
-
-	return ctrl.Result{}, nil
+	return ensureNotificationsTransportURL(
+		ctx,
+		instance.Spec.NotificationsBus,
+		&instance.Status.NotificationsURLSecret,
+		func(ctx context.Context, suffix string, rabbitMqConfig rabbitmqv1.RabbitMqConfig) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+			return r.transportURLCreateOrUpdate(ctx, instance, suffix, rabbitMqConfig)
+		},
+		&instance.Status.Conditions,
+		Log,
+	)
 }
 
 func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
@@ -879,23 +845,6 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 		return err
 	}
 
-	// Get notifications transport URL if configured
-	var notificationsTransportURL string
-	if instance.Status.NotificationsURLSecret != nil && *instance.Status.NotificationsURLSecret != "" {
-		notificationsURLSecret, _, err := secret.GetSecret(ctx, h, *instance.Status.NotificationsURLSecret, instance.Namespace)
-		if err != nil {
-			return err
-		}
-		notificationURL, ok := notificationsURLSecret.Data["transport_url"]
-		if !ok {
-			return fmt.Errorf("transport_url %w in Notifications Transport Secret", util.ErrNotFound)
-		}
-		notificationsTransportURL = string(notificationURL)
-	} else {
-		// Fall back to main transport URL for notifications
-		notificationsTransportURL = transportURL
-	}
-
 	quorumQueues, err := getQuorumQueues(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
 	if err != nil {
 		return err
@@ -911,8 +860,12 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 	templateParameters["TransportURL"] = transportURL
-	templateParameters["NotificationsTransportURL"] = notificationsTransportURL
 	templateParameters["QuorumQueues"] = quorumQueues
+
+	// Get notifications transport URL if configured
+	if err := getNotificationsTransportURL(ctx, h, instance.Status.NotificationsURLSecret, transportURL, instance.Namespace, templateParameters); err != nil {
+		return err
+	}
 	templateParameters["Region"] = keystoneAPI.GetRegion()
 
 	// Other OpenStack services
