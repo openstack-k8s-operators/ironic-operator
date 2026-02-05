@@ -5,8 +5,6 @@ aliases:
   - hjensas
   - juliakreger
   - steveb
-  ci-approvers:
-  - viroel
   openstack-approvers:
   - abays
   - dprince
