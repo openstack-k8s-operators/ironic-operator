@@ -24,6 +24,14 @@ spec:
       kind: IronicAPI
       name: ironicapis.ironic.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication (inherited from parent
+          Ironic CR)
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
@@ -33,6 +41,14 @@ spec:
       kind: IronicConductor
       name: ironicconductors.ironic.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication (inherited from parent
+          Ironic CR)
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
@@ -42,6 +58,13 @@ spec:
       kind: IronicInspector
       name: ironicinspectors.ironic.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
@@ -52,6 +75,14 @@ spec:
       kind: IronicNeutronAgent
       name: ironicneutronagents.ironic.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication (inherited from parent
+          Ironic CR)
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
@@ -61,9 +92,24 @@ spec:
       kind: Ironic
       name: ironics.ironic.openstack.org
       specDescriptors:
+      - description: Auth - Parameters related to authentication (shared by IronicAPI,
+          IronicConductor, and IronicNeutronAgent)
+        displayName: Auth
+        path: auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: ironicAPI.tls
+      - description: Auth - Parameters related to authentication
+        displayName: Auth
+        path: ironicInspector.auth
+      - description: ApplicationCredentialSecret - Secret containing Application Credential
+          ID and Secret
+        displayName: Application Credential Secret
+        path: ironicInspector.auth.applicationCredentialSecret
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: ironicInspector.tls

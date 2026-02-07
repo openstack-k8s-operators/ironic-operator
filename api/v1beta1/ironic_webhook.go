@@ -24,6 +24,7 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	common_webhook "github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,30 +72,36 @@ var (
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
 	ironiclog.Info("validate create", "name", r.Name)
+	var allWarns []string
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
-	if err := r.Spec.ValidateCreate(basePath, r.Namespace); err != nil {
-		allErrs = append(allErrs, err...)
-	}
+	warns, errs := r.Spec.ValidateCreate(basePath, r.Namespace)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	if len(allErrs) != 0 {
-		return nil, apierrors.NewInvalid(
+		return allWarns, apierrors.NewInvalid(
 			schema.GroupKind{Group: "ironic.openstack.org", Kind: "Ironic"},
 			r.Name, allErrs)
 	}
 
-	return nil, nil
+	return allWarns, nil
 }
 
 // ValidateCreate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
-func (spec *IronicSpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *IronicSpec) ValidateCreate(basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	return spec.IronicSpecCore.ValidateCreate(basePath, namespace)
 }
 
-func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	var allErrs field.ErrorList
+	var allWarns []string
+
+	// Validate deprecated fields using reflection-based helper
+	warns := spec.validateDeprecatedFieldsCreate(basePath)
+	allWarns = append(allWarns, warns...)
 
 	if err := validateRPCTransport(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
@@ -125,7 +132,7 @@ func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path, namespace strin
 	}
 
 	allErrs = append(allErrs, spec.ValidateIronicTopology(basePath, namespace)...)
-	return allErrs
+	return allWarns, allErrs
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -137,30 +144,37 @@ func (r *Ironic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
+	var allWarns []string
 	var allErrs field.ErrorList
 	basePath := field.NewPath("spec")
 
-	if err := r.Spec.ValidateUpdate(oldIronic.Spec, basePath, r.Namespace); err != nil {
-		allErrs = append(allErrs, err...)
-	}
+	warns, errs := r.Spec.ValidateUpdate(oldIronic.Spec, basePath, r.Namespace)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	if len(allErrs) != 0 {
-		return nil, apierrors.NewInvalid(
+		return allWarns, apierrors.NewInvalid(
 			schema.GroupKind{Group: "ironic.openstack.org", Kind: "Ironic"},
 			r.Name, allErrs)
 	}
 
-	return nil, nil
+	return allWarns, nil
 }
 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an ironic spec.
-func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path, namespace string) field.ErrorList {
+func (spec *IronicSpec) ValidateUpdate(old IronicSpec, basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	return spec.IronicSpecCore.ValidateUpdate(old.IronicSpecCore, basePath, namespace)
 }
 
-func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path, namespace string) field.ErrorList {
+func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	var allErrs field.ErrorList
+	var allWarns []string
+
+	// Validate deprecated fields using reflection-based helper
+	warns, errs := spec.validateDeprecatedFieldsUpdate(old, basePath)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	if err := validateRPCTransport(spec, basePath); err != nil {
 		allErrs = append(allErrs, err)
@@ -191,7 +205,7 @@ func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.P
 	}
 
 	allErrs = append(allErrs, spec.ValidateIronicTopology(basePath, namespace)...)
-	return allErrs
+	return allWarns, allErrs
 }
 
 // NOTE: webhook.Validator requires this function to exist even as a no-op
@@ -199,6 +213,58 @@ func (r *Ironic) ValidateDelete() (admission.Warnings, error) {
 	ironiclog.Info("validate delete", "name", r.Name)
 
 	return nil, nil
+}
+
+// getDeprecatedFields returns the centralized list of deprecated fields for IronicSpecCore
+func (spec *IronicSpecCore) getDeprecatedFields(old *IronicSpecCore) []common_webhook.DeprecatedFieldUpdate {
+	deprecatedFields := []common_webhook.DeprecatedFieldUpdate{
+		{
+			DeprecatedFieldName: "rabbitMqClusterName",
+			NewFieldPath:        []string{"messagingBus", "cluster"},
+			NewDeprecatedValue:  &spec.RabbitMqClusterName,
+			NewValue:            &spec.MessagingBus.Cluster,
+		},
+		{
+			DeprecatedFieldName: "rabbitMqClusterName",
+			NewFieldPath:        []string{"ironicNeutronAgent", "messagingBus", "cluster"},
+			NewDeprecatedValue:  &spec.IronicNeutronAgent.RabbitMqClusterName,
+			NewValue:            &spec.IronicNeutronAgent.MessagingBus.Cluster,
+		},
+	}
+
+	// If old spec is provided (UPDATE operation), add old values
+	if old != nil {
+		deprecatedFields[0].OldDeprecatedValue = &old.RabbitMqClusterName
+		deprecatedFields[1].OldDeprecatedValue = &old.IronicNeutronAgent.RabbitMqClusterName
+	}
+
+	return deprecatedFields
+}
+
+// validateDeprecatedFieldsCreate validates deprecated fields during CREATE operations
+func (spec *IronicSpecCore) validateDeprecatedFieldsCreate(basePath *field.Path) []string {
+	// Get deprecated fields list (without old values for CREATE)
+	deprecatedFieldsUpdate := spec.getDeprecatedFields(nil)
+
+	// Convert to DeprecatedField list for CREATE validation
+	deprecatedFields := make([]common_webhook.DeprecatedField, len(deprecatedFieldsUpdate))
+	for i, df := range deprecatedFieldsUpdate {
+		deprecatedFields[i] = common_webhook.DeprecatedField{
+			DeprecatedFieldName: df.DeprecatedFieldName,
+			NewFieldPath:        df.NewFieldPath,
+			DeprecatedValue:     df.NewDeprecatedValue,
+			NewValue:            df.NewValue,
+		}
+	}
+
+	return common_webhook.ValidateDeprecatedFieldsCreate(deprecatedFields, basePath)
+}
+
+// validateDeprecatedFieldsUpdate validates deprecated fields during UPDATE operations
+func (spec *IronicSpecCore) validateDeprecatedFieldsUpdate(old IronicSpecCore, basePath *field.Path) ([]string, field.ErrorList) {
+	// Get deprecated fields list with old values
+	deprecatedFields := spec.getDeprecatedFields(&old)
+	return common_webhook.ValidateDeprecatedFieldsUpdate(deprecatedFields, basePath)
 }
 
 func validateAPISpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
@@ -573,6 +639,15 @@ func (spec *IronicSpecCore) Default() {
 	if spec.RPCTransport == "" {
 		spec.RPCTransport = "json-rpc"
 	}
+
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated fields is handled by openstack-operator
+	if spec.MessagingBus.Cluster == "" {
+		spec.MessagingBus.Cluster = "rabbitmq"
+	}
+
+	// Default embedded templates that have MessagingBus configuration
+	spec.IronicNeutronAgent.Default()
 }
 
 // ValidateIronicTopology - Returns an ErrorList if the Topology is referenced

@@ -39,7 +39,8 @@ spec:
   passwordSelectors:
     service: IronicPassword
   preserveJobs: true
-  rabbitMqClusterName: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   rpcTransport: json-rpc
   secret: osp-secret
   serviceUser: ironic
@@ -126,7 +127,8 @@ spec:
   passwordSelectors:
     service: IronicInspectorPassword
   preserveJobs: true
-  rabbitMqClusterName: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   replicas: 1
   resources: {}
   rpcTransport: json-rpc
@@ -153,7 +155,8 @@ spec:
   customServiceConfig: "# add your customization here"
   passwordSelectors:
     service: IronicPassword
-  rabbitMqClusterName: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   replicas: 1
   resources: {}
   secret: osp-secret

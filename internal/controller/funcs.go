@@ -23,14 +23,18 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -201,5 +205,104 @@ func setApplicationCredentialParams(
 	templateParameters["ACID"] = string(acID)
 	templateParameters["ACSecret"] = string(acSecretVal)
 	log.Info("Using ApplicationCredentials auth", "secret", secretName)
+	return nil
+}
+
+// transportURLCreator is a function type for creating/updating TransportURL
+type transportURLCreator func(
+	ctx context.Context,
+	suffix string,
+	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
+) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error)
+
+// ensureNotificationsTransportURL - shared function to ensure notifications TransportURL is created and ready
+// notificationsBus is the RabbitMqConfig for notifications, can be nil if not configured
+// notificationsURLSecret is a pointer to the status field where the secret name will be stored
+// transportURLCreate is the function to call to create/update the TransportURL
+// conditionUpdater is used to update the condition status
+// Returns ctrl.Result and error
+func ensureNotificationsTransportURL(
+	ctx context.Context,
+	notificationsBus *rabbitmqv1.RabbitMqConfig,
+	notificationsURLSecret **string,
+	transportURLCreate transportURLCreator,
+	conditionUpdater conditionUpdater,
+	log logr.Logger,
+) (ctrl.Result, error) {
+	if notificationsBus != nil && notificationsBus.Cluster != "" {
+		// Initialize status field
+		*notificationsURLSecret = new(string)
+		**notificationsURLSecret = ""
+
+		notificationURL, op, err := transportURLCreate(
+			ctx,
+			"-notifications", // Suffix for notifications transport
+			*notificationsBus,
+		)
+		if err != nil {
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NotificationBusInstanceReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+
+		if op != controllerutil.OperationResultNone {
+			log.Info(fmt.Sprintf("Notifications TransportURL %s successfully reconciled - operation: %s", notificationURL.Name, string(op)))
+		}
+
+		**notificationsURLSecret = notificationURL.Status.SecretName
+
+		if **notificationsURLSecret == "" {
+			log.Info(fmt.Sprintf("Waiting for Notifications TransportURL %s secret to be created", notificationURL.Name))
+			conditionUpdater.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.NotificationBusInstanceReadyRunningMessage))
+			return ctrl.Result{}, nil
+		}
+
+		conditionUpdater.MarkTrue(condition.NotificationBusInstanceReadyCondition, condition.NotificationBusInstanceReadyMessage)
+	} else {
+		// Clear notifications URL if not configured
+		*notificationsURLSecret = nil
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// getNotificationsTransportURL - shared function to get notifications transport URL for templates
+// notificationsURLSecret is the secret name containing the notifications transport URL, can be nil or empty
+// fallbackTransportURL is the URL to use if notifications transport URL is not configured
+// namespace is the namespace where the secret is located
+// templateParameters is the map where the NotificationsTransportURL will be set
+// Returns error if the secret cannot be retrieved or transport_url key is missing
+func getNotificationsTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	notificationsURLSecret *string,
+	fallbackTransportURL string,
+	namespace string,
+	templateParameters map[string]interface{},
+) error {
+	var notificationsTransportURL string
+	if notificationsURLSecret != nil && *notificationsURLSecret != "" {
+		notificationsURLSecretObj, _, err := secret.GetSecret(ctx, h, *notificationsURLSecret, namespace)
+		if err != nil {
+			return err
+		}
+		notificationURL, ok := notificationsURLSecretObj.Data["transport_url"]
+		if !ok {
+			return fmt.Errorf("transport_url %w in Notifications Transport Secret", util.ErrNotFound)
+		}
+		notificationsTransportURL = string(notificationURL)
+		templateParameters["NotificationsTransportURL"] = notificationsTransportURL
+	} else {
+		// Fall back to main transport URL for notifications
+		templateParameters["NotificationsTransportURL"] = fallbackTransportURL
+	}
 	return nil
 }

@@ -84,7 +84,7 @@ var _ = Describe("Ironic controller", func() {
 			Expect(instance.Spec.CustomServiceConfig).Should(Equal("# add your customization here"))
 			Expect(instance.Spec.StorageClass).Should(Equal(""))
 			Expect(instance.Spec.PreserveJobs).Should(BeTrue())
-			Expect(instance.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+			Expect(instance.Spec.MessagingBus.Cluster).Should(Equal("rabbitmq"))
 		})
 		It("initializes Status fields", func() {
 			instance := GetIronic(ironicNames.IronicName)
@@ -1732,4 +1732,90 @@ var _ = Describe("Ironic Webhook", func() {
 			return component, fmt.Sprintf("%s.topologyRef", component)
 		}),
 	)
+
+	When("Ironic starts with notifications enabled and then disables them", func() {
+		var notificationsTransportURLName types.NamespacedName
+
+		BeforeEach(func() {
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["notificationsBus"] = map[string]any{
+				"cluster": "notifications-rabbitmq",
+				"user":    "ironic-notifications",
+				"vhost":   "/notifications",
+			}
+
+			DeferCleanup(k8sClient.Delete, ctx, CreateIronicSecret(ironicNames.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName))
+			DeferCleanup(mariadb.DeleteDBService, mariadb.CreateDBService(
+				ironicNames.Namespace,
+				"openstack",
+				corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Port: 3306}},
+				},
+			))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(th.DeleteInstance, CreateIronic(ironicNames.IronicName, spec))
+
+			notificationsTransportURLName = types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      ironicNames.IronicName.Name + "-transport-notifications",
+			}
+		})
+
+		It("should initially have notifications enabled", func() {
+			// First set up the main TransportURL
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+
+			// Now wait for controller to create the notifications TransportURL, then simulate it as ready
+			infra.GetTransportURL(notificationsTransportURLName)
+			DeferCleanup(k8sClient.Delete, ctx, CreateTransportURLSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      "notifications-rabbitmq-secret",
+			}))
+			infra.SimulateTransportURLReady(notificationsTransportURLName)
+
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				g.Expect(ironic.Status.NotificationsURLSecret).ToNot(BeNil())
+				g.Expect(*ironic.Status.NotificationsURLSecret).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should disable notifications when notificationsBus is removed", func() {
+			// First set up the main TransportURL
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+
+			// Now wait for controller to create the notifications TransportURL, then simulate it as ready
+			infra.GetTransportURL(notificationsTransportURLName)
+			DeferCleanup(k8sClient.Delete, ctx, CreateTransportURLSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      "notifications-rabbitmq-secret",
+			}))
+			infra.SimulateTransportURLReady(notificationsTransportURLName)
+
+			// Verify notifications are initially enabled
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				g.Expect(ironic.Status.NotificationsURLSecret).ToNot(BeNil())
+				g.Expect(*ironic.Status.NotificationsURLSecret).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			// Update the Ironic spec to remove notificationsBus
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				ironic.Spec.NotificationsBus = nil
+				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Wait for notifications to be disabled
+			Eventually(func(g Gomega) {
+				ironic := GetIronic(ironicNames.IronicName)
+				g.Expect(ironic.Status.NotificationsURLSecret).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })

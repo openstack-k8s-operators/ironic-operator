@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
@@ -165,10 +166,18 @@ type IronicInspectorSpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Ironic Inspector
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+	// Deprecated: Use MessagingBus.Cluster instead
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// MessagingBus configuration (username, vhost, and cluster) for RPC messaging
+	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NotificationsBus configuration (username, vhost, and cluster) for notifications
+	NotificationsBus *rabbitmqv1.RabbitMqConfig `json:"notificationsBus,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum:=oslo;json-rpc
@@ -206,6 +215,9 @@ type IronicInspectorStatus struct {
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
+	// NotificationsURLSecret - Secret containing RabbitMQ notifications URL
+	NotificationsURLSecret *string `json:"notificationsURLSecret,omitempty"`
+
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
 
@@ -217,6 +229,17 @@ type IronicInspectorStatus struct {
 
 	// LastAppliedTopology - the last applied Topology
 	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
+}
+
+// Default implements webhook defaulting
+func (spec *IronicInspectorSpec) Default() {
+	if spec.RPCTransport == "" {
+		spec.RPCTransport = "json-rpc"
+	}
+
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated RabbitMqClusterName is handled by openstack-operator
+	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, "rabbitmq")
 }
 
 //+kubebuilder:object:root=true

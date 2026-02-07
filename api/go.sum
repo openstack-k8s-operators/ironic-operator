@@ -1,3 +1,4 @@
+github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3QEww=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -84,6 +85,8 @@ github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260128074606-0
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260128074606-03b808364e4a/go.mod h1:ZXwFlspJCdZEUjMbmaf61t5AMB4u2vMyAMMoe/vJroE=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260128142552-e2c25eccae5a h1:97OfmmJgoIKTfbED2SfyjoPkivoiMHg4jfbrTuwSGQw=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260128142552-e2c25eccae5a/go.mod h1:ndqfy1KbVorHH6+zlUFPIrCRhMSxO3ImYJUGaooE0x0=
+github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20250929174222-a0d328fa4dec h1:saovr368HPAKHN0aRPh8h8n9s9dn3d8Frmfua0UYRlc=
+github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20250929174222-a0d328fa4dec/go.mod h1:Nh2NEePLjovUQof2krTAg4JaAoLacqtPTZQXK6izNfg=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
