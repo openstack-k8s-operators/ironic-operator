@@ -770,7 +770,7 @@ var _ = Describe("IronicAPI controller", func() {
 				cfgSecret := th.GetSecret(configSecretName)
 				g.Expect(cfgSecret).NotTo(BeNil())
 
-				conf := string(cfgSecret.Data["01-api.conf"])
+				conf := string(cfgSecret.Data["ironic.conf"])
 
 				// AC auth is configured
 				g.Expect(conf).To(ContainSubstring("auth_type=v3applicationcredential"))
