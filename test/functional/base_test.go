@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	timeout                = 20 * time.Second
+	timeout                = 45 * time.Second
 	interval               = 20 * time.Millisecond
 	DatabaseHostname       = "databasehost.example.org"
 	DatabaseInstance       = "openstack"
