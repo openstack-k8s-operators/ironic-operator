@@ -229,6 +229,51 @@ var _ = Describe("Ironic controller", func() {
 		})
 	})
 
+	When("Ironic is created with an invalid password", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicInvalidSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+		})
+		It("rejects the password and reports InputReadyCondition as False", func() {
+			expectedErrMsg := "Input data error occurred password does not meet the requirements"
+			th.ExpectConditionWithDetails(
+				ironicNames.IronicName,
+				ConditionGetterFunc(IronicConditionGetter),
+				condition.InputReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				expectedErrMsg,
+			)
+		})
+	})
+
 	When("Deployment rollout is progressing", func() {
 		var inaName types.NamespacedName
 		BeforeEach(func() {

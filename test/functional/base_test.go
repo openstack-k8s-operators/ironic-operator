@@ -86,6 +86,8 @@ type IronicNames struct {
 	PublicCertSecretName      types.NamespacedName
 	CaBundleSecretName        types.NamespacedName
 	IronicTopologies          []types.NamespacedName
+	IronicPassword            string
+	IronicInvalidPassword     string
 }
 
 func GetIronicNames(
@@ -275,6 +277,8 @@ func GetIronicNames(
 				Name:      fmt.Sprintf("%s-nagent-topology", ironicName.Name),
 			},
 		},
+		IronicPassword:        "12345678",
+		IronicInvalidPassword: "c^sometext02%text%text02$someText&",
 	}
 }
 
@@ -282,10 +286,10 @@ func CreateIronicSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"IronicPassword":                  []byte("12345678"),
-			"IronicInspectorPassword":         []byte("12345678"),
-			"IronicDatabasePassword":          []byte("12345678"),
-			"IronicInspectorDatabasePassword": []byte("12345678"),
+			"IronicPassword":                  []byte(ironicNames.IronicPassword),
+			"IronicInspectorPassword":         []byte(ironicNames.IronicPassword),
+			"IronicDatabasePassword":          []byte(ironicNames.IronicPassword),
+			"IronicInspectorDatabasePassword": []byte(ironicNames.IronicPassword),
 		},
 	)
 }
@@ -728,4 +732,17 @@ func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySprea
 		},
 	}
 	return topologySpec, topologySpecObj
+}
+
+// CreateIronicInvalidSecret creates a secret with an invalid password for testing
+func CreateIronicInvalidSecret(namespace string, name string) *corev1.Secret {
+	return th.CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
+			"IronicPassword":                  []byte(ironicNames.IronicInvalidPassword),
+			"IronicInspectorPassword":         []byte(ironicNames.IronicInvalidPassword),
+			"IronicDatabasePassword":          []byte(ironicNames.IronicInvalidPassword),
+			"IronicInspectorDatabasePassword": []byte(ironicNames.IronicInvalidPassword),
+		},
+	)
 }

@@ -376,28 +376,41 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := oko_secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	// Associate to PasswordSelectors.Service field a password validator to
+	// ensure pwd invalid detected patterns are rejected.
+	validateFields := map[string]oko_secret.Validator{
+		instance.Spec.PasswordSelectors.Service: oko_secret.PasswordValidator{},
+	}
+	hash, ctrlResult, err := oko_secret.VerifySecretFields(
+		ctx,
+		types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.Secret,
+		},
+		validateFields,
+		helper.GetClient(),
+		time.Duration(10)*time.Second,
+	)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			// Since the OpenStack secret should have been manually created by the user and referenced in the spec,
-			// we treat this as a warning because it means that the service will not be able to start.
-			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{}, nil
-		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return ctrlResult, err
+	} else if (ctrlResult != ctrl.Result{}) {
+		// Since the service secret should have been manually created by the user and referenced in the spec,
+		// we treat this as a warning because it means that the service will not be able to start.
+		log.FromContext(ctx).Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyWaitingMessage))
+		return ctrlResult, err
 	}
-	configMapVars[ospSecret.Name] = env.SetValue(hash)
+	configMapVars[instance.Spec.Secret] = env.SetValue(hash)
 
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 	// run check OpenStack secret - end
@@ -480,7 +493,7 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 
 	// Handle service upgrade
-	ctrlResult, err := r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
+	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper, serviceLabels)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
