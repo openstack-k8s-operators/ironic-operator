@@ -1,0 +1,110 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  labels:
+    osp/lb-addresses-type: standard
+  name: ctlplane
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.122.80-192.168.122.90
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  labels:
+    osp/lb-addresses-type: standard
+  name: internalapi
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.17.0.80-172.17.0.90
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  labels:
+    osp/lb-addresses-type: standard
+  name: storage
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.18.0.80-172.18.0.90
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  labels:
+    osp/lb-addresses-type: standard
+  name: tenant
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.19.0.80-172.19.0.90
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  labels:
+    osp/lb-addresses-type: standard
+  name: ironic
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.20.1.80-172.20.1.90
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: ctlplane
+  namespace: metallb-system
+spec:
+  interfaces:
+  - ospbr
+  ipAddressPools:
+  - ctlplane
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: internalapi
+  namespace: metallb-system
+spec:
+  interfaces:
+  - internalapi
+  ipAddressPools:
+  - internalapi
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: storage
+  namespace: metallb-system
+spec:
+  interfaces:
+  - storage
+  ipAddressPools:
+  - storage
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: tenant
+  namespace: metallb-system
+spec:
+  interfaces:
+  - tenant
+  ipAddressPools:
+  - tenant
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: ironic
+  namespace: metallb-system
+spec:
+  interfaces:
+  - ironic
+  ipAddressPools:
+  - ironic
