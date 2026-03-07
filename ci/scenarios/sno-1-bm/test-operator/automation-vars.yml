@@ -1,0 +1,366 @@
+---
+stages:
+  - name: Apply ironic network-attachement-definition
+    documentation: >-
+      Creates a Multus NetworkAttachmentDefinition that allows pods to attach to the ironic
+      provisioning network. This is required for sushy-emulator to communicate with baremetal
+      nodes during provisioning operations via the dedicated provisioning network.
+    manifest: manifests/nad.yaml
+    wait_conditions:
+      - >-
+        oc wait -n sushy-emulator network-attachment-definitions.k8s.cni.cncf.io ironic
+        --for jsonpath='{.metadata.annotations}' --timeout=30s
+
+  - name: Patch RedFish Sushy Emulator Deployment - add network attachment
+    documentation: >-
+      Modifies the sushy-emulator deployment to attach to the ironic provisioning network
+      via CNI network annotation. This enables the BMC simulator to receive Redfish API
+      calls on the correct network segment where baremetal nodes expect their BMC interfaces.
+    shell: |
+      set -xe -o pipefail
+
+      TMP_DIR="$(mktemp -d)"
+      trap 'rm -rf -- "$TMP_DIR"' EXIT
+
+      oc project sushy-emulator
+
+      cat << EOF > ${TMP_DIR}/sushy-emulator-network-annotations-patch.yaml
+      spec:
+        template:
+          metadata:
+            annotations:
+              k8s.v1.cni.cncf.io/networks: '[{"name":"ironic","namespace":"sushy-emulator","interface":"ironic"}]'
+      EOF
+
+      oc patch deployments.apps sushy-emulator --patch-file ${TMP_DIR}/sushy-emulator-network-annotations-patch.yaml
+    wait_conditions:
+      - "oc -n sushy-emulator wait deployments.apps sushy-emulator --for condition=Available --timeout=300s"
+
+  - name: Create public network if needed
+    documentation: >-
+      Establishes the external network that provides floating IP connectivity to instances.
+      This network is mapped to the physical 'datacentre' network and serves as the gateway
+      for external traffic routing. Essential for instances to reach external services and
+      for external clients to access instance services via floating IPs.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack network show public &>/dev/null || \
+        oc rsh openstackclient openstack network create public \
+          --external \
+          --no-share \
+          --default \
+          --provider-network-type flat \
+          --provider-physical-network datacentre
+
+  - name: Create subnet on public network if needed
+    documentation: >-
+      Defines the IP address pool and routing configuration for the public network.
+      The 192.168.122.0/24 range with allocation pool 171-250 provides floating IPs
+      while preserving lower addresses for infrastructure. Gateway 192.168.122.1
+      routes traffic to external networks.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack subnet show public_subnet &>/dev/null || \
+        oc rsh openstackclient openstack subnet create public_subnet \
+          --network public \
+          --subnet-range 192.168.122.0/24 \
+          --allocation-pool start=192.168.122.171,end=192.168.122.250 \
+          --gateway 192.168.122.1 \
+          --dhcp
+
+  - name: Create private network if needed
+    documentation: >-
+      Creates the default tenant network for instance-to-instance communication.
+      This shared network allows multiple tenants to deploy instances that can
+      communicate privately while being isolated from external networks until
+      floating IPs are assigned.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack network show private &>/dev/null || \
+        oc rsh openstackclient openstack network create private --share
+
+  - name: Create subnet on private network if needed
+    documentation: >-
+      Configures the private tenant network with RFC1918 addressing (10.2.0.0/24).
+      This subnet provides DHCP-assigned IP addresses for instances deployed on
+      the private network, enabling inter-instance communication before floating
+      IP assignment for external access.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack subnet show private_subnet &>/dev/null || \
+        oc rsh openstackclient openstack subnet create private_subnet \
+          --network private \
+          --subnet-range 10.2.0.0/24 \
+          --allocation-pool start=10.2.0.10,end=10.2.0.250 \
+          --gateway 10.2.0.1 \
+          --dhcp
+
+  - name: Create network for ironic provisioning if needed
+    documentation: >-
+      Establishes the dedicated baremetal provisioning network mapped to the physical
+      'ironic' network interface. This isolated network carries PXE boot traffic, DHCP
+      for baremetal nodes, and communication between Ironic services and nodes during
+      deployment operations, keeping provisioning traffic separate from tenant networks.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack network show provisioning &>/dev/null || \
+        oc rsh openstackclient \
+          openstack network create provisioning \
+            --share \
+            --provider-physical-network ironic \
+            --provider-network-type flat
+
+  - name: Create subnet for ironic provisioning if needed
+    documentation: >-
+      Configures IP addressing for the baremetal provisioning network (172.20.1.0/24).
+      DNS server 172.20.1.80 provides name resolution during node deployment.
+      The allocation pool 100-200 reserves addresses for DHCP assignment to baremetal
+      nodes during their provisioning lifecycle.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack subnet show provisioning-subnet &>/dev/null || \
+        oc rsh openstackclient \
+          openstack subnet create provisioning-subnet \
+            --network provisioning \
+            --subnet-range 172.20.1.0/24 \
+            --gateway 172.20.1.1 \
+            --dns-nameserver 172.20.1.80 \
+            --allocation-pool start=172.20.1.100,end=172.20.1.200
+
+  - name: Create baremetal flavor if needed
+    documentation: >-
+      Defines Nova flavor for baremetal instances with custom resource requirements.
+      Uses CUSTOM_BAREMETAL=1 to match against baremetal node resource classes,
+      while setting standard resources (VCPU, MEMORY_MB, DISK_GB) to 0 since
+      physical resources are managed by Ironic rather than Nova's scheduler.
+      UEFI boot mode ensures compatibility with modern baremetal hardware.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack flavor show baremetal &>/dev/null || \
+        oc rsh openstackclient \
+          openstack flavor create baremetal \
+            --id 123456789-1234-1234-1234-000000000001 \
+            --ram 1024 \
+            --vcpus 1 \
+            --disk 15 \
+            --property resources:VCPU=0 \
+            --property resources:MEMORY_MB=0 \
+            --property resources:DISK_GB=0 \
+            --property resources:CUSTOM_BAREMETAL=1 \
+            --property capabilities:boot_mode=uefi
+
+  - name: Copy ironic_nodes.yaml to the openstackclient pod
+    documentation: >-
+      Transfers the baremetal node definition file containing BMC credentials,
+      hardware specifications, and network configurations from the local filesystem
+      to the OpenStack client pod. This file defines the physical infrastructure
+      that Ironic will manage for baremetal provisioning.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+      oc cp ~/data/ironic_nodes.yaml openstackclient:ironic_nodes.yaml
+
+  - name: Enroll nodes in ironic
+    documentation: >-
+      Registers physical baremetal nodes with the Ironic service using the node
+      definitions from ironic_nodes.yaml. This creates Ironic node records with
+      BMC access credentials, hardware profiles, and port configurations, marking
+      the beginning of the node lifecycle management in OpenStack.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+      oc rsh openstackclient openstack baremetal create ironic_nodes.yaml
+
+  - name: Wait for ironic nodes to get to state - enroll
+    documentation: >-
+      Monitors node state transition to 'enroll' status, indicating that Ironic
+      has successfully registered the nodes and validated basic BMC connectivity.
+      This is the first state in the baremetal provisioning lifecycle, confirming
+      that nodes are recognized by the system before management operations begin.
+    shell: |
+      oc project openstack
+
+      counter=0
+      max_retries=100
+      node_state=enroll
+      until ! oc rsh openstackclient openstack baremetal node list -f value -c "Provisioning State" | grep -P "^(?!${node_state}).*$"; do
+        ((counter++))
+        if (( counter > max_retries )); then
+          echo "ERROR: Timeout. Nodes did not reach state: enroll"
+          exit 1
+        fi
+        echo "Waiting for nodes to reach state enroll"
+        sleep 10
+      done
+
+  - name: Manage ironic nodes
+    documentation: >-
+      Initiates the transition from 'enroll' to 'manageable' state by instructing
+      Ironic to perform hardware introspection and validation. During this process,
+      Ironic will power on nodes, inspect hardware capabilities, and prepare them
+      for provisioning operations while validating BMC access and power management.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack baremetal node manage ironic0
+
+  - name: Wait for ironic nodes to get to state - manageable
+    documentation: >-
+      Waits for nodes to complete hardware introspection and reach 'manageable' state.
+      In this state, Ironic has successfully inventoried hardware resources, validated
+      BMC functionality, and confirmed the nodes are ready for cleaning and provisioning
+      operations. This is a prerequisite for making nodes available to tenants.
+    shell: |
+      oc project openstack
+
+      counter=0
+      max_retries=100
+      node_state=manageable
+      until ! oc rsh openstackclient openstack baremetal node list -f value -c "Provisioning State" | grep -P "^(?!${node_state}).*$"; do
+        ((counter++))
+        if (( counter > max_retries )); then
+          echo "ERROR: Timeout. Nodes did not reach state: manageable"
+          exit 1
+        fi
+        echo "Waiting for nodes to reach state manageable"
+        sleep 10
+      done
+
+  - name: Power off the ironic nodes
+    documentation: >-
+      Ensures all baremetal nodes are powered down before configuration changes.
+      This prevents potential issues during capability updates and ensures a clean
+      state before transitioning nodes to 'available'. Power management validation
+      also confirms BMC functionality is working correctly.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack baremetal node power off ironic0
+
+  - name: Ensure ironic nodes are powered off
+    documentation: >-
+      Verifies that power management commands have taken effect and all nodes
+      report 'power off' status. This confirmation is critical before transitioning
+      to 'available' state, as Nova expects baremetal nodes to be powered off
+      when not actively hosting instances.
+    shell: |
+      oc project openstack
+
+      counter=0
+      max_retries=100
+      power_state="off"
+      until ! oc rsh openstackclient openstack baremetal node list -f value -c "Power State" | grep -P "^power.(?!${power_state}).*$"; do
+        ((counter++))
+        if (( counter > max_retries )); then
+          echo "ERROR: Timeout. Nodes did not reach power state: power off"
+          exit 1
+        fi
+        echo "Waiting for nodes to reach power state off"
+        sleep 10
+      done
+
+  - name: Provide ironic nodes
+    documentation: >-
+      Transitions nodes from 'manageable' to 'available' state, making them eligible
+      for tenant provisioning. This triggers automated cleaning processes to ensure
+      nodes are in a pristine state, removing any residual data from previous
+      deployments and preparing them for new instance launches.
+    shell: |
+      set -xe -o pipefail
+      oc project openstack
+
+      oc rsh openstackclient openstack baremetal node provide ironic0
+
+  - name: Wait for ironic nodes to get to state - available
+    documentation: >-
+      Confirms nodes have completed the cleaning process and reached 'available' state.
+      Available nodes appear in Nova's resource inventory and can be allocated to
+      instance requests that match the baremetal flavor. This state indicates the
+      baremetal infrastructure is fully operational and ready for workload deployment.
+    shell: |
+      oc project openstack
+
+      counter=0
+      max_retries=100
+      node_state=available
+      while true; do
+        node_states=$(oc rsh openstackclient openstack baremetal node list -f value -c "Provisioning State")
+
+        # Check if all nodes are in available state
+        if ! echo "$node_states" | grep -P "^(?!${node_state}).*$" > /dev/null; then
+          echo "All nodes have reached state: ${node_state}"
+          break
+        fi
+
+        # Check for failed states and exit immediately if found
+        if echo "$node_states" | grep -q "failed"; then
+          echo "ERROR: One or more nodes are in a failed state:"
+          oc rsh openstackclient openstack baremetal node list
+          exit 1
+        fi
+
+        ((counter++))
+        if (( counter > max_retries )); then
+          echo "ERROR: Timeout. Nodes did not reach state: available"
+          exit 1
+        fi
+
+        echo "Waiting for nodes to reach state: available"
+        sleep 10
+      done
+
+  - name: Wait for expected compute services (OSPRH-10942)
+    documentation: >-
+      Waits for Nova compute services to register and become available in the
+      Nova service registry. The hotstack-nova-discover-hosts utility ensures
+      that Ironic conductor services are properly registered as compute nodes,
+      enabling Nova scheduler to place baremetal instances. References bug
+      OSPRH-10942 related to compute service discovery timing issues.
+    wait_conditions:
+      - >-
+        timeout --foreground 5m hotstack-nova-discover-hosts
+        --namespace openstack --num-computes 1
+
+  - name: Run tempest
+    documentation: >-
+      Executes comprehensive OpenStack validation tests using the Tempest framework.
+      These tests validate API functionality, resource management, and integration
+      between OpenStack services in the baremetal environment. Includes both the
+      test execution phase (workflowStep=0) and log collection phase (workflowStep=1)
+      to ensure complete validation results are captured for analysis.
+    manifest: tempest-tests.yml
+    wait_conditions:
+      - >-
+        oc wait -n openstack tempests.test.openstack.org tempest-tests
+        --for condition=ServiceConfigReady --timeout=120s
+    wait_pod_completion:
+      - namespace: openstack
+        labels:
+          operator: test-operator
+          service: tempest
+          workflowStep: "0"
+        timeout: 900
+        poll_interval: 15
+      - namespace: openstack
+        labels:
+          operator: test-operator
+          service: tempest
+          workflowStep: "1"
+        timeout: 900
+        poll_interval: 15

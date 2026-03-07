@@ -1,0 +1,57 @@
+---
+os_cloud: default
+os_floating_network: public
+os_router_external_network: public
+
+scenario: sno-1-bm
+scenario_dir: scenarios
+stack_template_path: "{{ scenario_dir }}/{{ scenario }}/heat_template_ipxe.yaml"
+automation_vars_file: "{{ scenario_dir }}/{{ scenario }}/automation-vars.yml"
+test_operator_automation_vars_file: "{{ scenario_dir }}/{{ scenario }}/test-operator/automation-vars.yml"
+
+openstack_operators_image: quay.io/openstack-k8s-operators/openstack-operator-index:latest
+openstack_operator_channel: alpha
+openstack_operator_starting_csv: null
+
+openshift_version: stable-4.18
+
+ntp_servers: []
+dns_servers:
+  - 172.31.0.129
+
+pull_secret_file: ~/pull-secret.txt
+
+ovn_k8s_gateway_config_host_routing: true
+enable_iscsi: true
+enable_multipath: true
+
+cinder_volume_pvs:
+  - /dev/vdc
+  - /dev/vdd
+  - /dev/vde
+
+# Nova console recorder NFS settings
+nova_console_recorder_nfs_server: controller-0.openstack.lab
+nova_console_recorder_nfs_path: /export/nova-console-recordings
+
+stack_name: "hs-{{ scenario }}-{{ zuul.build[:8] | default('no-zuul') }}"
+stack_parameters:
+  # On misconfigured clouds, uncomment these to avoid issues.
+  # Ref: https://access.redhat.com/solutions/7059376
+  # net_value_specs:
+  #   mtu: 1442
+  dns_servers: "{{ dns_servers }}"
+  ntp_servers: "{{ ntp_servers }}"
+  controller_ssh_pub_key: "{{ controller_ssh_pub_key | default('') }}"
+  router_external_network: "{{ os_router_external_network | default('public') }}"
+  floating_ip_network: "{{ os_floating_network | default('public') }}"
+  controller_params:
+    image: hotstack-controller
+    flavor: hotstack.small
+  ocp_master_params:
+    image: ipxe-boot-usb
+    flavor: hotstack.xxlarge
+  ironic_params:
+    image: CentOS-Stream-GenericCloud-9
+    cd_image: sushy-tools-blank-image
+    flavor: hotstack.medium

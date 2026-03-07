@@ -1,0 +1,27 @@
+- job:
+    name: hotstack-sno-1-bm
+    parent: base-hotstack-vexxhost
+    description: |
+      Hotstack scenario: sno-1-bm
+    timeout: 5400
+    attempts: 1
+    required-projects:
+      - openstack-k8s-operators/hotstack
+      - openstack-k8s-operators/ci-framework
+    dependencies:
+      - openstack-k8s-operators-content-provider
+    vars:
+      scenario: sno-1-bm
+      scenario_dir: >-
+        {{ 
+          [ansible_user_dir, zuul.project.src_dir, 'ci', 'scenarios']
+          | ansible.builtin.path_join
+        }}
+      openstack_operators_image: >-
+        {{
+          cifmw_operator_build_output.operators['openstack-operator'].image_catalog
+          if (cifmw_operator_build_output is defined and
+              cifmw_operator_build_output.operators is defined and
+              'openstack-operator' in cifmw_operator_build_output.operators)
+          else 'quay.io/openstack-k8s-operators/openstack-operator-index:latest'
+        }}
