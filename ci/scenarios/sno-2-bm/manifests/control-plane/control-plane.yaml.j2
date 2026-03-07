@@ -1,0 +1,484 @@
+{% raw %}
+---
+apiVersion: v1
+data:
+  server-ca-passphrase: MTIzNDU2Nzg=
+kind: Secret
+metadata:
+  name: octavia-ca-passphrase
+  namespace: openstack
+type: Opaque
+---
+apiVersion: v1
+data:
+  AdminPassword: MTIzNDU2Nzg=
+  AodhDatabasePassword: MTIzNDU2Nzg=
+  AodhPassword: MTIzNDU2Nzg=
+  BarbicanDatabasePassword: MTIzNDU2Nzg=
+  BarbicanPassword: MTIzNDU2Nzg=
+  BarbicanSimpleCryptoKEK: r0wDZ1zrD5upafX9RDfYqvDkW2LENBWH7Gz9+Tr3NdM=
+  CeilometerPassword: MTIzNDU2Nzg=
+  CinderDatabasePassword: MTIzNDU2Nzg=
+  CinderPassword: MTIzNDU2Nzg=
+  DatabasePassword: MTIzNDU2Nzg=
+  DbRootPassword: MTIzNDU2Nzg=
+  DesignateDatabasePassword: MTIzNDU2Nzg=
+  DesignatePassword: MTIzNDU2Nzg=
+  GlanceDatabasePassword: MTIzNDU2Nzg=
+  GlancePassword: MTIzNDU2Nzg=
+  HeatAuthEncryptionKey: NzY3YzNlZDA1NmNiYWEzYjlkZmVkYjhjNmY4MjViZjA=
+  HeatDatabasePassword: MTIzNDU2Nzg=
+  HeatPassword: MTIzNDU2Nzg=
+  IronicDatabasePassword: MTIzNDU2Nzg=
+  IronicInspectorDatabasePassword: MTIzNDU2Nzg=
+  IronicInspectorPassword: MTIzNDU2Nzg=
+  IronicPassword: MTIzNDU2Nzg=
+  KeystoneDatabasePassword: MTIzNDU2Nzg=
+  ManilaDatabasePassword: MTIzNDU2Nzg=
+  ManilaPassword: MTIzNDU2Nzg=
+  MetadataSecret: MTIzNDU2Nzg0Mg==
+  NeutronDatabasePassword: MTIzNDU2Nzg=
+  NeutronPassword: MTIzNDU2Nzg=
+  NovaAPIDatabasePassword: MTIzNDU2Nzg=
+  NovaCell0DatabasePassword: MTIzNDU2Nzg=
+  NovaCell1DatabasePassword: MTIzNDU2Nzg=
+  NovaPassword: MTIzNDU2Nzg=
+  OctaviaDatabasePassword: MTIzNDU2Nzg=
+  OctaviaHeartbeatKey: MTIzNDU2Nzg=
+  OctaviaPassword: MTIzNDU2Nzg=
+  PlacementDatabasePassword: MTIzNDU2Nzg=
+  PlacementPassword: MTIzNDU2Nzg=
+  SwiftPassword: MTIzNDU2Nzg=
+kind: Secret
+metadata:
+  name: osp-secret
+  namespace: openstack
+type: Opaque
+---
+apiVersion: core.openstack.org/v1beta1
+kind: OpenStackControlPlane
+metadata:
+  name: controlplane
+  namespace: openstack
+spec:
+  barbican:
+    enabled: false
+  ceilometer:
+    enabled: false
+  cinder:
+    apiOverride:
+      route:
+        haproxy.router.openshift.io/timeout: 60s
+    template:
+      cinderAPI:
+        override:
+          service:
+            internal:
+              metadata:
+                annotations:
+                  metallb.universe.tf/address-pool: internalapi
+                  metallb.universe.tf/allow-shared-ip: internalapi
+                  metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+              spec:
+                type: LoadBalancer
+        replicas: 1
+      cinderBackup:
+        customServiceConfig: |
+          [DEFAULT]
+          backup_driver = cinder.backup.drivers.swift.SwiftBackupDriver
+        networkAttachments:
+        - storage
+        replicas: 1
+      cinderScheduler:
+        replicas: 1
+      cinderVolumes:
+        lvm-iscsi:
+          customServiceConfig: |
+            [lvm]
+            image_volume_cache_enabled = false
+            volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+            volume_group = cinder-volumes
+            target_protocol = iscsi
+            target_helper = lioadm
+            volume_backend_name = lvm_iscsi
+            target_ip_address=172.18.0.10
+            target_secondary_ip_addresses = 172.19.0.10
+          nodeSelector:
+            openstack.org/cinder-lvm: ""
+          replicas: 1
+      customServiceConfig: |
+        # Debug logs by default, jobs can override as needed.
+        [DEFAULT]
+        debug = true
+      databaseInstance: openstack
+      preserveJobs: false
+      secret: osp-secret
+    uniquePodNames: true
+  designate:
+    enabled: false
+  dns:
+    template:
+      options:
+      - key: server
+        values:
+        - 192.168.32.254
+      override:
+        service:
+          metadata:
+            annotations:
+              metallb.universe.tf/address-pool: ctlplane
+              metallb.universe.tf/allow-shared-ip: ctlplane
+              metallb.universe.tf/loadBalancerIPs: 192.168.122.80
+          spec:
+            type: LoadBalancer
+      replicas: 1
+  galera:
+    enabled: true
+    templates:
+      openstack:
+        replicas: 1
+        secret: osp-secret
+        storageRequest: 5G
+      openstack-cell1:
+        replicas: 1
+        secret: osp-secret
+        storageRequest: 5G
+  glance:
+    apiOverrides:
+      default:
+        route:
+          haproxy.router.openshift.io/timeout: 60s
+    template:
+      customServiceConfig: |
+        [DEFAULT]
+        debug = True
+        enabled_backends = default_backend:swift
+
+        [glance_store]
+        default_backend = default_backend
+
+        [default_backend]
+        swift_store_create_container_on_put = True
+        swift_store_auth_version = 3
+        swift_store_auth_address = {{ .KeystoneInternalURL }}
+        swift_store_endpoint_type = internalURL
+        swift_store_user = service:glance
+        swift_store_key = {{ .ServicePassword }}
+      databaseInstance: openstack
+      glanceAPIs:
+        default:
+          networkAttachments:
+          - storage
+          override:
+            service:
+              internal:
+                metadata:
+                  annotations:
+                    metallb.universe.tf/address-pool: internalapi
+                    metallb.universe.tf/allow-shared-ip: internalapi
+                    metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+                spec:
+                  type: LoadBalancer
+          replicas: 1
+      preserveJobs: false
+      storage:
+        storageClass: lvms-local-storage
+        storageRequest: 10G
+    uniquePodNames: true
+  heat:
+    enabled: false
+  horizon:
+    enabled: false
+  ironic:
+    enabled: true
+    template:
+      databaseInstance: openstack
+      ironicAPI:
+        override:
+          service:
+            internal:
+              metadata:
+                annotations:
+                  metallb.universe.tf/address-pool: ironic
+                  metallb.universe.tf/allow-shared-ip: ironic
+                  metallb.universe.tf/loadBalancerIPs: 172.20.1.80
+              spec:
+                type: LoadBalancer
+        replicas: 1
+      ironicConductors:
+      - customServiceConfig: |
+          [conductor]
+          power_state_change_timeout = 120
+
+          [pxe]
+          kernel_append_params = console=ttyS0 ipa-debug=1
+
+          [redfish]
+          kernel_append_params = console=ttyS0 ipa-debug=1
+
+          [neutron]
+          cleaning_network = provisioning
+          provisioning_network = provisioning
+          rescuing_network = provisioning
+          inspection_network = provisioning
+        networkAttachments:
+        - ironic
+        provisionNetwork: ironic
+        replicas: 1
+        storageRequest: 10G
+      ironicInspector:
+        customServiceConfig: |
+          [capabilities]
+          boot_mode = true
+
+          [processing]
+          update_pxe_enabled = false
+        inspectionNetwork: ironic
+        networkAttachments:
+        - ironic
+        override:
+          service:
+            internal:
+              metadata:
+                annotations:
+                  metallb.universe.tf/address-pool: ironic
+                  metallb.universe.tf/allow-shared-ip: ironic
+                  metallb.universe.tf/loadBalancerIPs: 172.20.1.80
+              spec:
+                type: LoadBalancer
+        preserveJobs: false
+        replicas: 1
+      ironicNeutronAgent:
+        replicas: 1
+      preserveJobs: false
+      rpcTransport: oslo
+      secret: osp-secret
+  keystone:
+    apiOverride:
+      route: {}
+    template:
+      databaseInstance: openstack
+      override:
+        service:
+          internal:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/allow-shared-ip: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+            spec:
+              type: LoadBalancer
+      preserveJobs: false
+      replicas: 1
+      secret: osp-secret
+  manila:
+    enabled: false
+  memcached:
+    templates:
+      memcached:
+        replicas: 1
+  neutron:
+    apiOverride:
+      route: {}
+    template:
+      customServiceConfig: |
+        [DEFAULT]
+        vlan_transparent = true
+        agent_down_time = 600
+        router_distributed = true
+        router_scheduler_driver = neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+        allow_automatic_l3agent_failover = true
+        debug = true
+
+        [agent]
+        report_interval = 300
+
+        [database]
+        max_retries = -1
+        db_max_retries = -1
+
+        [keystone_authtoken]
+        region_name = regionOne
+        memcache_use_advanced_pool = True
+
+        [oslo_messaging_notifications]
+        driver = noop
+
+        [oslo_middleware]
+        enable_proxy_headers_parsing = true
+
+        [oslo_policy]
+        policy_file = /etc/neutron/policy.yaml
+
+        [ovs]
+        igmp_snooping_enable = true
+
+        [ovn]
+        ovsdb_probe_interval = 60000
+        ovn_emit_need_to_frag = true
+
+        [ml2]
+{% endraw %}
+        global_physnet_mtu = {{ stack_outputs.network_mtu.ctlplane }}
+        path_mtu = {{ stack_outputs.network_mtu.tenant }}
+{% raw %}
+        type_drivers = geneve,vxlan,vlan,flat,local
+        tenant_network_types = geneve,flat
+      ml2MechanismDrivers:
+      - ovn
+      - baremetal
+      databaseInstance: openstack
+      networkAttachments:
+      - internalapi
+      override:
+        service:
+          internal:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/allow-shared-ip: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+            spec:
+              type: LoadBalancer
+      preserveJobs: false
+      replicas: 1
+      secret: osp-secret
+  nova:
+    apiOverride:
+      route: {}
+    template:
+      apiServiceTemplate:
+        override:
+          service:
+            internal:
+              metadata:
+                annotations:
+                  metallb.universe.tf/address-pool: internalapi
+                  metallb.universe.tf/allow-shared-ip: internalapi
+                  metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+              spec:
+                type: LoadBalancer
+        replicas: 1
+      cellTemplates:
+        cell0:
+          cellDatabaseAccount: nova-cell0
+          cellDatabaseInstance: openstack
+          cellMessageBusInstance: rabbitmq
+          hasAPIAccess: true
+        cell1:
+          cellDatabaseAccount: nova-cell1
+          cellDatabaseInstance: openstack-cell1
+          cellMessageBusInstance: rabbitmq-cell1
+          hasAPIAccess: true
+          novaComputeTemplates:
+            compute-ironic:
+              computeDriver: ironic.IronicDriver
+      metadataServiceTemplate:
+        override:
+          service:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/allow-shared-ip: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+            spec:
+              type: LoadBalancer
+        replicas: 1
+      preserveJobs: false
+      schedulerServiceTemplate:
+        replicas: 1
+      secret: osp-secret
+  octavia:
+    enabled: false
+  ovn:
+    template:
+      ovnController:
+        networkAttachment: tenant
+        nicMappings:
+          datacentre: ocpbr
+          ironic: ironic
+      ovnDBCluster:
+        ovndbcluster-nb:
+          dbType: NB
+          networkAttachment: internalapi
+          replicas: 1
+          storageRequest: 10G
+        ovndbcluster-sb:
+          dbType: SB
+          networkAttachment: internalapi
+          replicas: 1
+          storageRequest: 10G
+      ovnNorthd:
+        logLevel: info
+        nThreads: 1
+        replicas: 1
+        resources: {}
+        tls: {}
+  placement:
+    apiOverride:
+      route: {}
+    template:
+      databaseInstance: openstack
+      override:
+        service:
+          internal:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/allow-shared-ip: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+            spec:
+              type: LoadBalancer
+      preserveJobs: false
+      replicas: 1
+      secret: osp-secret
+  rabbitmq:
+    templates:
+      rabbitmq:
+        override:
+          service:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.85
+            spec:
+              type: LoadBalancer
+        replicas: 1
+      rabbitmq-cell1:
+        override:
+          service:
+            metadata:
+              annotations:
+                metallb.universe.tf/address-pool: internalapi
+                metallb.universe.tf/loadBalancerIPs: 172.17.0.86
+            spec:
+              type: LoadBalancer
+        replicas: 1
+  secret: osp-secret
+  storageClass: lvms-local-storage
+  notificationsBus:
+    cluster: rabbitmq
+  swift:
+    enabled: true
+    proxyOverride:
+      route: {}
+    template:
+      swiftProxy:
+        override:
+          service:
+            internal:
+              metadata:
+                annotations:
+                  metallb.universe.tf/address-pool: internalapi
+                  metallb.universe.tf/allow-shared-ip: internalapi
+                  metallb.universe.tf/loadBalancerIPs: 172.17.0.80
+              spec:
+                type: LoadBalancer
+        replicas: 1
+      swiftRing:
+        ringReplicas: 1
+      swiftStorage:
+        replicas: 1
+  telemetry:
+    enabled: false
+{% endraw %}
