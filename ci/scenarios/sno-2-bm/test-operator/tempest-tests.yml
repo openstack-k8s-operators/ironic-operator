@@ -1,0 +1,92 @@
+---
+apiVersion: test.openstack.org/v1beta1
+kind: Tempest
+metadata:
+  name: tempest-tests
+  namespace: openstack
+spec:
+  networkAttachments:
+    - ctlplane
+  privileged: true
+  workflow:
+    - stepName: ironic-scenario-testing
+      storageClass: lvms-local-storage
+      tempestconfRun:
+        create: true
+        overrides: |
+          auth.create_isolated_networks false
+          baremetal.available_nodes 2
+          baremetal.max_microversion 1.82
+          compute-feature-enabled.disk_config false
+          compute-feature-enabled.interface_attach false
+          compute.fixed_network_name provisioning
+          compute.flavor_ref 123456789-1234-1234-1234-000000000001
+          compute.hypervisor_type ironic
+          compute.build_timeout 900
+          network.shared_physical_network true
+          service_available.ironic_inspector false
+          service_available.ironic true
+          service_available.murano false
+          validation.connect_method fixed
+          validation.network_for_ssh provisioning
+      tempestRun:
+        concurrency: 4
+        includeList: |
+          ^ironic_tempest_plugin.tests.scenario.test_baremetal_basic_ops.*
+        excludeList: |
+          ^ironic_tempest_plugin.tests.scenario.test_baremetal_basic_ops.BaremetalBasicOps.test_baremetal_server_ops_partition_image
+
+    - stepName: ironic-api-testing
+      storageClass: lvms-local-storage
+      tempestconfRun:
+        create: true
+        overrides: |
+          baremetal.driver fake-hardware
+          baremetal.max_microversion 1.82
+          service_available.ironic_inspector true
+          service_available.ironic true
+          service_available.murano false
+      tempestRun:
+        concurrency: 8
+        includeList: |
+          ^ironic_tempest_plugin.tests.api.*
+        excludeList: |
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_allocation_candidate_node
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_allocation_node_mismatch
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_allocation_resource_class_mismatch
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_allocation_traits_mismatch
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_allocation_with_traits
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_create_show_allocation
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_delete_allocation
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_delete_allocation_by_name
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_list_allocations
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_list_allocations_by_state
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestAllocations.test_show_by_name
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestBackfill.test_backfill_allocation
+          ^ironic_tempest_plugin.tests.api.admin.test_allocations.TestBackfill.test_backfill_without_resource_class
+          ^ironic_tempest_plugin.tests.api.admin.test_nodestates.TestNodeStatesV1_11.test_set_node_provision_state
+          ^ironic_tempest_plugin.tests.api.admin.test_nodestates.TestNodeStatesV1_1.test_set_node_provision_state
+          ^ironic_tempest_plugin.tests.api.admin.test_nodestates.TestNodeStatesV1_2.test_set_node_provision_state
+          ^ironic_tempest_plugin.tests.api.admin.test_nodestates.TestNodeStatesV1_4.test_set_node_provision_state
+          ^ironic_tempest_plugin.tests.api.admin.test_nodestates.TestNodeStatesV1_6.test_set_node_provision_state
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestHardwareInterfaces.test_reset_interfaces
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodeProtected.test_node_protected
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodeProtected.test_node_protected_from_deletion
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodeProtected.test_node_protected_negative
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodeProtected.test_node_protected_set_unset
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesProtectedOldApi.test_node_protected_old_api
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_already_attached_on_internal_info
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_already_attached_with_portgroups
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_already_set
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_attach_no_args
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_attach_no_free_port
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_attach_no_port
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_attach_port_not_in_portgroup
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_attach_with_empty_portgroup
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_detach_not_existing
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_on_port
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestNodesVif.test_vif_on_portgroup
+          ^ironic_tempest_plugin.tests.api.admin.test_nodes.TestResetInterfaces.test_reset_interfaces
+          ^ironic_tempest_plugin.tests.api.rbac_defaults.test_nodes.TestNodeProjectReader.test_reader_cannot_update_owner_provisioned
+          ^ironic_tempest_plugin.tests.api.rbac_defaults.test_nodes.TestNodeSystemReader.test_reader_cannot_update_owner_provisioned
+          ^ironic_tempest_plugin.tests.api.rbac_defaults.test_nodes.TestNodeSystemReader.*
