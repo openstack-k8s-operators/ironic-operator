@@ -8,3 +8,4 @@
         - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
+        - hotstack-sno-1-bm
