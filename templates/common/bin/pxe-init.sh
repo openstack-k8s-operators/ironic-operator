@@ -15,6 +15,10 @@
 # under the License.
 set -ex
 
+# Copy pre-populated boot assets from container image if they exist
+if [ -d "/usr/share/ironic-operator/var-lib-ironic" ]; then
+    cp -a /usr/share/ironic-operator/var-lib-ironic/. /var/lib/ironic/
+fi
 
 # Create TFTP, HTTP serving directories
 if [ ! -d "/var/lib/ironic/tftpboot/pxelinux.cfg" ]; then
@@ -35,17 +39,26 @@ fi
 
 # Copy iPXE and grub files to tftpboot, httpboot
 for dir in httpboot tftpboot; do
-    cp /usr/share/ipxe/ipxe-snponly-x86_64.efi /var/lib/ironic/$dir/snponly.efi
-    cp /usr/share/ipxe/undionly.kpxe           /var/lib/ironic/$dir/undionly.kpxe
-    # ipxe.lkrn is not packaged in RHEL 10
-    if [ -f "/usr/share/ipxe/ipxe.lkrn" ]; then
-        cp /usr/share/ipxe/ipxe.lkrn           /var/lib/ironic/$dir/ipxe.lkrn
+    if [ ! -e "/var/lib/ironic/$dir/snponly.efi" ]; then
+        cp /usr/share/ipxe/ipxe-snponly-x86_64.efi /var/lib/ironic/$dir/snponly.efi
     fi
-    cp /boot/efi/EFI/$efi_dir/shimx64.efi      /var/lib/ironic/$dir/bootx64.efi
-    cp /boot/efi/EFI/$efi_dir/grubx64.efi      /var/lib/ironic/$dir/grubx64.efi
-    # Ensure all files are readable
-    chmod -R +r /var/lib/ironic/$dir
+    if [ ! -e "/var/lib/ironic/$dir/undionly.kpxe" ]; then
+        cp /usr/share/ipxe/undionly.kpxe /var/lib/ironic/$dir/undionly.kpxe
+    fi
+    # ipxe.lkrn is not packaged in RHEL 10
+    if [ -f "/usr/share/ipxe/ipxe.lkrn" ] && [ ! -e "/var/lib/ironic/$dir/ipxe.lkrn" ]; then
+        cp /usr/share/ipxe/ipxe.lkrn /var/lib/ironic/$dir/ipxe.lkrn
+    fi
+    if [ ! -e "/var/lib/ironic/$dir/bootx64.efi" ]; then
+        cp /boot/efi/EFI/$efi_dir/shimx64.efi /var/lib/ironic/$dir/bootx64.efi
+    fi
+    if [ ! -e "/var/lib/ironic/$dir/grubx64.efi" ]; then
+        cp /boot/efi/EFI/$efi_dir/grubx64.efi /var/lib/ironic/$dir/grubx64.efi
+    fi
 done
+
+# Ensure all boot assets are readable
+chmod -R +r /var/lib/ironic/httpboot /var/lib/ironic/tftpboot
 
 # Patch ironic-python-agent with custom CA certificates
 if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/ironic-python-agent.initramfs" ]; then
@@ -69,16 +82,18 @@ fi
 
 # Build an ESP image
 pushd /var/lib/ironic/httpboot
-if ! command -v dd || ! command -v mkfs.msdos || ! command -v mmd; then
-    echo "WARNING: esp.img will not be created because dd/mkfs.msdos/mmd are missing. Please patch the OpenstackVersion to update container images."
-elif [ ! -a "esp.img" ]; then
-    dd if=/dev/zero of=esp.img bs=4096 count=2048
-    mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
+if [ ! -a "esp.img" ]; then
+    if ! command -v dd || ! command -v mkfs.msdos || ! command -v mmd; then
+        echo "WARNING: esp.img will not be created because dd/mkfs.msdos/mmd are missing. Please patch the OpenstackVersion to update container images."
+    else
+        dd if=/dev/zero of=esp.img bs=4096 count=2048
+        mkfs.msdos -F 12 -n 'ESP_IMAGE' esp.img
 
-    mmd -i esp.img EFI
-    mmd -i esp.img EFI/BOOT
-    mcopy -i esp.img -v bootx64.efi ::EFI/BOOT
-    mcopy -i esp.img -v grubx64.efi ::EFI/BOOT
-    mdir -i esp.img ::EFI/BOOT;
+        mmd -i esp.img EFI
+        mmd -i esp.img EFI/BOOT
+        mcopy -i esp.img -v bootx64.efi ::EFI/BOOT
+        mcopy -i esp.img -v grubx64.efi ::EFI/BOOT
+        mdir -i esp.img ::EFI/BOOT;
+    fi
 fi
 popd
