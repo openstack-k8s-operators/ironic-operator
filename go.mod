@@ -12,9 +12,9 @@ require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260316100655-863ae03d41af
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260321081256-de45f3b1de4f
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260324115114-e3be8a47a45e
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260324115114-e3be8a47a45e
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260321081546-85bcf5293c70
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260326092926-8a2950f0575b
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260326092926-8a2950f0575b
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260327144052-b45ad8868913
 	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.14
