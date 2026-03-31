@@ -476,6 +476,7 @@ func (r *IronicConductorReconciler) reconcileServices(
 			}
 		}
 		if instance.Spec.GraphicalConsoles == "Enabled" {
+
 			//
 			// Create the conductor pod route to enable traffic to the
 			// novnc service, which graphical consoles are enabled
@@ -549,6 +550,36 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			return ctrlResult, nil
+		}
+	}
+
+	// Roles and binding for existing service account for graphical consoles
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		// TODO: (stevebaker) Uncomment this when the role.yaml
+		// rule which allows namespace operations is applied.
+		// Until then, proceed as if the namespace has been created.
+		// //
+		// // Create the console namespace for graphical console pods
+		// //
+		// err := ensureConsoleNamespace(ctx, helper, instance.Namespace)
+		// if err != nil {
+		// 	return ctrl.Result{}, err
+		// }
+
+		consoleNamespace := getConsoleNamespaceName(instance.Namespace)
+		serviceAccountName := instance.RbacResourceName()
+		gcRbacResult, err := reconcileGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance,
+			serviceAccountName,
+			consoleNamespace,
+			getGraphicalConsoleRbacRules(),
+		)
+		if err != nil {
+			return gcRbacResult, err
+		} else if (gcRbacResult != ctrl.Result{}) {
+			return gcRbacResult, nil
 		}
 	}
 
@@ -1011,6 +1042,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["LogPath"] = ironicconductor.LogPath
 	graphicalConsolesEnabled := instance.Spec.GraphicalConsoles == "Enabled"
 	templateParameters["GraphicalConsolesEnabled"] = graphicalConsolesEnabled
+	templateParameters["ConsoleNamespace"] = getConsoleNamespaceName(instance.Namespace)
 	if graphicalConsolesEnabled {
 		templateParameters["ConsoleImage"] = instance.Spec.ConsoleImage
 	}
@@ -1059,6 +1091,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 				"01-novnc.conf":                    "/ironicconductor/config/01-novnc.conf",
 				"03-init-container-conductor.conf": "/ironicconductor/config/03-init-container-conductor.conf",
 				"dnsmasq.conf":                     "/common/config/dnsmasq.conf",
+				"ironic-console-pod.yaml.template": "/ironicconductor/config/ironic-console-pod.yaml.template",
 			},
 			Labels: cmLabels,
 		},
