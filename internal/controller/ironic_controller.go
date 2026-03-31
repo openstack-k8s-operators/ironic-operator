@@ -830,6 +830,9 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		Region:                  keystoneRegion,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 		Auth:                    instance.Spec.Auth,
+		GraphicalConsoles:       instance.Spec.GraphicalConsoles,
+		ConsoleImage:            instance.Spec.Images.GraphicalConsole,
+		NoVNCProxyImage:         instance.Spec.Images.NoVNCProxy,
 	}
 
 	if instance.Status.NotificationsURLSecret != nil {
