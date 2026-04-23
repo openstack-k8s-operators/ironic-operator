@@ -80,7 +80,8 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     rm -rf /initramfs
 fi
 
-# Build an ESP image
+# TODO: Remove the block below after confirming that the ESP image is prebuilt in the ironic-pxe container
+# Build an ESP image at runtime
 pushd /var/lib/ironic/httpboot
 if [ ! -a "esp.img" ]; then
     if ! command -v dd || ! command -v mkfs.msdos || ! command -v mmd; then
@@ -97,3 +98,90 @@ if [ ! -a "esp.img" ]; then
     fi
 fi
 popd
+
+# Configure HTTP deployment URL for boot assets (for conductor only)
+# Skip this section if called from inspector-pxe-init.sh (DeployHTTPURL not set for inspector)
+if [ -n "${DeployHTTPURL}" ]; then
+    # Calculate provision network IP if ProvisionNetwork is set
+    if [ -n "${ProvisionNetwork}" ]; then
+        export ProvisionNetworkIP=$(/usr/local/bin/container-scripts/get_net_ip ${ProvisionNetwork})
+    fi
+
+    # Configure HTTP deployment URL for boot assets
+    export DEPLOY_HTTP_URL=$(python3 -c '
+import os
+import ipaddress
+
+# Get the IP address
+ip_str = os.environ.get("ProvisionNetworkIP", "")
+
+# Check if it is an IPv6 address and format accordingly
+try:
+    ip = ipaddress.ip_address(ip_str)
+    if isinstance(ip, ipaddress.IPv6Address):
+        # For IPv6, we need to wrap the IP in brackets for URL formatting
+        formatted_env = dict(os.environ)
+        formatted_env["ProvisionNetworkIP"] = f"[{ip_str}]"
+        print(os.environ["DeployHTTPURL"] % formatted_env)
+    else:
+        # For IPv4, use as-is
+        print(os.environ["DeployHTTPURL"] % os.environ)
+except ValueError:
+    # If IP parsing fails, use as-is (fallback)
+    print(os.environ["DeployHTTPURL"] % os.environ)
+')
+
+    INIT_CONFIG="/var/lib/config-data/merged/03-init-container-conductor.conf"
+
+    crudini --set ${INIT_CONFIG} deploy http_url ${DEPLOY_HTTP_URL}
+    crudini --set ${INIT_CONFIG} conductor bootloader ${DEPLOY_HTTP_URL}esp.img
+    crudini --set ${INIT_CONFIG} conductor deploy_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+    crudini --set ${INIT_CONFIG} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+    crudini --set ${INIT_CONFIG} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
+    crudini --set ${INIT_CONFIG} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+fi
+
+# Validate boot file existence
+echo "Validating boot file existence..."
+
+# Check legacy (root-level) boot files
+HTTPBOOT_DIR="/var/lib/ironic/httpboot"
+MISSING_FILES=()
+
+for file in esp.img bootx64.efi undionly.kpxe snponly.efi; do
+    if [ ! -f "${HTTPBOOT_DIR}/${file}" ]; then
+        MISSING_FILES+=("${HTTPBOOT_DIR}/${file}")
+    fi
+done
+
+# Check x86_64 architecture-specific files if directory exists
+if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
+    echo "Detected x86_64 boot assets directory"
+    for file in esp.img bootx64.efi undionly.kpxe snponly.efi; do
+        if [ ! -f "${HTTPBOOT_DIR}/x86_64/${file}" ]; then
+            MISSING_FILES+=("${HTTPBOOT_DIR}/x86_64/${file}")
+        fi
+    done
+fi
+
+# Check aarch64 architecture-specific files if directory exists
+if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
+    echo "Detected aarch64 boot assets directory"
+    for file in esp.img bootaa64.efi snponly.efi; do
+        if [ ! -f "${HTTPBOOT_DIR}/aarch64/${file}" ]; then
+            MISSING_FILES+=("${HTTPBOOT_DIR}/aarch64/${file}")
+        fi
+    done
+fi
+
+# Fail fast if any required files are missing
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "ERROR: Missing required boot files:"
+    for missing in "${MISSING_FILES[@]}"; do
+        echo "  - ${missing}"
+    done
+    echo "Boot asset initialization failed. Please ensure the ironic-pxe container image contains all required files."
+    exit 1
+fi
+
+echo "All required boot files validated successfully"
