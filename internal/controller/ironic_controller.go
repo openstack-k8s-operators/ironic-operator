@@ -285,6 +285,28 @@ func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironic
 		}
 	}
 
+	// Remove consumer finalizer from AC secrets ironic was consuming.
+	for _, secretName := range []string{
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+	} {
+		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+			secretName, ironic.ACConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Remove consumer finalizer from AC secrets ironic-inspector was consuming.
+	for _, secretName := range []string{
+		instance.Status.InspectorApplicationCredentialSecret,
+		instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret,
+	} {
+		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+			secretName, ironic.InspectorACConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	Log.Info("Reconciled Ironic delete successfully")
@@ -485,6 +507,40 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		return ctrl.Result{}, nil
 	}
 	// Create ConfigMaps and Secrets - end
+
+	// Manage consumer finalizer for ironic AC secret
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" || instance.Status.ApplicationCredentialSecret != "" {
+		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
+			instance.Spec.Auth.ApplicationCredentialSecret,
+			instance.Status.ApplicationCredentialSecret,
+			ironic.ACConsumerFinalizer); err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ServiceConfigReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+	instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+
+	// Manage consumer finalizer for ironic-inspector AC secret
+	if instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret != "" || instance.Status.InspectorApplicationCredentialSecret != "" {
+		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
+			instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret,
+			instance.Status.InspectorApplicationCredentialSecret,
+			ironic.InspectorACConsumerFinalizer); err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ServiceConfigReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+	instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
