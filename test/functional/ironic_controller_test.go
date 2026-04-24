@@ -30,6 +30,8 @@ import (
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
+	"github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
@@ -1630,6 +1632,201 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(conf).NotTo(ContainSubstring("username=ironic"))
 				g.Expect(conf).NotTo(ContainSubstring("project_name=service"))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("ApplicationCredential consumer finalizer is managed", func() {
+		var acIronicSecretName, acInspectorSecretName string
+
+		BeforeEach(func() {
+			acIronicSecretName = "ac-ironic-a1b2c3-secret"       //nolint:gosec // G101
+			acInspectorSecretName = "ac-inspector-d4e5f6-secret" //nolint:gosec // G101
+
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				infra.CreateTransportURLSecret(ironicNames.Namespace, MessageBusSecretName, false),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			acIronic := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ironicNames.Namespace,
+					Name:      acIronicSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("test-ironic-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-ironic-ac-secret"),
+				},
+			}
+			acInspector := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ironicNames.Namespace,
+					Name:      acInspectorSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("test-inspector-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("test-inspector-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, acIronic)
+			DeferCleanup(k8sClient.Delete, ctx, acInspector)
+			Expect(k8sClient.Create(ctx, acIronic)).To(Succeed())
+			Expect(k8sClient.Create(ctx, acInspector)).To(Succeed())
+
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["auth"] = map[string]any{
+				"applicationCredentialSecret": acIronicSecretName,
+			}
+			insp := GetDefaultIronicInspectorSpec()
+			insp["auth"] = map[string]any{
+				"applicationCredentialSecret": acInspectorSecretName,
+			}
+			spec["ironicInspector"] = insp
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("should add the consumer finalizer to the ironic AC secret", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acIronicSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should add the inspector consumer finalizer to the inspector AC secret", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acInspectorSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.InspectorACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should track the consumed AC secrets in status", func() {
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.ApplicationCredentialSecret).To(Equal(acIronicSecretName))
+				g.Expect(i.Status.InspectorApplicationCredentialSecret).To(Equal(acInspectorSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should move the finalizer from the old to the new secret on rotation", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acIronicSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			newACSecretName := "ac-ironic-rotated-x9y8z7-secret" //nolint:gosec // G101
+			newSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ironicNames.Namespace,
+					Name:      newACSecretName,
+				},
+				Data: map[string][]byte{
+					keystonev1.ACIDSecretKey:     []byte("rotated-ironic-ac-id"),
+					keystonev1.ACSecretSecretKey: []byte("rotated-ironic-ac-secret"),
+				},
+			}
+			DeferCleanup(k8sClient.Delete, ctx, newSecret)
+			Expect(k8sClient.Create(ctx, newSecret)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				i.Spec.Auth.ApplicationCredentialSecret = newACSecretName
+				g.Expect(k8sClient.Update(ctx, i)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      newACSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acIronicSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(ironic.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.ApplicationCredentialSecret).To(Equal(newACSecretName))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should remove the consumer finalizers from AC secrets on CR deletion", func() {
+			Eventually(func(g Gomega) {
+				ironicSec := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acIronicSecretName,
+				})
+				g.Expect(ironicSec.Finalizers).To(
+					ContainElement(ironic.ACConsumerFinalizer))
+				inspectorSec := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      acInspectorSecretName,
+				})
+				g.Expect(inspectorSec.Finalizers).To(
+					ContainElement(ironic.InspectorACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.DeleteInstance(GetIronic(ironicNames.IronicName))
+
+			ironicSec := th.GetSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      acIronicSecretName,
+			})
+			Expect(ironicSec.Finalizers).NotTo(
+				ContainElement(ironic.ACConsumerFinalizer))
+			inspectorSec := th.GetSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      acInspectorSecretName,
+			})
+			Expect(inspectorSec.Finalizers).NotTo(
+				ContainElement(ironic.InspectorACConsumerFinalizer))
 		})
 	})
 
