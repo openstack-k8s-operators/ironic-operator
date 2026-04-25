@@ -475,6 +475,49 @@ func (r *IronicConductorReconciler) reconcileServices(
 				}
 			}
 		}
+		if instance.Spec.GraphicalConsoles == "Enabled" {
+
+			//
+			// Create the conductor pod route to enable traffic to the
+			// novnc service, which graphical consoles are enabled
+			//
+			conductorRouteLabels := map[string]string{
+				common.AppSelector:            ironic.ServiceName,
+				common.ComponentSelector:      ironic.NoVNCComponent,
+				ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+			}
+			if instance.Spec.ConductorGroup != "" {
+				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
+			}
+
+			novncRoute := ironicconductor.RouteNoVNC(conductorPod.Name, instance, conductorRouteLabels)
+			err = controllerutil.SetOwnerReference(&conductorPod, novncRoute, helper.GetScheme())
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			err = r.Get(
+				ctx,
+				types.NamespacedName{
+					Name:      novncRoute.Name,
+					Namespace: novncRoute.Namespace,
+				},
+				novncRoute,
+			)
+			if err != nil && k8s_errors.IsNotFound(err) {
+				Log.Info(fmt.Sprintf("Route %s does not exist, creating it", novncRoute.Name))
+				err = r.Create(ctx, novncRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				Log.Info(fmt.Sprintf("Route %s exists, updating it", novncRoute.Name))
+				err = r.Update(ctx, novncRoute)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+
+		}
 	}
 
 	Log.Info("Reconciled Conductor Services successfully")
@@ -507,6 +550,36 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			return ctrlResult, nil
+		}
+	}
+
+	// Roles and binding for existing service account for graphical consoles
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		// TODO: (stevebaker) Uncomment this when the role.yaml
+		// rule which allows namespace operations is applied.
+		// Until then, proceed as if the namespace has been created.
+		// //
+		// // Create the console namespace for graphical console pods
+		// //
+		// err := ensureConsoleNamespace(ctx, helper, instance.Namespace)
+		// if err != nil {
+		// 	return ctrl.Result{}, err
+		// }
+
+		consoleNamespace := getConsoleNamespaceName(instance.Namespace)
+		serviceAccountName := instance.RbacResourceName()
+		gcRbacResult, err := reconcileGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance,
+			serviceAccountName,
+			consoleNamespace,
+			getGraphicalConsoleRbacRules(),
+		)
+		if err != nil {
+			return gcRbacResult, err
+		} else if (gcRbacResult != ctrl.Result{}) {
+			return gcRbacResult, nil
 		}
 	}
 
@@ -967,6 +1040,12 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["Standalone"] = instance.Spec.Standalone
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
+	graphicalConsolesEnabled := instance.Spec.GraphicalConsoles == "Enabled"
+	templateParameters["GraphicalConsolesEnabled"] = graphicalConsolesEnabled
+	templateParameters["ConsoleNamespace"] = getConsoleNamespaceName(instance.Namespace)
+	if graphicalConsolesEnabled {
+		templateParameters["ConsoleImage"] = instance.Spec.ConsoleImage
+	}
 
 	// Set GracefulShutdownTimeout for conductor pods
 	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
@@ -1009,8 +1088,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"ironic.conf":                      "/common/config/ironic.conf",
 				"01-conductor.conf":                "/ironicconductor/config/01-conductor.conf",
+				"01-novnc.conf":                    "/ironicconductor/config/01-novnc.conf",
 				"03-init-container-conductor.conf": "/ironicconductor/config/03-init-container-conductor.conf",
 				"dnsmasq.conf":                     "/common/config/dnsmasq.conf",
+				"ironic-console-pod.yaml.template": "/ironicconductor/config/ironic-console-pod.yaml.template",
 			},
 			Labels: cmLabels,
 		},
