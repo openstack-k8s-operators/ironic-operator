@@ -3,8 +3,9 @@
     name: openstack-k8s-operators/ironic-operator
     templates:
       - podified-ironic-operator-pipeline
-    github-check:
+    github-experimental-trigger:
       jobs:
         - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
+        - hotstack-sno-2-bm
