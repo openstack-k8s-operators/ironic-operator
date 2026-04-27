@@ -288,6 +288,17 @@ type IronicStatus struct {
 	// then the controller has not processed the latest changes injected by
 	// the openstack-operator in the top-level CR (e.g. the ContainerImage)
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ApplicationCredentialSecret - the AC secret ironic is currently
+	// consuming and protecting with the openstack.org/ironic-ac-consumer
+	// finalizer. Tracked so the controller can remove its finalizer from the
+	// old secret when the openstack-operator rotates the reference.
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
+
+	// InspectorApplicationCredentialSecret - the AC secret ironic-inspector is
+	// currently consuming and protecting with the
+	// openstack.org/ironic-inspector-ac-consumer finalizer.
+	InspectorApplicationCredentialSecret string `json:"inspectorApplicationCredentialSecret,omitempty"`
 }
 
 //+kubebuilder:object:root=true
