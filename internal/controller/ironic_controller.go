@@ -830,6 +830,12 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 		Region:                  keystoneRegion,
 		TLS:                     instance.Spec.IronicAPI.TLS.Ca,
 		Auth:                    instance.Spec.Auth,
+		GraphicalConsoles:       instance.Spec.GraphicalConsoles,
+		// FIXME(stevebaker) drop this when https://github.com/openstack-k8s-operators/openstack-operator/pull/1633 lands
+		// ConsoleImage:           instance.Spec.Images.GraphicalConsole,
+		// NoVNCProxyImage:        instance.Spec.Images.NoVNCProxy,
+		ConsoleImage:    "quay.io/steveb/ironic-vnc-container:firefox",
+		NoVNCProxyImage: "quay.io/steveb/openstack-ironic-novncproxy:steveb-dev-1761687778",
 	}
 
 	if instance.Status.NotificationsURLSecret != nil {
