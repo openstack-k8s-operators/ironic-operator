@@ -139,6 +139,59 @@ except ValueError:
     crudini --set ${INIT_CONFIG} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
     crudini --set ${INIT_CONFIG} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
     crudini --set ${INIT_CONFIG} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+
+    # Configure architecture-specific boot parameters if arch directories exist
+    # NOTE: bootloader_by_arch and *_bootfile_name_by_arch were added in upstream Ironic 30.0.0.
+    # These options are ignored by older Ironic versions and will be used when upgraded to 30.0.0+.
+    HTTPBOOT_DIR="/var/lib/ironic/httpboot"
+
+    # Build bootloader_by_arch parameter
+    BOOTLOADER_BY_ARCH=""
+    if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
+        BOOTLOADER_BY_ARCH="x86_64:${DEPLOY_HTTP_URL}x86_64/esp.img"
+    fi
+    if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
+        if [ -n "${BOOTLOADER_BY_ARCH}" ]; then
+            BOOTLOADER_BY_ARCH="${BOOTLOADER_BY_ARCH},aarch64:${DEPLOY_HTTP_URL}aarch64/esp.img"
+        else
+            BOOTLOADER_BY_ARCH="aarch64:${DEPLOY_HTTP_URL}aarch64/esp.img"
+        fi
+    fi
+    if [ -n "${BOOTLOADER_BY_ARCH}" ]; then
+        crudini --set ${INIT_CONFIG} conductor bootloader_by_arch "${BOOTLOADER_BY_ARCH}"
+    fi
+
+    # Build pxe_bootfile_name_by_arch parameter
+    PXE_BOOTFILE_BY_ARCH=""
+    if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
+        PXE_BOOTFILE_BY_ARCH="x86_64:bootx64.efi"
+    fi
+    if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
+        if [ -n "${PXE_BOOTFILE_BY_ARCH}" ]; then
+            PXE_BOOTFILE_BY_ARCH="${PXE_BOOTFILE_BY_ARCH},aarch64:bootaa64.efi"
+        else
+            PXE_BOOTFILE_BY_ARCH="aarch64:bootaa64.efi"
+        fi
+    fi
+    if [ -n "${PXE_BOOTFILE_BY_ARCH}" ]; then
+        crudini --set ${INIT_CONFIG} pxe pxe_bootfile_name_by_arch "${PXE_BOOTFILE_BY_ARCH}"
+    fi
+
+    # Build ipxe_bootfile_name_by_arch parameter
+    IPXE_BOOTFILE_BY_ARCH=""
+    if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
+        IPXE_BOOTFILE_BY_ARCH="x86_64:undionly.kpxe"
+    fi
+    if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
+        if [ -n "${IPXE_BOOTFILE_BY_ARCH}" ]; then
+            IPXE_BOOTFILE_BY_ARCH="${IPXE_BOOTFILE_BY_ARCH},aarch64:snponly.efi"
+        else
+            IPXE_BOOTFILE_BY_ARCH="aarch64:snponly.efi"
+        fi
+    fi
+    if [ -n "${IPXE_BOOTFILE_BY_ARCH}" ]; then
+        crudini --set ${INIT_CONFIG} pxe ipxe_bootfile_name_by_arch "${IPXE_BOOTFILE_BY_ARCH}"
+    fi
 fi
 
 # Validate boot file existence
