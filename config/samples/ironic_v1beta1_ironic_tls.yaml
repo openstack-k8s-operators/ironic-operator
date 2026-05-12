@@ -21,6 +21,9 @@ spec:
   ironicConductors:
   - storageRequest: 10G
   ironicInspector:
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
     tls:
       api:
         internal:
@@ -28,4 +31,7 @@ spec:
         public:
           secretName: cert-ironic-inspector-public-svc
       caBundleSecretName: combined-ca-bundle
-  ironicNeutronAgent: {}
+  ironicNeutronAgent:
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true

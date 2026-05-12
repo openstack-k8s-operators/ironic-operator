@@ -25,7 +25,9 @@ spec:
   - replicas: 1
     storageRequest: 10G
   ironicInspector:
-    customServiceConfig: '# add your customization here'
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
     databaseAccount: ironic-inspector
     passwordSelectors:
       service: IronicInspectorPassword
@@ -33,7 +35,9 @@ spec:
     replicas: 1
     serviceUser: ironic-inspector
   ironicNeutronAgent:
-    customServiceConfig: "# add your customization here"
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
     replicas: 1
   databaseAccount: ironic
   passwordSelectors:
@@ -121,7 +125,9 @@ metadata:
     kind: Ironic
     name: ironic
 spec:
-  customServiceConfig: '# add your customization here'
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
   databaseInstance: openstack
   databaseAccount: ironic-inspector
   passwordSelectors:
@@ -152,7 +158,9 @@ metadata:
     kind: Ironic
     name: ironic
 spec:
-  customServiceConfig: "# add your customization here"
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
   passwordSelectors:
     service: IronicPassword
   messagingBus:
