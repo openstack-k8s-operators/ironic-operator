@@ -16,6 +16,12 @@ spec:
     storageRequest: 10G
   - conductorGroup: stockholm
     storageRequest: 10G
-  ironicInspector: {}
-  ironicNeutronAgent: {}
+  ironicInspector:
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
+  ironicNeutronAgent:
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
   secret: osp-secret

@@ -13,7 +13,13 @@ spec:
   ironicAPI: {}
   ironicConductors:
   - storageRequest: 10G
-  ironicInspector: {}
+  ironicInspector:
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
   ironicNeutronAgent:
     replicas: 0  # Neutron agent replicas is zero, i.e disabled for standalone.
+    customServiceConfig: |
+      [DEFAULT]
+      debug = true
   secret: osp-secret
