@@ -1174,7 +1174,8 @@ func (r *IronicAPIReconciler) generateServiceConfigMaps(
 				"ironic.conf": "/common/config/ironic.conf",
 				"01-api.conf": "/ironicapi/config/01-api.conf",
 			},
-			Labels: cmLabels,
+			CommonTemplates: []string{"ssl.conf"},
+			Labels:          cmLabels,
 		},
 	}
 
