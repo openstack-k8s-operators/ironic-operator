@@ -734,6 +734,28 @@ func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySprea
 	return topologySpec, topologySpecObj
 }
 
+func simulateIronicSubServicesReady(names IronicNames) {
+	th.SimulateJobSuccess(names.IronicDBSyncJobName)
+	keystone.SimulateKeystoneServiceReady(names.IronicName)
+	keystone.SimulateKeystoneEndpointReady(names.IronicName)
+	infra.GetTransportURL(names.InspectorTransportURLName)
+	infra.SimulateTransportURLReady(names.InspectorTransportURLName)
+	mariadb.GetMariaDBDatabase(names.InspectorDatabaseName)
+	mariadb.SimulateMariaDBAccountCompleted(names.InspectorDatabaseAccount)
+	mariadb.SimulateMariaDBDatabaseCompleted(names.InspectorDatabaseName)
+	th.SimulateJobSuccess(names.InspectorDBSyncJobName)
+	keystone.SimulateKeystoneServiceReady(names.InspectorName)
+	keystone.SimulateKeystoneEndpointReady(names.InspectorName)
+	nestedINATransportURLName := names.INATransportURLName
+	nestedINATransportURLName.Name = names.IronicName.Name + "-" + nestedINATransportURLName.Name
+	infra.GetTransportURL(nestedINATransportURLName)
+	infra.SimulateTransportURLReady(nestedINATransportURLName)
+	th.SimulateDeploymentReplicaReady(names.IronicName)
+	th.SimulateStatefulSetReplicaReady(names.ConductorName)
+	th.SimulateStatefulSetReplicaReady(names.InspectorName)
+	th.SimulateDeploymentReplicaReady(names.INAName)
+}
+
 // CreateIronicInvalidSecret creates a secret with an invalid password for testing
 func CreateIronicInvalidSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(

@@ -508,11 +508,12 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	}
 	// Create ConfigMaps and Secrets - end
 
-	// Manage consumer finalizer for ironic AC secret
-	if instance.Spec.Auth.ApplicationCredentialSecret != "" || instance.Status.ApplicationCredentialSecret != "" {
+	// Add consumer finalizer to the new ironic AC secret (early phase of the
+	// split pattern -- old secret finalizer removal is deferred to end of reconcile).
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
 		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
 			instance.Spec.Auth.ApplicationCredentialSecret,
-			instance.Status.ApplicationCredentialSecret,
+			"",
 			ironic.ACConsumerFinalizer); err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.ServiceConfigReadyCondition,
@@ -523,13 +524,12 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 	}
-	instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
 
-	// Manage consumer finalizer for ironic-inspector AC secret
-	if instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret != "" || instance.Status.InspectorApplicationCredentialSecret != "" {
+	// Add consumer finalizer to the new ironic-inspector AC secret.
+	if instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret != "" {
 		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
 			instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret,
-			instance.Status.InspectorApplicationCredentialSecret,
+			"",
 			ironic.InspectorACConsumerFinalizer); err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.ServiceConfigReadyCondition,
@@ -540,7 +540,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			return ctrl.Result{}, err
 		}
 	}
-	instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -791,6 +790,37 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 	err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(ctx, helper, ironic.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	// Late phase of the AC split pattern: remove the old AC secret's finalizer
+	// and update status only after all sub-services are ready with the new
+	// credentials. This prevents premature revocation during rapid rotations.
+	isIronicRotation := instance.Status.ApplicationCredentialSecret != "" &&
+		instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
+	if isIronicRotation {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
+			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+				instance.Status.ApplicationCredentialSecret, ironic.ACConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+		}
+	} else {
+		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+	}
+
+	isInspectorRotation := instance.Status.InspectorApplicationCredentialSecret != "" &&
+		instance.Status.InspectorApplicationCredentialSecret != instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
+	if isInspectorRotation {
+		if instance.Status.Conditions.AllSubConditionIsTrue() {
+			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+				instance.Status.InspectorApplicationCredentialSecret, ironic.InspectorACConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+			instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
+		}
+	} else {
+		instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
 	}
 
 	// We reached the end of the Reconcile, update the Ready condition based on
