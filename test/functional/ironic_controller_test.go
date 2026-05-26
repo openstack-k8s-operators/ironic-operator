@@ -1736,6 +1736,7 @@ var _ = Describe("Ironic controller", func() {
 		})
 
 		It("should track the consumed AC secrets in status", func() {
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			Eventually(func(g Gomega) {
 				i := GetIronic(ironicNames.IronicName)
 				g.Expect(i.Status.ApplicationCredentialSecret).To(Equal(acIronicSecretName))
@@ -1751,6 +1752,12 @@ var _ = Describe("Ironic controller", func() {
 				})
 				g.Expect(secret.Finalizers).To(
 					ContainElement(ironic.ACConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			simulateIronicSubServicesReady(ironicNames)
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.Conditions.IsTrue(condition.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			newACSecretName := "ac-ironic-rotated-x9y8z7-secret" //nolint:gosec // G101
@@ -1783,6 +1790,10 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+				th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: ironicNames.Namespace,
 					Name:      acIronicSecretName,
