@@ -163,9 +163,8 @@ except ValueError:
 
     # Build pxe_bootfile_name_by_arch parameter
     PXE_BOOTFILE_BY_ARCH=""
-    if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
-        PXE_BOOTFILE_BY_ARCH="x86_64:bootx64.efi"
-    fi
+    # NOTE(OSPRH-31469): Only set bootfile for aarch64, to allow x86_64 to use
+    # [pxe]/uefi_pxe_bootfile_name and [pxe]/pxe_bootfile_name values.
     if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
         if [ -n "${PXE_BOOTFILE_BY_ARCH}" ]; then
             PXE_BOOTFILE_BY_ARCH="${PXE_BOOTFILE_BY_ARCH},aarch64:bootaa64.efi"
@@ -179,9 +178,8 @@ except ValueError:
 
     # Build ipxe_bootfile_name_by_arch parameter
     IPXE_BOOTFILE_BY_ARCH=""
-    if [ -d "${HTTPBOOT_DIR}/x86_64" ]; then
-        IPXE_BOOTFILE_BY_ARCH="x86_64:undionly.kpxe"
-    fi
+    # NOTE(OSPRH-31469): Only set bootfile for aarch64, to allow x86_64 to use
+    # [pxe]/uefi_ipxe_bootfile_name and [pxe]/ipxe_bootfile_name values.
     if [ -d "${HTTPBOOT_DIR}/aarch64" ]; then
         if [ -n "${IPXE_BOOTFILE_BY_ARCH}" ]; then
             IPXE_BOOTFILE_BY_ARCH="${IPXE_BOOTFILE_BY_ARCH},aarch64:snponly.efi"
