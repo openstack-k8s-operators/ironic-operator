@@ -45,6 +45,9 @@ fi
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir /var/lib/ironic/httpboot
 fi
+if [ ! -d "/var/lib/ironic/httpboot/x86_64" ]; then
+    mkdir /var/lib/ironic/httpboot/x86_64
+fi
 if [ ! -d "/var/lib/ironic/ramdisk-logs" ]; then
     mkdir /var/lib/ironic/ramdisk-logs
 fi
