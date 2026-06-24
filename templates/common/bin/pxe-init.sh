@@ -61,12 +61,12 @@ done
 chmod -R +r /var/lib/ironic/httpboot /var/lib/ironic/tftpboot
 
 # Patch ironic-python-agent with custom CA certificates
-if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/ironic-python-agent.initramfs" ]; then
+if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/x86_64/ironic-python-agent.initramfs" ]; then
     # Extract the initramfs
     cd /
     mkdir initramfs
     pushd initramfs
-    zcat /var/lib/ironic/httpboot/ironic-python-agent.initramfs | cpio -idmV
+    zcat /var/lib/ironic/httpboot/x86_64/ironic-python-agent.initramfs | cpio -idmV
     popd
 
     # Copy the CA certificates
@@ -75,9 +75,19 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
 
     # Repack the initramfs
     pushd initramfs
-    find . | cpio -o -c --quiet -R root:root | gzip -1 > /var/lib/ironic/httpboot/ironic-python-agent.initramfs
+    find . | cpio -o -c --quiet -R root:root | gzip -1 > /var/lib/ironic/httpboot/x86_64/ironic-python-agent.initramfs
     popd
     rm -rf /initramfs
+fi
+
+# Create symlinks from arch-specific IPA files to root httpboot for backwards compatibility
+# with existing deploy_kernel/deploy_ramdisk/rescue_kernel/rescue_ramdisk config values
+if [ -d "/var/lib/ironic/httpboot/x86_64" ]; then
+    for ipa_file in ironic-python-agent.kernel ironic-python-agent.initramfs; do
+        if [ -f "/var/lib/ironic/httpboot/x86_64/${ipa_file}" ]; then
+            ln -sf "x86_64/${ipa_file}" "/var/lib/ironic/httpboot/${ipa_file}"
+        fi
+    done
 fi
 
 # TODO: Remove the block below when esp.img is prebuilt in the ironic-pxe container for 2 minor releases
@@ -139,6 +149,14 @@ except ValueError:
     crudini --set ${INIT_CONFIG} conductor deploy_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
     crudini --set ${INIT_CONFIG} conductor rescue_kernel ${DEPLOY_HTTP_URL}ironic-python-agent.kernel
     crudini --set ${INIT_CONFIG} conductor rescue_ramdisk ${DEPLOY_HTTP_URL}ironic-python-agent.initramfs
+
+    # Set arch-specific kernel/ramdisk config values only if IPA files are present in x86_64
+    if [ -f "${HTTPBOOT_DIR}/x86_64/ironic-python-agent.kernel" ]; then
+        crudini --set ${INIT_CONFIG} conductor deploy_kernel_by_arch "x86_64:${DEPLOY_HTTP_URL}x86_64/ironic-python-agent.kernel"
+        crudini --set ${INIT_CONFIG} conductor deploy_ramdisk_by_arch "x86_64:${DEPLOY_HTTP_URL}x86_64/ironic-python-agent.initramfs"
+        crudini --set ${INIT_CONFIG} conductor rescue_kernel_by_arch "x86_64:${DEPLOY_HTTP_URL}x86_64/ironic-python-agent.kernel"
+        crudini --set ${INIT_CONFIG} conductor rescue_ramdisk_by_arch "x86_64:${DEPLOY_HTTP_URL}x86_64/ironic-python-agent.initramfs"
+    fi
 
     # Configure architecture-specific boot parameters if arch directories exist
     # NOTE: bootloader_by_arch and *_bootfile_name_by_arch were added in upstream Ironic 30.0.0.
