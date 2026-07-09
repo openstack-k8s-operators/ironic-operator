@@ -114,7 +114,7 @@ func GetIronicNames(
 		Name:      "ironic-neutron-agent",
 	}
 
-	return IronicNames{
+	return IronicNames{ //nolint:gosec
 		Namespace: ironicName.Namespace,
 		IronicName: types.NamespacedName{
 			Namespace: ironic.Namespace,
