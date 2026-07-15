@@ -585,7 +585,7 @@ func (r *IronicInspectorReconciler) reconcileTransportURL(
 			&instance.Status.Conditions,
 			Log,
 		)
-		if err != nil || result.Requeue || result.RequeueAfter > 0 {
+		if err != nil || result.RequeueAfter > 0 {
 			return result, err
 		}
 	} else {
