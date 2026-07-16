@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8snet "k8s.io/utils/net"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -63,11 +62,6 @@ func SetupIronicImageDefaults(images IronicImages) {
 	imageDefaults = images
 	ironiclog.Info("Ironic defaults initialized", "images", imageDefaults)
 }
-
-var (
-	_ webhook.Validator = &Ironic{}
-	_ webhook.Defaulter = &Ironic{}
-)
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Ironic) ValidateCreate() (admission.Warnings, error) {
