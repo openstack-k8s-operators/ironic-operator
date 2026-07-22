@@ -1,0 +1,139 @@
+---
+stages:
+  - name: TopoLVM Dependencies
+    stages: >-
+      {{
+        lookup("ansible.builtin.template",
+               "common/stages/topolvm-deps-stages.yaml.j2")
+      }}
+
+  - name: Dependencies
+    stages: >-
+      {{
+        lookup("ansible.builtin.template",
+               "common/stages/deps-stages.yaml.j2")
+      }}
+
+  - name: Cinder LVM
+    stages: >-
+      {{
+        lookup("ansible.builtin.file",
+               "common/stages/cinder-lvm-label-stages.yaml")
+      }}
+
+  - name: TopoLVM
+    stages: >-
+      {{
+        lookup("ansible.builtin.template",
+               "common/stages/topolvm-stages.yaml.j2")
+      }}
+
+  - name: OLM Openstack
+    stages: >-
+      {{
+        lookup("ansible.builtin.template",
+               "common/stages/olm-openstack-stages.yaml.j2")
+      }}
+
+  - name: NodeNetworkConfigurationPolicy (nncp)
+    documentation: |
+      Apply node network configuration policies to configure host networking.
+      Waits for all policies to be successfully configured.
+    j2_manifest: manifests/control-plane/networking/nncp.yaml.j2
+    wait_conditions:
+      - >-
+        oc wait -n openstack nncp -l osp/nncm-config-type=standard
+        --for jsonpath='{.status.conditions[0].reason}'=SuccessfullyConfigured
+        --timeout=180s
+
+  - name: NetworkAttchmentDefinition (NAD)
+    documentation: |
+      Create network attachment definitions for OpenStack services.
+      Defines additional network interfaces for pods.
+    manifest: manifests/control-plane/networking/nad.yaml
+
+  - name: MetalLB - L2Advertisement and IPAddressPool
+    documentation: |
+      Configure MetalLB load balancer with IP address pools and L2 advertisements.
+      Enables external access to OpenStack services.
+    manifest: manifests/control-plane/networking/metallb.yaml
+
+  - name: OpenstackControlPlane
+    documentation: |
+      Deploy the OpenStack control plane with all core services.
+      Waits for the control plane to be fully ready before proceeding.
+    j2_manifest: manifests/control-plane/control-plane.yaml.j2
+    wait_conditions:
+      - >-
+        oc -n openstack wait openstackcontrolplanes.core.openstack.org controlplane
+        --for condition=OpenStackControlPlaneDNSReadyCondition --timeout=600s
+
+  - name: Extra DNS LoadBalancer on Ironic network
+    documentation: |
+      Deploy additional DNS service on the Ironic network for bare metal provisioning.
+      Provides DNS resolution for ironic nodes during deployment and inspection.
+    manifest: manifests/control-plane/dnsmasq-dns-ironic.yaml
+    wait_conditions:
+      - >-
+        oc wait -n openstack service dnsmasq-dns-ironic
+        --for jsonpath='.status.loadBalancer' --timeout=60s
+
+  - name: Wait for OpenstackControlPlane
+    documentation: |
+      Wait for the OpenStack control plane to be fully ready and operational.
+      Ensures all services are running before proceeding with additional configurations.
+    wait_conditions:
+      - >-
+        oc wait -n openstack openstackcontrolplane controlplane
+        --for condition=Ready --timeout=30m
+
+  - name: Update openstack-operators OLM
+    stages: >-
+      {{
+        lookup('ansible.builtin.template',
+               'common/stages/openstack-olm-update.yaml.j2')
+      }}
+    run_conditions:
+      - >-
+        {{
+          openstack_operators_update is defined and
+          openstack_operators_update | bool
+        }}
+
+  - name: Wait for condition MinorUpdateAvailable True
+    documentation: |
+      Wait for OpenStack version to indicate a minor update is available.
+      Required before proceeding with version updates.
+    wait_conditions:
+      - >-
+        oc -n openstack wait openstackversions.core.openstack.org controlplane
+        --for=condition=MinorUpdateAvailable=True --timeout=10m
+    run_conditions:
+      - "{{ openstack_update is defined and openstack_update | bool }}"
+
+  - name: "Minor update :: Create OpenStackVersion patch"
+    documentation: |
+      This creates a patch file `{{ manifests_dir }}/patches/openstack_version_patch.yaml`
+      If `openstack_update_custom_images` is defined it will populate the customContainerImages
+      in the OpenstackVersion YAML patch.
+    shell: >-
+      {{
+        lookup('ansible.builtin.template',
+              'common/scripts/create_openstack_version_patch.sh.j2')
+      }}
+    run_conditions:
+      - "{{ openstack_update is defined and openstack_update | bool }}"
+
+  - name: "Minor update :: Update the target version in the OpenStackVersion custom resource (CR)"
+    documentation: |
+      The `hotstack-openstack-version-patch` script will get the `availableVersion`
+      and us it to replace the string `__TARGET_VERSION__` in the patch file and
+      apply the patch using `oc patch` command.
+    command: >-
+      hotstack-openstack-version-patch --namespace openstack --name controlplane
+      --file {{ manifests_dir }}/patches/openstack_version_patch.yaml
+    wait_conditions:
+      - oc -n openstack wait openstackversions.core.openstack.org controlplane
+        --for=condition=Ready --timeout=10m
+    run_conditions:
+      - "{{ openstack_update is defined and openstack_update | bool }}"
