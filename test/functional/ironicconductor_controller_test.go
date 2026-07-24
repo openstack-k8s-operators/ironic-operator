@@ -116,9 +116,8 @@ var _ = Describe("IronicConductor controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(ironicNames.ConductorRole)
-			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules).To(HaveLen(1))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
-			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
