@@ -11,10 +11,10 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260714061029-2a213855a69a
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260714171609-17efb11fedd9
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260718191921-330efab0bc82
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260618132757-fe8e60d1d8a6
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260618132757-fe8e60d1d8a6
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260711151836-598dad120d26
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260722125248-d8f7927832bc
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.14
