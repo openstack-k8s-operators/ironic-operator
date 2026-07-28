@@ -28,19 +28,19 @@
         {
             "source": "/var/lib/config-data/default/ironic-api-httpd.conf",
             "dest": "/etc/httpd/conf/httpd.conf",
-            "owner": "root",
+            "owner": "apache",
             "perm": "0644"
         },
         {
             "source": "/var/lib/config-data/default/ssl.conf",
             "dest": "/etc/httpd/conf.d/ssl.conf",
-            "owner": "root",
-            "perm": "0644"
+            "owner": "apache",
+            "perm": "0444"
         },
         {
             "source": "/var/lib/config-data/tls/certs/*",
             "dest": "/etc/pki/tls/certs/",
-            "owner": "root",
+            "owner": "ironic",
             "perm": "0640",
             "optional": true,
             "merge": true
@@ -48,7 +48,7 @@
         {
             "source": "/var/lib/config-data/tls/private/*",
             "dest": "/etc/pki/tls/private/",
-            "owner": "root",
+            "owner": "ironic",
             "perm": "0600",
             "optional": true,
             "merge": true
@@ -63,7 +63,12 @@
     "permissions": [
         {
             "path": "/var/log/ironic",
-            "owner": "ironic:ironic",
+            "owner": "ironic:apache",
+            "recurse": true
+        },
+        {
+            "path": "/etc/httpd/run/",
+            "owner": "ironic:apache",
             "recurse": true
         }
     ]
