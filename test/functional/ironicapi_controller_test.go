@@ -114,9 +114,8 @@ var _ = Describe("IronicAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(ironicNames.APIRole)
-			Expect(role.Rules).To(HaveLen(2))
+			Expect(role.Rules).To(HaveLen(1))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
-			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 			th.ExpectCondition(
 				ironicNames.APIName,
 				ConditionGetterFunc(IronicAPIConditionGetter),
