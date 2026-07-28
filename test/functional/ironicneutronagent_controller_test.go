@@ -208,6 +208,13 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				instance := GetIronicNeutronAgent(ironicNames.INAName)
 				Expect(instance.Status.ReadyCount).To(Equal(int32(1)))
 			})
+			It("does not mount the service account token", func() {
+				Eventually(func(g Gomega) {
+					depl := th.GetDeployment(ironicNames.INAName)
+					g.Expect(depl.Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+					g.Expect(*depl.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+				}, timeout, interval).Should(Succeed())
+			})
 		})
 	})
 
