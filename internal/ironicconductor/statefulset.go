@@ -340,7 +340,6 @@ func StatefulSet(
 		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,
 		ConductorInit:          true,
-		Privileged:             true,
 		DeployHTTPURL:          deployHTTPURL,
 		IngressDomain:          ingressDomain,
 		ProvisionNetwork:       instance.Spec.ProvisionNetwork,
