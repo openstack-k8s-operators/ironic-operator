@@ -35,7 +35,6 @@ func Deployment(
 	labels map[string]string,
 	topology *topologyv1.Topology,
 ) *appsv1.Deployment {
-	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
@@ -99,11 +98,8 @@ func Deployment(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Args:           args,
+							Image:          instance.Spec.ContainerImage,
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
