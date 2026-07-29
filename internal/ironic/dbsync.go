@@ -34,7 +34,6 @@ func DbSyncJob(
 	instance *ironicv1.Ironic,
 	labels map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
 
 	args := []string{"-c", DBSyncCommand}
 
@@ -70,11 +69,8 @@ func DbSyncJob(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.Images.Conductor,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Args:         args,
+							Image:        instance.Spec.Images.Conductor,
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: volumeMounts,
 						},
