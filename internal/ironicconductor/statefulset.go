@@ -37,7 +37,7 @@ import (
 
 const (
 	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
+	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // StatefulSet func
@@ -50,7 +50,6 @@ func StatefulSet(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 ) (*appsv1.StatefulSet, error) {
-	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds: 5,
@@ -175,11 +174,8 @@ func StatefulSet(
 		Command: []string{
 			"/bin/bash",
 		},
-		Args:  args,
-		Image: instance.Spec.ContainerImage,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Args:          args,
+		Image:         instance.Spec.ContainerImage,
 		Env:           env.MergeEnvs([]corev1.EnvVar{}, envVars),
 		VolumeMounts:  conductorVolumeMounts,
 		Resources:     instance.Spec.Resources,
@@ -191,11 +187,8 @@ func StatefulSet(
 		Command: []string{
 			"/bin/bash",
 		},
-		Args:  args,
-		Image: instance.Spec.PxeContainerImage,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Args:           args,
+		Image:          instance.Spec.PxeContainerImage,
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
 		VolumeMounts:   httpbootVolumeMounts,
 		Resources:      instance.Spec.Resources,
@@ -212,9 +205,6 @@ func StatefulSet(
 		Image:        instance.Spec.ContainerImage,
 		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
 		VolumeMounts: ramdiskLogsVolumeMounts,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
 		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
 		// pre-stop command
 		Lifecycle: &corev1.Lifecycle{
@@ -245,7 +235,6 @@ func StatefulSet(
 			Args:  args,
 			Image: instance.Spec.PxeContainerImage,
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{
 						"NET_ADMIN",
