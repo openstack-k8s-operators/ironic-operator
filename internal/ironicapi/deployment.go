@@ -36,7 +36,7 @@ import (
 
 const (
 	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/container-scripts/api-prep.sh && /usr/local/bin/kolla_set_configs && usermod -a -G tty ironic && /usr/local/bin/kolla_start"
+	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // Deployment func
@@ -48,7 +48,6 @@ func Deployment(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 ) (*appsv1.Deployment, error) {
-	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
@@ -151,10 +150,7 @@ func Deployment(
 								"-F",
 								ironic.LogPath,
 							},
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Image:        instance.Spec.ContainerImage,
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: []corev1.VolumeMount{GetLogVolumeMount()},
 							Resources:    instance.Spec.Resources,
@@ -164,11 +160,8 @@ func Deployment(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Args:           args,
+							Image:          instance.Spec.ContainerImage,
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,
