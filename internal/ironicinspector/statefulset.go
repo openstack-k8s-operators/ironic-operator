@@ -32,13 +32,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	k8snet "k8s.io/utils/net"
+	"k8s.io/utils/ptr"
 )
 
 const (
 	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
-	// IronicInspectorHttpdCommand -
-	IronicInspectorHttpdCommand = "/usr/sbin/httpd -DFOREGROUND"
+	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // StatefulSet func
@@ -50,7 +49,6 @@ func StatefulSet(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 ) (*appsv1.StatefulSet, error) {
-	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
@@ -190,14 +188,13 @@ func StatefulSet(
 		Command: []string{
 			"/bin/bash",
 		},
-		Args:            args,
-		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
-		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
-		VolumeMounts:    httpdVolumeMounts,
-		Resources:       instance.Spec.Resources,
-		ReadinessProbe:  readinessProbe,
-		LivenessProbe:   livenessProbe,
-		StartupProbe:    startupProbe,
+		Args:           args,
+		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
+		VolumeMounts:   httpdVolumeMounts,
+		Resources:      instance.Spec.Resources,
+		ReadinessProbe: readinessProbe,
+		LivenessProbe:  livenessProbe,
+		StartupProbe:   startupProbe,
 	}
 	containers = append(containers, httpdContainer)
 
@@ -210,14 +207,13 @@ func StatefulSet(
 		Command: []string{
 			"/bin/bash",
 		},
-		Args:            args,
-		SecurityContext: &corev1.SecurityContext{RunAsUser: &runAsUser},
-		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
-		VolumeMounts:    inspectorVolumeMounts,
-		Resources:       instance.Spec.Resources,
-		ReadinessProbe:  readinessProbe,
-		LivenessProbe:   livenessProbe,
-		StartupProbe:    startupProbe,
+		Args:           args,
+		Env:            env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
+		VolumeMounts:   inspectorVolumeMounts,
+		Resources:      instance.Spec.Resources,
+		ReadinessProbe: readinessProbe,
+		LivenessProbe:  livenessProbe,
+		StartupProbe:   startupProbe,
 	}
 	containers = append(containers, inspectorContainer)
 
@@ -230,10 +226,7 @@ func StatefulSet(
 		Command: []string{
 			"/bin/bash",
 		},
-		Args: args,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Args:           args,
 		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
 		VolumeMounts:   httpbootVolumeMounts,
 		Resources:      instance.Spec.Resources,
@@ -255,9 +248,6 @@ func StatefulSet(
 		Image:        instance.Spec.ContainerImage,
 		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
 		VolumeMounts: ramdiskLogsVolumeMounts,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
 		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
 		// pre-stop command
 		Lifecycle: &corev1.Lifecycle{
@@ -286,7 +276,6 @@ func StatefulSet(
 			},
 			Args: args,
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: &runAsUser,
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{
 						"NET_ADMIN", "NET_RAW",
@@ -324,6 +313,7 @@ func StatefulSet(
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName:            instance.RbacResourceName(),
+					AutomountServiceAccountToken:  ptr.To(false),
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 					Volumes:                       volumes,
@@ -367,7 +357,6 @@ func StatefulSet(
 		VolumeMounts:           initVolumeMounts,
 		PxeInit:                true,
 		IpaInit:                true,
-		Privileged:             true,
 		InspectorHTTPURL:       inspectorHTTPURL,
 		IngressDomain:          ingressDomain,
 		InspectionNetwork:      instance.Spec.InspectionNetwork,
