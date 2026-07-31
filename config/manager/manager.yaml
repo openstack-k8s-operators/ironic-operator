@@ -71,6 +71,7 @@ spec:
           capabilities:
             drop:
             - "ALL"
+          readOnlyRootFilesystem: true
         livenessProbe:
           httpGet:
             path: /healthz
@@ -92,7 +93,11 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts: []
-      volumes: []
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      volumes:
+      - emptyDir: {}
+        name: tmp
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
