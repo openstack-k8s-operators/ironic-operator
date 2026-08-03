@@ -3,8 +3,8 @@ module github.com/openstack-k8s-operators/ironic-operator/api
 go 1.26.3
 
 require (
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260723061747-66bf6fca9dfd
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260724091355-a86f6d29e055
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260730060158-27ac5ce68f29
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260725150835-623a52fe0391
 	k8s.io/api v0.33.13
 	k8s.io/apimachinery v0.33.13
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
@@ -19,7 +19,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/swag v0.25.4 // indirect
