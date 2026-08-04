@@ -1187,6 +1187,23 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+		It("does not mount the service account token on workloads that do not need it", func() {
+			Eventually(func(g Gomega) {
+				// IronicAPI deployment
+				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+				// IronicNeutronAgent deployment
+				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+				// Ironic dbsync job
+				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+				// Conductor needs the token, so it should NOT be set to false
+				conductorAutoMount := th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken
+				g.Expect(conductorAutoMount == nil || *conductorAutoMount).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("updates nodeSelector in resource specs when changed", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
