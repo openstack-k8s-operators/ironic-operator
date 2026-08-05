@@ -27,7 +27,7 @@ import (
 
 const (
 	// DBSyncCommand -
-	DBSyncCommand = "/usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf --config-dir /etc/ironic-inspector/inspector.conf.d upgrade'"
+	DBSyncCommand = "sudo -E /usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf --config-dir /etc/ironic-inspector/inspector.conf.d upgrade'"
 )
 
 // DbSyncJob func
@@ -35,7 +35,6 @@ func DbSyncJob(
 	instance *ironicv1.IronicInspector,
 	labels map[string]string,
 ) *batchv1.Job {
-	runAsUser := int64(0)
 
 	args := []string{"-c", DBSyncCommand}
 
@@ -71,11 +70,8 @@ func DbSyncJob(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Args:         args,
+							Image:        instance.Spec.ContainerImage,
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: volumeMounts,
 						},

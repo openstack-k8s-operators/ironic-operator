@@ -32,11 +32,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 const (
 	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/container-scripts/api-prep.sh && /usr/local/bin/kolla_set_configs && usermod -a -G tty ironic && /usr/local/bin/kolla_start"
+	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // Deployment func
@@ -48,7 +49,6 @@ func Deployment(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 ) (*appsv1.Deployment, error) {
-	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      5,
@@ -134,7 +134,8 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: instance.RbacResourceName(),
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
 					Containers: []corev1.Container{
 						// the first container in a pod is the default selected
 						// by oc log so define the log stream container first.
@@ -151,10 +152,7 @@ func Deployment(
 								"-F",
 								ironic.LogPath,
 							},
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Image:        instance.Spec.ContainerImage,
 							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: []corev1.VolumeMount{GetLogVolumeMount()},
 							Resources:    instance.Spec.Resources,
@@ -164,11 +162,8 @@ func Deployment(
 							Command: []string{
 								"/bin/bash",
 							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Args:           args,
+							Image:          instance.Spec.ContainerImage,
 							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:   volumeMounts,
 							Resources:      instance.Spec.Resources,

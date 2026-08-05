@@ -15,7 +15,7 @@
 # under the License.
 set -ex
 
-/usr/local/bin/kolla_set_configs
+sudo -E /usr/local/bin/kolla_set_configs
 
 # prepare for 'upgrade check' loading all drivers
 if [ ! -d "/var/lib/ironic/tmp" ]; then

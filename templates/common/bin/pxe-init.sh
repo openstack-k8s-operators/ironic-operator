@@ -27,6 +27,8 @@ fi
 if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir -p /var/lib/ironic/httpboot
 fi
+# Create an empty index.html so that / returns 200 instead of 403
+touch /var/lib/ironic/httpboot/index.html
 # Check for expected EFI directories
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos

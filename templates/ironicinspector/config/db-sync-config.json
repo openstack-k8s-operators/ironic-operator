@@ -4,13 +4,13 @@
         {
             "source": "/var/lib/config-data/default/01-inspector.conf",
             "dest": "/etc/ironic-inspector/inspector.conf.d/01-inspector.conf",
-            "owner": "root:ironic-inspector",
+            "owner": "ironic-inspector",
             "perm": "0640"
         },
         {
             "source": "/var/lib/config-data/default/02-inspector-custom.conf",
             "dest": "/etc/ironic-inspector/inspector.conf.d/02-inspector-custom.conf",
-            "owner": "root:ironic-inspector",
+            "owner": "ironic-inspector",
             "perm": "0640"
         },
         {

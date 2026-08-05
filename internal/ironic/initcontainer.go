@@ -32,7 +32,6 @@ type APIDetails struct {
 	OSPSecret              string
 	UserPasswordSelector   string
 	VolumeMounts           []corev1.VolumeMount
-	Privileged             bool
 	PxeInit                bool
 	ConductorInit          bool
 	DeployHTTPURL          string
@@ -150,11 +149,8 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	if init.ConductorInit {
 		ipaInit := corev1.Container{
-			Name:  "ironic-python-agent-init",
-			Image: init.IronicPythonAgentImage,
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: &init.Privileged,
-			},
+			Name:         "ironic-python-agent-init",
+			Image:        init.IronicPythonAgentImage,
 			Env:          imageCopyEnvs,
 			VolumeMounts: init.VolumeMounts,
 		}
@@ -166,8 +162,13 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Name:  "pxe-init",
 			Image: init.PxeContainerImage,
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser:  &runAsUser,
-				Privileged: &init.Privileged,
+				RunAsUser: &runAsUser,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"SYS_CHROOT",
+						"SETFCAP",
+					},
+				},
 			},
 			Command: []string{
 				"/bin/bash",

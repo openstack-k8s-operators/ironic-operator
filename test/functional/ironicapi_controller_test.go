@@ -191,6 +191,13 @@ var _ = Describe("IronicAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
+		It("does not mount the service account token", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetDeployment(ironicNames.IronicName)
+				g.Expect(depl.Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*depl.Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+			}, timeout, interval).Should(Succeed())
+		})
 		It("Creates a Services for internal and public", func() {
 			var name types.NamespacedName
 			// Verify Service ironic-internal created

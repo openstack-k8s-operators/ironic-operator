@@ -34,7 +34,6 @@ type APIDetails struct {
 	OSPSecret              string
 	UserPasswordSelector   string
 	VolumeMounts           []corev1.VolumeMount
-	Privileged             bool
 	InspectorHTTPURL       string
 	IngressDomain          string
 	InspectionNetwork      string
@@ -131,9 +130,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 		ipaInit := corev1.Container{
 			Name:  "ironic-python-agent-init",
 			Image: init.IronicPythonAgentImage,
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: &init.Privileged,
-			},
 			Command: []string{
 				"/bin/bash",
 			},
