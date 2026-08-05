@@ -17,40 +17,46 @@ limitations under the License.
 package ironicneutronagent
 
 import (
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
 func GetVolumes(name string) []corev1.Volume {
-	var config0640AccessMode int32 = 0640
+	var config0440AccessMode int32 = 0440
 
 	return []corev1.Volume{
 		{
 			Name: "config",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0640AccessMode,
+					DefaultMode: &config0440AccessMode,
 					SecretName:  name + "-config-data",
 				},
 			},
 		},
+		volume.WritableDirVolume("var-log-neutron"),
 	}
 
 }
 
-// GetVolumeMounts - IronicNeutronAgent VolumeMounts
+// GetVolumeMounts - IronicNeutronAgent VolumeMounts. Each file mounted
+// directly at its final destination via SubPath from the same "config"
+// Secret config.json used to stage-then-copy.
 func GetVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "config",
-			MountPath: "/var/lib/config-data/default",
+			MountPath: "/etc/neutron/neutron.conf.d/01-ironic_neutron_agent.conf",
+			SubPath:   "01-ironic_neutron_agent.conf",
 			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "ironic-neutron-agent-config.json",
+			MountPath: "/etc/neutron/neutron.conf.d/02-ironic_neutron_agent-custom.conf",
+			SubPath:   "02-ironic_neutron_agent-custom.conf",
 			ReadOnly:  true,
 		},
+		volume.WritableDirVolumeMount("var-log-neutron", "/var/log/neutron"),
 	}
 }

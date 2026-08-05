@@ -26,6 +26,8 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,11 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	k8snet "k8s.io/utils/net"
-)
-
-const (
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_start"
+	"k8s.io/utils/ptr"
 )
 
 // StatefulSet func
@@ -82,8 +80,6 @@ func StatefulSet(
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
-
-	args := []string{"-c", ServiceCommand}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -136,26 +132,22 @@ func StatefulSet(
 	dnsmasqReadinessProbe.Exec = &corev1.ExecAction{Command: dnsmasqProbeCommand}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	dnsmasqEnvVars := map[string]env.Setter{}
-	dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	httpbootEnvVars := map[string]env.Setter{}
-	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	ramdiskLogsEnvVars := map[string]env.Setter{}
-	ramdiskLogsEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	volumes := GetVolumes(ctx, instance)
-	conductorVolumeMounts := GetVolumeMounts("ironic-conductor")
-	httpbootVolumeMounts := GetVolumeMounts("httpboot")
-	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
-	ramdiskLogsVolumeMounts := GetVolumeMounts("ramdisk-logs")
+	conductorVolumeMounts := GetConductorVolumeMounts(instance)
+	httpbootVolumeMounts := GetHttpbootVolumeMounts()
+	dnsmasqVolumeMounts := GetDnsmasqVolumeMounts()
+	ramdiskLogsVolumeMounts := GetRamdiskLogsVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// Add the CA bundle
@@ -172,39 +164,41 @@ func StatefulSet(
 	conductorContainer := corev1.Container{
 		Name: resourceName,
 		Command: []string{
-			"/bin/bash",
+			"/usr/bin/ironic-conductor",
 		},
-		Args:          args,
-		Image:         instance.Spec.ContainerImage,
-		Env:           env.MergeEnvs([]corev1.EnvVar{}, envVars),
-		VolumeMounts:  conductorVolumeMounts,
-		Resources:     instance.Spec.Resources,
-		LivenessProbe: livenessProbe,
-		StartupProbe:  startupProbe,
+		Args:            []string{"--config-file", "/etc/ironic/ironic.conf", "--config-dir", "/etc/ironic/ironic.conf.d"},
+		Image:           instance.Spec.ContainerImage,
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+		VolumeMounts:    conductorVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		LivenessProbe:   livenessProbe,
+		StartupProbe:    startupProbe,
 	}
 	httpbootContainer := corev1.Container{
 		Name: "httpboot",
 		Command: []string{
-			"/bin/bash",
+			"/usr/sbin/httpd",
 		},
-		Args:           args,
-		Image:          instance.Spec.PxeContainerImage,
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   httpbootVolumeMounts,
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: httpbootReadinessProbe,
-		LivenessProbe:  httpbootLivenessProbe,
+		Args:            []string{"-DFOREGROUND"},
+		Image:           instance.Spec.PxeContainerImage,
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
+		VolumeMounts:    httpbootVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  httpbootReadinessProbe,
+		LivenessProbe:   httpbootLivenessProbe,
 		// StartupProbe:   startupProbe,
 	}
 	ramdiskLogsContainer := corev1.Container{
 		Name: "ramdisk-logs",
 		Command: []string{
-			"/bin/bash",
+			"/usr/local/bin/container-scripts/runlogwatch.sh",
 		},
-		Args:         args,
-		Image:        instance.Spec.ContainerImage,
-		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
-		VolumeMounts: ramdiskLogsVolumeMounts,
+		Image:           instance.Spec.ContainerImage,
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
+		VolumeMounts:    ramdiskLogsVolumeMounts,
 		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
 		// pre-stop command
 		Lifecycle: &corev1.Lifecycle{
@@ -230,12 +224,20 @@ func StatefulSet(
 		dnsmasqContainer := corev1.Container{
 			Name: "dnsmasq",
 			Command: []string{
-				"/bin/bash",
+				"/usr/sbin/dnsmasq",
 			},
-			Args:  args,
+			Args:  []string{"-k"},
 			Image: instance.Spec.PxeContainerImage,
+			// dnsmasq binds ports <1024 and handles raw DHCP packets --
+			// genuine need. Explicit RunAsUser 0 / RunAsNonRoot false:
+			// this pod carries a RestrictivePodSecurityContext for its
+			// non-root siblings; a container's own explicit fields
+			// override the pod-level default, exempting dnsmasq.
 			SecurityContext: &corev1.SecurityContext{
+				RunAsUser:    ptr.To(int64(0)),
+				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
+					Drop: []corev1.Capability{"ALL"},
 					Add: []corev1.Capability{
 						"NET_ADMIN",
 						"NET_RAW",
@@ -275,7 +277,11 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:            instance.RbacResourceName(),
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
+					// dnsmasq (added above, when present) explicitly
+					// overrides RunAsUser/RunAsNonRoot back to root.
+					SecurityContext:               pod.RestrictivePodSecurityContext(users.IronicUID, users.IronicGID, users.ApacheGID),
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 					Volumes:                       volumes,

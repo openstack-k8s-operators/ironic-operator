@@ -209,24 +209,24 @@ var _ = Describe("IronicInspector controller", func() {
 			ss := th.GetStatefulSet(ironicNames.InspectorName)
 			// Check the resulting deployment fields
 			Expect(int(*ss.Spec.Replicas)).To(Equal(1))
-			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(ss.Spec.Template.Spec.Volumes).To(HaveLen(6))
 			Expect(ss.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// Check the ironic-inspector-httpd container
 			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.Name).To(Equal("ironic-inspector-httpd"))
-			Expect(container.VolumeMounts).To(HaveLen(6))
+			Expect(container.VolumeMounts).To(HaveLen(7))
 
 			// Check the ironic-inspector container
 			container = ss.Spec.Template.Spec.Containers[1]
-			Expect(container.VolumeMounts).To(HaveLen(6))
+			Expect(container.VolumeMounts).To(HaveLen(7))
 			Expect(container.Name).To(Equal("ironic-inspector"))
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(5050)))
 			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(5050)))
 
 			// Check the ironic-httpboot container
 			container = ss.Spec.Template.Spec.Containers[2]
-			Expect(container.VolumeMounts).To(HaveLen(6))
+			Expect(container.VolumeMounts).To(HaveLen(7))
 			Expect(container.Name).To(Equal("inspector-httpboot"))
 
 			th.ExpectCondition(
@@ -408,7 +408,7 @@ var _ = Describe("IronicInspector controller", func() {
 			depl := th.GetStatefulSet(ironicNames.InspectorName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(8))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// cert deployment volumes
@@ -498,7 +498,7 @@ var _ = Describe("IronicInspector controller", func() {
 			depl := th.GetStatefulSet(ironicNames.InspectorName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(8))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(9))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(4))
 
 			// Grab the current config hash

@@ -29,7 +29,7 @@ function merge_config_dir {
             crudini --merge /var/lib/config-data/merged/${conf_base} < ${conf}
         else
             echo copy ${conf} to /var/lib/config-data/merged/
-            cp -f ${conf} /var/lib/config-data/merged/
+            install -m 0640 ${conf} /var/lib/config-data/merged/
         fi
     done
 }
@@ -41,7 +41,7 @@ function common_ironic_config {
     SVC_CFG_MERGED=/var/lib/config-data/merged/ironic.conf
 
     # Copy default service config from container image as base
-    cp -a ${SVC_CFG} ${SVC_CFG_MERGED}
+    install -m 0640 ${SVC_CFG} ${SVC_CFG_MERGED}
 
     # Merge all templates from config-data defaults first, then custom
     # NOTE: custom.conf files (for both the umbrella Ironic CR in config-data/defaults

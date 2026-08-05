@@ -271,7 +271,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			// cert deployment volumes
@@ -296,7 +296,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			depl := th.GetDeployment(ironicNames.INAName)
 			// Check the resulting deployment fields
 			Expect(int(*depl.Spec.Replicas)).To(Equal(1))
-			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			// Grab the current config hash

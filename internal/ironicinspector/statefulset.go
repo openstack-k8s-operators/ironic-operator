@@ -16,6 +16,7 @@ limitations under the License.
 package ironicinspector
 
 import (
+	"fmt"
 	"net"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
@@ -24,8 +25,10 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,11 +36,6 @@ import (
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	k8snet "k8s.io/utils/net"
 	"k8s.io/utils/ptr"
-)
-
-const (
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // StatefulSet func
@@ -84,8 +82,6 @@ func StatefulSet(
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
-
-	args := []string{"-c", ServiceCommand}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -140,11 +136,11 @@ func StatefulSet(
 
 	// create Volume and VolumeMounts
 	volumes := GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
-	httpbootVolumeMounts := GetVolumeMounts("httpboot")
-	httpdVolumeMounts := GetVolumeMounts("httpd")
-	inspectorVolumeMounts := GetVolumeMounts("ironic-inspector")
-	dnsmasqVolumeMounts := GetVolumeMounts("dnsmasq")
-	ramdiskLogsVolumeMounts := GetVolumeMounts("ramdisk-logs")
+	httpbootVolumeMounts := GetHttpbootVolumeMounts()
+	httpdVolumeMounts := GetHttpdVolumeMounts()
+	inspectorVolumeMounts := GetInspectorVolumeMounts()
+	dnsmasqVolumeMounts := GetDnsmasqVolumeMounts()
+	ramdiskLogsVolumeMounts := GetRamdiskLogsVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts()
 
 	// add CA cert if defined
@@ -172,6 +168,11 @@ func StatefulSet(
 			if err != nil {
 				return nil, err
 			}
+			// Final paths -- same staging-path bug class as ironic-api.
+			certMount := fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
+			keyMount := fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
+			svc.CertMount = &certMount
+			svc.KeyMount = &keyMount
 			volumes = append(volumes, svc.CreateVolume(endpt.String()))
 			httpdVolumeMounts = append(httpdVolumeMounts, svc.CreateVolumeMounts(endpt.String())...)
 		}
@@ -180,74 +181,73 @@ func StatefulSet(
 	containers := []corev1.Container{}
 
 	httpdEnvVars := map[string]env.Setter{}
-	httpdEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpdEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	httpdContainer := corev1.Container{
 		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent + "-httpd",
 		Image: instance.Spec.ContainerImage,
 		Command: []string{
-			"/bin/bash",
+			"/usr/sbin/httpd",
 		},
-		Args:           args,
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
-		VolumeMounts:   httpdVolumeMounts,
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: readinessProbe,
-		LivenessProbe:  livenessProbe,
-		StartupProbe:   startupProbe,
+		Args:            []string{"-DFOREGROUND"},
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
+		VolumeMounts:    httpdVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  readinessProbe,
+		LivenessProbe:   livenessProbe,
+		StartupProbe:    startupProbe,
 	}
 	containers = append(containers, httpdContainer)
 
 	inspectorEnvVars := map[string]env.Setter{}
-	inspectorEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	inspectorEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	inspectorContainer := corev1.Container{
 		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent,
 		Image: instance.Spec.ContainerImage,
 		Command: []string{
-			"/bin/bash",
+			"/usr/bin/ironic-inspector",
 		},
-		Args:           args,
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
-		VolumeMounts:   inspectorVolumeMounts,
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: readinessProbe,
-		LivenessProbe:  livenessProbe,
-		StartupProbe:   startupProbe,
+		Args:            []string{"--config-file", "/etc/ironic-inspector/inspector.conf", "--config-dir", "/etc/ironic-inspector/inspector.conf.d"},
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
+		VolumeMounts:    inspectorVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  readinessProbe,
+		LivenessProbe:   livenessProbe,
+		StartupProbe:    startupProbe,
 	}
 	containers = append(containers, inspectorContainer)
 
 	httpbootEnvVars := map[string]env.Setter{}
-	httpbootEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	httpbootContainer := corev1.Container{
 		Name:  ironic.InspectorComponent + "-" + "httpboot",
 		Image: instance.Spec.PxeContainerImage,
 		Command: []string{
-			"/bin/bash",
+			"/usr/sbin/httpd",
 		},
-		Args:           args,
-		Env:            env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
-		VolumeMounts:   httpbootVolumeMounts,
-		Resources:      instance.Spec.Resources,
-		ReadinessProbe: httpbootReadinessProbe,
-		LivenessProbe:  httpbootLivenessProbe,
+		Args:            []string{"-DFOREGROUND"},
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
+		VolumeMounts:    httpbootVolumeMounts,
+		Resources:       instance.Spec.Resources,
+		ReadinessProbe:  httpbootReadinessProbe,
+		LivenessProbe:   httpbootLivenessProbe,
 		// StartupProbe:   startupProbe,
 	}
 	containers = append(containers, httpbootContainer)
 
 	ramdiskLogsEnvVars := map[string]env.Setter{}
-	ramdiskLogsEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 	ramdiskLogsContainer := corev1.Container{
 		Name: "ramdisk-logs",
 		Command: []string{
-			"/bin/bash",
+			"/usr/local/bin/container-scripts/runlogwatch.sh",
 		},
-		Args:         args,
-		Image:        instance.Spec.ContainerImage,
-		Env:          env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
-		VolumeMounts: ramdiskLogsVolumeMounts,
+		Image:           instance.Spec.ContainerImage,
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
+		Env:             env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
+		VolumeMounts:    ramdiskLogsVolumeMounts,
 		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
 		// pre-stop command
 		Lifecycle: &corev1.Lifecycle{
@@ -266,18 +266,26 @@ func StatefulSet(
 	if instance.Spec.InspectionNetwork != "" {
 		// Only include dnsmasq container if there is an inspection network
 		dnsmasqEnvVars := map[string]env.Setter{}
-		dnsmasqEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 		dnsmasqEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 		dnsmasqContainer := corev1.Container{
 			Name:  ironic.InspectorComponent + "-" + "dnsmasq",
 			Image: instance.Spec.ContainerImage,
 			Command: []string{
-				"/bin/bash",
+				"/usr/sbin/dnsmasq",
 			},
-			Args: args,
+			Args: []string{"-k"},
+			// dnsmasq binds ports <1024 (67/69/547) and handles raw DHCP
+			// packets -- genuine need, root is implicit (SCC stays
+			// anyuid;privileged for this pod, see docs/remove-kolla-plan.md).
+			// Explicit RunAsUser 0 / RunAsNonRoot false: this pod carries a
+			// RestrictivePodSecurityContext for its non-root siblings; a
+			// container's own explicit fields override the pod-level
+			// default, exempting dnsmasq specifically.
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser: ptr.To(int64(0)),
+				RunAsUser:    ptr.To(int64(0)),
+				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
+					Drop: []corev1.Capability{"ALL"},
 					Add: []corev1.Capability{
 						"NET_ADMIN", "NET_RAW",
 					},
@@ -313,8 +321,12 @@ func StatefulSet(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:            instance.RbacResourceName(),
-					AutomountServiceAccountToken:  ptr.To(false),
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
+					// dnsmasq (added above, when present) explicitly
+					// overrides RunAsUser/RunAsNonRoot back to root -- see
+					// its own SecurityContext comment.
+					SecurityContext:               pod.RestrictivePodSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID, users.ApacheGID),
 					Containers:                    containers,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 					Volumes:                       volumes,

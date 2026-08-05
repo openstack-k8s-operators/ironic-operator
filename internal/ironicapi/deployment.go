@@ -18,6 +18,7 @@ package ironicapi
 
 import (
 	"context"
+	"fmt"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -25,19 +26,16 @@ import (
 	common "github.com/openstack-k8s-operators/lib-common/modules/common"
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
-)
-
-const (
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // Deployment func
@@ -60,8 +58,6 @@ func Deployment(
 		PeriodSeconds:       5,
 		InitialDelaySeconds: 3,
 	}
-
-	args := []string{"-c", ServiceCommand}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -106,13 +102,21 @@ func Deployment(
 			if err != nil {
 				return nil, err
 			}
+			// Final paths, matching what generateServiceConfigMaps renders
+			// into ironic-api-httpd.conf's SSLCertificateFile/
+			// SSLCertificateKeyFile -- without this, CreateVolumeMounts
+			// defaults to lib-common's staging path, which nothing copies
+			// from once kolla's config.json is gone.
+			certMount := fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
+			keyMount := fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
+			svc.CertMount = &certMount
+			svc.KeyMount = &keyMount
 			volumes = append(volumes, svc.CreateVolume(endpt.String()))
 			volumeMounts = append(volumeMounts, svc.CreateVolumeMounts(endpt.String())...)
 		}
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
@@ -136,6 +140,16 @@ func Deployment(
 				Spec: corev1.PodSpec{
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					// httpd's master process runs as apache in the image
+					// (User apache/Group apache in ironic-api-httpd.conf,
+					// changed to User ironic/Group ironic to match the
+					// pre-existing WSGIDaemonProcess user=ironic line --
+					// proof a dedicated "ironic" system user already
+					// exists). apache is still granted as a supplemental
+					// group, matching keystone-operator's identical fix,
+					// so httpd can read RPM-shipped conf.d files with
+					// restrictive apache-group ownership.
+					SecurityContext: pod.RestrictivePodSecurityContext(users.IronicUID, users.IronicGID, users.ApacheGID),
 					Containers: []corev1.Container{
 						// the first container in a pod is the default selected
 						// by oc log so define the log stream container first.
@@ -152,23 +166,25 @@ func Deployment(
 								"-F",
 								ironic.LogPath,
 							},
-							Image:        instance.Spec.ContainerImage,
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: []corev1.VolumeMount{GetLogVolumeMount()},
-							Resources:    instance.Spec.Resources,
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    []corev1.VolumeMount{GetLogVolumeMount()},
+							Resources:       instance.Spec.Resources,
 						},
 						{
 							Name: ironic.ServiceName + "-" + ironic.APIComponent,
 							Command: []string{
-								"/bin/bash",
+								"/usr/sbin/httpd",
 							},
-							Args:           args,
-							Image:          instance.Spec.ContainerImage,
-							Env:            env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:   volumeMounts,
-							Resources:      instance.Spec.Resources,
-							ReadinessProbe: readinessProbe,
-							LivenessProbe:  livenessProbe,
+							Args:            []string{"-DFOREGROUND"},
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
+							Resources:       instance.Spec.Resources,
+							ReadinessProbe:  readinessProbe,
+							LivenessProbe:   livenessProbe,
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriod,

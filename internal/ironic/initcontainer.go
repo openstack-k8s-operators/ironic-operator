@@ -17,8 +17,11 @@ package ironic
 
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 // APIDetails information
@@ -50,6 +53,10 @@ const (
 
 // InitContainer - init container for Ironic pods
 func InitContainer(init APIDetails) []corev1.Container {
+	// pxe-init genuinely needs root for its chroot-based IPA initramfs
+	// CA-cert patch (SYS_CHROOT/SETFCAP); "init" and "ironic-python-agent-init"
+	// only ever do plain file I/O (crudini-merge config, copy an image) and
+	// never needed root -- confirmed via direct script reading, not assumed.
 	runAsUser := int64(0)
 
 	envVars := map[string]env.Setter{}
@@ -130,11 +137,9 @@ func InitContainer(init APIDetails) []corev1.Container {
 	var containers []corev1.Container
 
 	initContainer := corev1.Container{
-		Name:  "init",
-		Image: init.ContainerImage,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Name:            "init",
+		Image:           init.ContainerImage,
+		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
 		Command: []string{
 			"/bin/bash",
 		},
@@ -149,10 +154,11 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	if init.ConductorInit {
 		ipaInit := corev1.Container{
-			Name:         "ironic-python-agent-init",
-			Image:        init.IronicPythonAgentImage,
-			Env:          imageCopyEnvs,
-			VolumeMounts: init.VolumeMounts,
+			Name:            "ironic-python-agent-init",
+			Image:           init.IronicPythonAgentImage,
+			SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+			Env:             imageCopyEnvs,
+			VolumeMounts:    init.VolumeMounts,
 		}
 		containers = append(containers, ipaInit)
 	}
@@ -163,8 +169,19 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Image: init.PxeContainerImage,
 			SecurityContext: &corev1.SecurityContext{
 				RunAsUser: &runAsUser,
+				// explicit false: this container's pod may carry a
+				// pod-level RestrictivePodSecurityContext (RunAsNonRoot:
+				// true) for its non-root siblings -- a container's own
+				// explicit SecurityContext fields override the pod-level
+				// default, so this exempts pxe-init specifically, which
+				// genuinely needs root for its chroot-based CA-cert patch.
+				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
+					Drop: []corev1.Capability{"ALL"},
 					Add: []corev1.Capability{
+						"DAC_OVERRIDE",
+						"FOWNER",
+						"SYS_ADMIN",
 						"SYS_CHROOT",
 						"SETFCAP",
 					},
