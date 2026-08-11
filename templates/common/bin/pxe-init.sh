@@ -29,14 +29,11 @@ if [ ! -d "/var/lib/ironic/httpboot" ]; then
 fi
 # Create an empty index.html so that / returns 200 instead of 403
 touch /var/lib/ironic/httpboot/index.html
-# Check for expected EFI directories
+# Check for EFI directories if /var/lib/ironic is not already populated
 if [ -d "/boot/efi/EFI/centos" ]; then
     efi_dir=centos
 elif [ -d "/boot/efi/EFI/redhat" ]; then
     efi_dir=redhat
-else
-    echo "No EFI directory detected"
-    exit 1
 fi
 
 # Copy iPXE and grub files to tftpboot, httpboot
@@ -52,9 +49,17 @@ for dir in httpboot tftpboot; do
         cp /usr/share/ipxe/ipxe.lkrn /var/lib/ironic/$dir/ipxe.lkrn
     fi
     if [ ! -e "/var/lib/ironic/$dir/bootx64.efi" ]; then
+        if [ -n "${efi_dir:-}" ]; then
+            echo "ERROR: bootx64.efi is missing from /var/lib/ironic/$dir and no /boot/efi directory is available to copy them from"
+            exit 1
+        fi
         cp /boot/efi/EFI/$efi_dir/shimx64.efi /var/lib/ironic/$dir/bootx64.efi
     fi
     if [ ! -e "/var/lib/ironic/$dir/grubx64.efi" ]; then
+        if [ -n "${efi_dir:-}" ]; then
+            echo "ERROR: grubx64.efi is missing from /var/lib/ironic/$dir and no /boot/efi directory is available to copy them from"
+            exit 1
+        fi
         cp /boot/efi/EFI/$efi_dir/grubx64.efi /var/lib/ironic/$dir/grubx64.efi
     fi
 done
