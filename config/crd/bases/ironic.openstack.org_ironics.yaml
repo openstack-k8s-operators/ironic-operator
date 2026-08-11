@@ -621,6 +621,32 @@ spec:
                             current project
                           type: string
                       type: object
+                    traitBasedNetworking:
+                      description: TraitBasedNetworking - Configuration for Trait
+                        Based Networking
+                      properties:
+                        config:
+                          description: |-
+                            Config - YAML content for the trait_based_networking.yaml configuration file.
+                            Required when state is "Enabled". Defines named traits and their port-scheduling
+                            actions. See the Ironic TBN documentation for the expected YAML format.
+                          type: string
+                        state:
+                          default: Disabled
+                          description: |-
+                            State - Whether to enable Trait Based Networking. Set to "Enabled" to activate TBN;
+                            "Disabled" (the default) leaves TBN inactive. When set to "Enabled", the config
+                            field must also be provided.
+                          enum:
+                          - Enabled
+                          - Disabled
+                          - ""
+                          type: string
+                      type: object
+                      x-kubernetes-validations:
+                      - message: config must be provided when traitBasedNetworking
+                          is enabled
+                        rule: self.state != 'Enabled' || self.config != ''
                   required:
                   - storageClass
                   - storageRequest

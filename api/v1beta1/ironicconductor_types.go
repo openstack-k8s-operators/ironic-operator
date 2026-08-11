@@ -23,6 +23,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +kubebuilder:validation:XValidation:rule="self.state != 'Enabled' || self.config != ''",message="config must be provided when traitBasedNetworking is enabled"
+// TraitBasedNetworkingSpec defines the Trait Based Networking configuration
+type TraitBasedNetworkingSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=Disabled
+	// +kubebuilder:validation:Enum:=Enabled;Disabled;""
+	// State - Whether to enable Trait Based Networking. Set to "Enabled" to activate TBN;
+	// "Disabled" (the default) leaves TBN inactive. When set to "Enabled", the config
+	// field must also be provided.
+	State string `json:"state"`
+
+	// +kubebuilder:validation:Optional
+	// Config - YAML content for the trait_based_networking.yaml configuration file.
+	// Required when state is "Enabled". Defines named traits and their port-scheduling
+	// actions. See the Ironic TBN documentation for the expected YAML format.
+	Config string `json:"config,omitempty"`
+}
+
 // IronicConductorTemplate defines the input parameters for Ironic Conductor service
 type IronicConductorTemplate struct {
 	// Common input parameters for all Ironic services
@@ -52,6 +70,10 @@ type IronicConductorTemplate struct {
 	// +kubebuilder:validation:Optional
 	// DHCPRanges - List of DHCP ranges to use for provisioning
 	DHCPRanges []DHCPRange `json:"dhcpRanges,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// TraitBasedNetworking - Configuration for Trait Based Networking
+	TraitBasedNetworking *TraitBasedNetworkingSpec `json:"traitBasedNetworking,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=120

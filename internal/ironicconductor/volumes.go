@@ -124,6 +124,15 @@ func GetConductorVolumeMounts(instance *ironicv1.IronicConductor) []corev1.Volum
 		})
 	}
 
+	if instance.Spec.TraitBasedNetworking != nil && instance.Spec.TraitBasedNetworking.State == "Enabled" {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      "config-data",
+			MountPath: "/etc/ironic/trait_based_networking.yaml",
+			SubPath:   "trait_based_networking.yaml",
+			ReadOnly:  true,
+		})
+	}
+
 	return append(ironic.GetVolumeMounts(), vm...)
 }
 

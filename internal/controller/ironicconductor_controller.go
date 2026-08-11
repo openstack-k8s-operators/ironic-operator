@@ -970,6 +970,12 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	// Set GracefulShutdownTimeout for conductor pods
 	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
 
+	tbnEnabled := instance.Spec.TraitBasedNetworking != nil && instance.Spec.TraitBasedNetworking.State == "Enabled"
+	templateParameters["TraitBasedNetworkingEnabled"] = tbnEnabled
+	if tbnEnabled {
+		customData["trait_based_networking.yaml"] = instance.Spec.TraitBasedNetworking.Config
+	}
+
 	databaseAccount := db.GetAccount()
 	dbSecret := db.GetSecret()
 
