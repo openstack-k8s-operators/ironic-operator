@@ -276,6 +276,7 @@ func StatefulSet(
 			},
 			Args: args,
 			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: ptr.To(int64(0)),
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{
 						"NET_ADMIN", "NET_RAW",
