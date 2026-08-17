@@ -101,6 +101,7 @@ func getCommonRbacRules() []rbacv1.PolicyRule {
 type conditionUpdater interface {
 	Set(c *condition.Condition)
 	MarkTrue(t condition.Type, messageFormat string, messageArgs ...any)
+	Remove(t condition.Type)
 }
 
 type topologyHandler interface {
@@ -262,8 +263,16 @@ func ensureNotificationsTransportURL(
 
 		conditionUpdater.MarkTrue(condition.NotificationBusInstanceReadyCondition, condition.NotificationBusInstanceReadyMessage)
 	} else {
-		// Clear notifications URL if not configured
+		// Notifications bus disabled. Clearing the status secret here makes the
+		// regenerated config drop the notifications transport URL, so the input
+		// hash changes and the workload rolls. The actual teardown of the
+		// notifications TransportURL and release of its consumer finalizer is
+		// deferred by the caller to the FinalizeSecretRotation section (guarded
+		// on readiness), otherwise the RabbitMQ user backing the secret would be
+		// revoked while pods still use it. Remove the NotificationBus ready
+		// condition so it does not linger stale after being disabled.
 		*notificationsURLSecret = nil
+		conditionUpdater.Remove(condition.NotificationBusInstanceReadyCondition)
 	}
 
 	return ctrl.Result{}, nil

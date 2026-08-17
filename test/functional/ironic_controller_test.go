@@ -19,6 +19,7 @@ package functional_test
 import (
 	"fmt"
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -1568,6 +1569,238 @@ var _ = Describe("Ironic controller", func() {
 
 	})
 
+	When("TransportURL consumer finalizer is managed", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName))
+
+			apiMariaDBAccount, apiMariaDBSecret := mariadb.CreateMariaDBAccountAndSecret(ironicNames.IronicDatabaseAccount, mariadbv1.MariaDBAccountSpec{})
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBAccount)
+			DeferCleanup(k8sClient.Delete, ctx, apiMariaDBSecret)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec))
+
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("should add the consumer finalizer to the transport secret", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      MessageBusSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should remove the consumer finalizer from transport secret on CR deletion", func() {
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      MessageBusSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			th.DeleteInstance(GetIronic(ironicNames.IronicName))
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      MessageBusSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should move the finalizer from the old to the new secret on transport rotation", func() {
+			oldSecretName := MessageBusSecretName
+			newSecretName := "rabbitmq-secret-rotated"
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      oldSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			simulateIronicSubServicesReady(ironicNames)
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.Conditions.IsTrue(condition.ReadyCondition)).To(BeTrue())
+				g.Expect(i.Status.TransportURLSecret).To(Equal(oldSecretName))
+			}, timeout, interval).Should(Succeed())
+
+			newSecret := th.CreateSecret(
+				types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      newSecretName,
+				},
+				map[string][]byte{
+					"transport_url": []byte("rabbit://rotated-user:rotated-pass@rabbitmq/fake"),
+				},
+			)
+			DeferCleanup(k8sClient.Delete, ctx, newSecret)
+
+			Eventually(func(g Gomega) {
+				transport := infra.GetTransportURL(ironicNames.IronicTransportURLName)
+				transport.Status.SecretName = newSecretName
+				g.Expect(k8sClient.Status().Update(ctx, transport)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      newSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      oldSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+				th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+				i := GetIronic(ironicNames.IronicName)
+				if i.Annotations == nil {
+					i.Annotations = map[string]string{}
+				}
+				i.Annotations["test-reconcile-trigger"] = fmt.Sprintf("%d", time.Now().UnixNano())
+				g.Expect(k8sClient.Update(ctx, i)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      oldSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(ironic.TransportConsumerFinalizer))
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.TransportURLSecret).To(Equal(newSecretName))
+			}, 10*time.Second, interval).Should(Succeed())
+		})
+
+		It("should hold the finalizer until the last sub-CR is ready", func() {
+			oldSecretName := MessageBusSecretName
+			newSecretName := "rabbitmq-secret-rotated"
+
+			simulateIronicSubServicesReady(ironicNames)
+			Eventually(func(g Gomega) {
+				i := GetIronic(ironicNames.IronicName)
+				g.Expect(i.Status.Conditions.IsTrue(condition.ReadyCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			newSecret := th.CreateSecret(
+				types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      newSecretName,
+				},
+				map[string][]byte{
+					"transport_url": []byte("rabbit://rotated-user:rotated-pass@rabbitmq/fake"),
+				},
+			)
+			DeferCleanup(k8sClient.Delete, ctx, newSecret)
+
+			Eventually(func(g Gomega) {
+				transport := infra.GetTransportURL(ironicNames.IronicTransportURLName)
+				transport.Status.SecretName = newSecretName
+				g.Expect(k8sClient.Status().Update(ctx, transport)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      newSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			// Simulate API, Conductor, Inspector ready, but NOT INA
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+				i := GetIronic(ironicNames.IronicName)
+				if i.Annotations == nil {
+					i.Annotations = map[string]string{}
+				}
+				i.Annotations["test-reconcile-trigger"] = fmt.Sprintf("%d", time.Now().UnixNano())
+				g.Expect(k8sClient.Update(ctx, i)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      oldSecretName,
+				})
+				g.Expect(secret.Finalizers).To(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			// Now simulate all sub-CRs ready including INA
+			Eventually(func(g Gomega) {
+				th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
+				th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
+				th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+				i := GetIronic(ironicNames.IronicName)
+				if i.Annotations == nil {
+					i.Annotations = map[string]string{}
+				}
+				i.Annotations["test-reconcile-trigger"] = fmt.Sprintf("%d", time.Now().UnixNano())
+				g.Expect(k8sClient.Update(ctx, i)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      oldSecretName,
+				})
+				g.Expect(secret.Finalizers).NotTo(
+					ContainElement(ironic.TransportConsumerFinalizer))
+			}, 10*time.Second, interval).Should(Succeed())
+		})
+	})
+
 	When("An ApplicationCredential is created for Ironic", func() {
 		BeforeEach(func() {
 			DeferCleanup(
@@ -2036,17 +2269,23 @@ var _ = Describe("Ironic Webhook", func() {
 		})
 
 		It("should initially have notifications enabled", func() {
-			// First set up the main TransportURL
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 
-			// Now wait for controller to create the notifications TransportURL, then simulate it as ready
 			infra.GetTransportURL(notificationsTransportURLName)
 			DeferCleanup(k8sClient.Delete, ctx, CreateTransportURLSecret(types.NamespacedName{
 				Namespace: ironicNames.Namespace,
 				Name:      "notifications-rabbitmq-secret",
 			}))
 			infra.SimulateTransportURLReady(notificationsTransportURLName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+			simulateIronicSubServicesReady(ironicNames)
 
 			Eventually(func(g Gomega) {
 				ironic := GetIronic(ironicNames.IronicName)
@@ -2056,17 +2295,23 @@ var _ = Describe("Ironic Webhook", func() {
 		})
 
 		It("should disable notifications when notificationsBus is removed", func() {
-			// First set up the main TransportURL
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 
-			// Now wait for controller to create the notifications TransportURL, then simulate it as ready
 			infra.GetTransportURL(notificationsTransportURLName)
 			DeferCleanup(k8sClient.Delete, ctx, CreateTransportURLSecret(types.NamespacedName{
 				Namespace: ironicNames.Namespace,
 				Name:      "notifications-rabbitmq-secret",
 			}))
 			infra.SimulateTransportURLReady(notificationsTransportURLName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+			simulateIronicSubServicesReady(ironicNames)
 
 			// Verify notifications are initially enabled
 			Eventually(func(g Gomega) {
