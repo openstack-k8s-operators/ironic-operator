@@ -68,8 +68,9 @@ import (
 // IronicAPIReconciler reconciles a IronicAPI object
 type IronicAPIReconciler struct {
 	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
+	Kclient   kubernetes.Interface
+	Scheme    *runtime.Scheme
+	APIReader client.Reader
 }
 
 var keystoneServices = []map[string]string{
@@ -755,6 +756,11 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	//
 	// TLS input validation
 	//
@@ -967,8 +973,12 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 		return ctrlResult, nil
 	}
 
-	// Only check readiness if controller sees the last version of the CR
+	// Only check readiness if controller sees the last version of the CR.
+	// ready reflects the current workload generation and expected input hash;
+	// it stays false when the latest generation has not been observed yet, so a
+	// stale DeploymentReadyCondition cannot advance AppliedInputSecretHash.
 	deploy := depl.GetDeployment()
+	ready := false
 	if deploy.Generation == deploy.Status.ObservedGeneration {
 		instance.Status.ReadyCount = deploy.Status.ReadyReplicas
 
@@ -992,11 +1002,15 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 			return ctrl.Result{}, err
 		}
 
-		// Mark the Deployment as Ready only if the number of Replicas is equals
-		// to the Deployed instances (ReadyCount), and the the Status.Replicas
-		// match Status.ReadyReplicas. If a deployment update is in progress,
-		// Replicas > ReadyReplicas.
 		if deployment.IsReady(deploy) {
+			ready, err = deployment.IsReadyForInput(ctx, r.APIReader,
+				types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace},
+				inputHash)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		if ready {
 			instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 		} else {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -1007,6 +1021,10 @@ func (r *IronicAPIReconciler) reconcileNormal(ctx context.Context, instance *iro
 		}
 	}
 	// create Deployment - end
+
+	if ready {
+		instance.Status.AppliedInputSecretHash = expectedHash
+	}
 
 	// We reached the end of the Reconcile, update the Ready condition based on
 	// the sub conditions
