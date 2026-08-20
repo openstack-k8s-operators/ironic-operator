@@ -156,7 +156,18 @@ func InitContainer(init APIDetails) []corev1.Container {
 				// CA-cert patch.
 				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
+					Drop: []corev1.Capability{"ALL"},
+					// Runs as root but needs, on top of a dropped default
+					// set: DAC_OVERRIDE to write into the fsGroup-owned
+					// var-lib-ironic EmptyDir (e.g. copying dnsmasq.conf),
+					// FOWNER for the shared pxe-init.sh chmod of assets it
+					// does not own, and SYS_CHROOT/SETFCAP for the
+					// chroot-based CA-cert patch. SYS_ADMIN is deliberately
+					// not granted -- the shared unshare/chroot path works
+					// without it.
 					Add: []corev1.Capability{
+						"DAC_OVERRIDE",
+						"FOWNER",
 						"SYS_CHROOT",
 						"SETFCAP",
 					},
