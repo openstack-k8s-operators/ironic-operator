@@ -1,13 +1,14 @@
 package ironic
 
 import (
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
 func GetVolumes(name string) []corev1.Volume {
 	var scriptsVolumeDefaultMode int32 = 0755
-	var config0640AccessMode int32 = 0640
+	var config0440AccessMode int32 = 0440
 
 	return []corev1.Volume{
 		{
@@ -23,17 +24,12 @@ func GetVolumes(name string) []corev1.Volume {
 			Name: "config-data",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0640AccessMode,
+					DefaultMode: &config0440AccessMode,
 					SecretName:  name + "-config-data",
 				},
 			},
 		},
-		{
-			Name: "config-data-merged",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{Medium: ""},
-			},
-		},
+		volume.WritableDirVolume("config-data-merged"),
 		{
 			Name: "etc-podinfo",
 			VolumeSource: corev1.VolumeSource{
@@ -80,18 +76,18 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 
 }
 
-// GetVolumeMounts - Ironic VolumeMounts
+// GetVolumeMounts - Ironic VolumeMounts. Note: does NOT mount
+// "config-data-merged" as a whole directory -- only GetInitVolumeMounts()
+// (the init container that actually writes into it via crudini-merge)
+// needs that. Consumers that need one specific merged file mount it
+// directly at its final destination via SubPath (see
+// GetMergedConfVolumeMount()) once the init container has already run.
 func GetVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "scripts",
 			MountPath: "/usr/local/bin/container-scripts",
 			ReadOnly:  true,
-		},
-		{
-			Name:      "config-data-merged",
-			MountPath: "/var/lib/config-data/merged",
-			ReadOnly:  false,
 		},
 		{
 			Name:      "etc-podinfo",
@@ -101,16 +97,35 @@ func GetVolumeMounts() []corev1.VolumeMount {
 	}
 }
 
-// GetDBSyncVolumeMounts - Ironic VolumeMounts
-func GetDBSyncVolumeMounts() []corev1.VolumeMount {
+// GetMergedConfVolumeMount - a single file out of the "config-data-merged"
+// EmptyDir, SubPath-mounted directly at its final destination. Safe despite
+// being a SubPath mount of an EmptyDir: the init container (an earlier
+// container in the same pod) already wrote the real file there through its
+// own *whole-directory* mount of the same EmptyDir (GetInitVolumeMounts()),
+// so by the time any of these later containers start, the file already
+// exists -- see horizon-operator's equivalent fix for why a SubPath mount
+// of a *not-yet-existing* path would otherwise be auto-created by kubelet
+// as a directory.
+func GetMergedConfVolumeMount(finalPath, subPath string) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "config-data-merged",
+		MountPath: finalPath,
+		SubPath:   subPath,
+		ReadOnly:  true,
+	}
+}
 
+// GetDBSyncVolumeMounts - Ironic db-sync VolumeMounts. Sources ironic.conf/
+// 02-ironic-custom.conf/my.cnf from the merged EmptyDir (matching what
+// db-sync-config.json's kolla copy step used to read from), not from the
+// raw "config-data"/"config-data-custom" Secrets directly -- db-sync always
+// ran through the merge step, even though it doesn't need
+// 03-init-container-conductor.conf (conductor-only).
+func GetDBSyncVolumeMounts() []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "config-data",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "db-sync-config.json",
-			ReadOnly:  true,
-		},
+		GetMergedConfVolumeMount("/etc/ironic/ironic.conf", "ironic.conf"),
+		GetMergedConfVolumeMount("/etc/ironic/ironic.conf.d/02-ironic-custom.conf", "02-ironic-custom.conf"),
+		GetMergedConfVolumeMount("/etc/my.cnf", "my.cnf"),
 	}
 
 	return append(GetVolumeMounts(), volumeMounts...)

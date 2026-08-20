@@ -17,8 +17,11 @@ package ironicinspector
 
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 // APIDetails information
@@ -128,8 +131,9 @@ func InitContainer(init APIDetails) []corev1.Container {
 
 	if init.IpaInit {
 		ipaInit := corev1.Container{
-			Name:  "ironic-python-agent-init",
-			Image: init.IronicPythonAgentImage,
+			Name:            "ironic-python-agent-init",
+			Image:           init.IronicPythonAgentImage,
+			SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 			Command: []string{
 				"/bin/bash",
 			},
@@ -146,6 +150,11 @@ func InitContainer(init APIDetails) []corev1.Container {
 			Image: init.PxeContainerImage,
 			SecurityContext: &corev1.SecurityContext{
 				RunAsUser: &runAsUser,
+				// explicit false: overrides this pod's RestrictivePodSecurityContext
+				// (RunAsNonRoot: true, applied for the non-root siblings) --
+				// inspector-pxe-init genuinely needs root for its chroot-based
+				// CA-cert patch.
+				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{
 						"SYS_CHROOT",

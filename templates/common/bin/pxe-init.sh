@@ -17,7 +17,7 @@ set -ex
 
 # Copy pre-populated boot assets from container image if they exist
 if [ -d "/usr/share/ironic-operator/var-lib-ironic" ]; then
-    cp -a /usr/share/ironic-operator/var-lib-ironic/. /var/lib/ironic/
+    cp -r /usr/share/ironic-operator/var-lib-ironic/. /var/lib/ironic/
 fi
 
 # Create TFTP, HTTP serving directories
@@ -59,8 +59,15 @@ for dir in httpboot tftpboot; do
     fi
 done
 
-# Ensure all boot assets are readable
-chmod -R +r /var/lib/ironic/httpboot /var/lib/ironic/tftpboot
+# pxe-init runs as root but only has DAC_OVERRIDE/FOWNER/SYS_ADMIN/
+# SYS_CHROOT/SETFCAP (no CAP_CHOWN), so it can't chown these to the
+# ironic user. The pod's fsGroup already made /var/lib/ironic
+# setgid+group-ironic, which propagates to everything mkdir'd under it
+# (including tftpboot/httpboot here) -- so add group write/execute on
+# top of that inherited group, letting the unprivileged conductor/
+# inspector processes create new entries at runtime (e.g.
+# pxe_utils.place_common_config's tftpboot/grub) without EACCES.
+chmod -R +r,g+wX /var/lib/ironic/httpboot /var/lib/ironic/tftpboot
 
 # Patch ironic-python-agent with custom CA certificates
 if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/ironic/httpboot/x86_64/ironic-python-agent.initramfs" ]; then

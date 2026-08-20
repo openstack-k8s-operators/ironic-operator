@@ -20,14 +20,12 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	// DBSyncCommand -
-	DBSyncCommand = "sudo -E /usr/local/bin/kolla_set_configs && /bin/bash -c 'ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf --config-dir /etc/ironic-inspector/inspector.conf.d upgrade'"
+	"k8s.io/utils/ptr"
 )
 
 // DbSyncJob func
@@ -36,14 +34,10 @@ func DbSyncJob(
 	labels map[string]string,
 ) *batchv1.Job {
 
-	args := []string{"-c", DBSyncCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	volumes := GetVolumes(ironic.ServiceName + "-" + ironic.InspectorComponent)
-	volumeMounts := GetVolumeMounts("db-sync")
+	volumeMounts := GetInspectorVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts()
 
 	// add CA cert if defined
@@ -62,18 +56,21 @@ func DbSyncJob(
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: instance.RbacResourceName(),
+					RestartPolicy:                corev1.RestartPolicyOnFailure,
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 					Containers: []corev1.Container{
 						{
 							Name: ironic.ServiceName + "-" + ironic.InspectorComponent + "-db-sync",
 							Command: []string{
-								"/bin/bash",
+								"ironic-inspector-dbsync",
 							},
-							Args:         args,
-							Image:        instance.Spec.ContainerImage,
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: volumeMounts,
+							Args:            []string{"--config-file", "/etc/ironic-inspector/inspector.conf", "--config-dir", "/etc/ironic-inspector/inspector.conf.d", "upgrade"},
+							Image:           instance.Spec.ContainerImage,
+							SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 					Volumes: volumes,

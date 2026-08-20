@@ -19,6 +19,8 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,11 +38,7 @@ func DbSyncJob(
 	labels map[string]string,
 ) *batchv1.Job {
 
-	args := []string{"-c", DBSyncCommand}
-
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("true")
 
 	volumes := GetVolumes(ServiceName)
 	volumeMounts := GetDBSyncVolumeMounts()
@@ -65,16 +63,17 @@ func DbSyncJob(
 					RestartPolicy:                corev1.RestartPolicyOnFailure,
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.IronicUID, users.IronicGID),
 					Containers: []corev1.Container{
 						{
 							Name: ServiceName + "-db-sync",
 							Command: []string{
-								"/bin/bash",
+								DBSyncCommand,
 							},
-							Args:         args,
-							Image:        instance.Spec.Images.Conductor,
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts: volumeMounts,
+							Image:           instance.Spec.Images.Conductor,
+							SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 					Volumes: volumes,

@@ -1198,9 +1198,11 @@ var _ = Describe("Ironic controller", func() {
 				// Ironic dbsync job
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
 				g.Expect(*th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
-				// Conductor needs the token, so it should NOT be set to false
-				conductorAutoMount := th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken
-				g.Expect(conductorAutoMount == nil || *conductorAutoMount).To(BeTrue())
+				// IronicConductor statefulset - get_net_ip reads from the
+				// DownwardAPI volume (/etc/podinfo/network-status), not
+				// from the k8s API, so no token is needed
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
 			}, timeout, interval).Should(Succeed())
 		})
 
