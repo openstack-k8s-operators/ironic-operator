@@ -66,8 +66,9 @@ import (
 // IronicConductorReconciler reconciles a IronicConductor object
 type IronicConductorReconciler struct {
 	client.Client
-	Kclient kubernetes.Interface
-	Scheme  *runtime.Scheme
+	Kclient   kubernetes.Interface
+	Scheme    *runtime.Scheme
+	APIReader client.Reader
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
@@ -630,6 +631,11 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
+	expectedHash := ""
+	if ann := instance.GetAnnotations(); ann != nil {
+		expectedHash = ann["openstack.org/input-secret-hash"]
+	}
+
 	//
 	// TLS input validation
 	//
@@ -848,11 +854,16 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			return ctrl.Result{}, err
 		}
 
-		// Mark the Deployment as Ready only if the number of Replicas is equals
-		// to the Deployed instances (ReadyCount), and the the Status.Replicas
-		// match Status.ReadyReplicas. If a deployment update is in progress,
-		// Replicas > ReadyReplicas.
+		ready := false
 		if statefulset.IsReady(deploy) {
+			ready, err = statefulset.IsReadyForInput(ctx, r.APIReader,
+				types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace},
+				inputHash)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		if ready {
 			instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 		} else {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -861,6 +872,10 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 				condition.SeverityInfo,
 				condition.DeploymentReadyRunningMessage))
 		}
+	}
+
+	if instance.Status.Conditions.IsTrue(condition.DeploymentReadyCondition) {
+		instance.Status.AppliedInputSecretHash = expectedHash
 	}
 
 	// We reached the end of the Reconcile, update the Ready condition based on
