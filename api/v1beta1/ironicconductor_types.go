@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:XValidation:rule="self.state != 'Enabled' || self.config != ''",message="config must be provided when traitBasedNetworking is enabled"
+// +kubebuilder:validation:XValidation:rule="self.state != 'Enabled' || size(self.config) > 0",message="config must be provided when traitBasedNetworking is enabled"
 // TraitBasedNetworkingSpec defines the Trait Based Networking configuration
 type TraitBasedNetworkingSpec struct {
 	// +kubebuilder:validation:Optional
@@ -35,10 +35,46 @@ type TraitBasedNetworkingSpec struct {
 	State string `json:"state"`
 
 	// +kubebuilder:validation:Optional
-	// Config - YAML content for the trait_based_networking.yaml configuration file.
-	// Required when state is "Enabled". Defines named traits and their port-scheduling
-	// actions. See the Ironic TBN documentation for the expected YAML format.
-	Config string `json:"config,omitempty"`
+	// +listType=map
+	// +listMapKey=name
+	// Config - Named traits and their port-scheduling actions for trait_based_networking.yaml
+	Config []TraitBasedNetworkingEntry `json:"config,omitempty"`
+}
+
+// TraitBasedNetworkingEntry defines a single named trait and its port-scheduling actions
+type TraitBasedNetworkingEntry struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^CUSTOM_`
+	// Name - Trait name, must start with CUSTOM (e.g. CUSTOM_HIGH_SPEED_BOND)
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Optional
+	// Order - Resolution order for this trait relative to others. Lower orders apply first.
+	Order int `json:"order,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +listType=atomic
+	// Actions - List of port-scheduling actions to apply for this trait
+	Actions []TraitBasedNetworkingAction `json:"actions,omitempty"`
+}
+
+// TraitBasedNetworkingAction defines a single port-scheduling action within a trait
+type TraitBasedNetworkingAction struct {
+	// +kubebuilder:validation:Optional
+	// Action - The action to take, e.g. attach_port, attach_portgroup, group_and_attach_ports
+	Action string `json:"action,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Filter - The filter expression used to select ports/portgroups for this action
+	Filter string `json:"filter,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// MinCount - Minimum number of objects that must match before this action applies
+	MinCount *int `json:"min_count,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// MaxCount - Maximum number of objects that can match this action
+	MaxCount *int `json:"max_count,omitempty"`
 }
 
 // IronicConductorTemplate defines the input parameters for Ironic Conductor service
