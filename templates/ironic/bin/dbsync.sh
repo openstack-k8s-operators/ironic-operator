@@ -23,6 +23,9 @@ if [ ! -d "/var/lib/ironic/httpboot" ]; then
     mkdir -p /var/lib/ironic/httpboot
 fi
 
+# Ensure logging is shown as part of this script execution
+crudini --set /etc/ironic/ironic.conf DEFAULT use_stderr true
+
 ironic-status upgrade check && ret_val=$? || ret_val=$?
 if [ $ret_val -gt 1 ] ; then
     # NOTE(TheJulia): We need to evaluate the return code from the
