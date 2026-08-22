@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/yaml"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
@@ -969,6 +970,26 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 
 	// Set GracefulShutdownTimeout for conductor pods
 	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
+
+	tbnEnabled := instance.Spec.TraitBasedNetworking != nil && instance.Spec.TraitBasedNetworking.State == "Enabled"
+	templateParameters["TraitBasedNetworkingEnabled"] = tbnEnabled
+	if tbnEnabled {
+		// Ironic expects trait_based_networking.yaml as a mapping of trait
+		// name -> {order, actions}. The CRD stores traits as a list (the CRD
+		// schema checker rejects maps), so convert back to a map here.
+		tbnMap := make(map[string]any, len(instance.Spec.TraitBasedNetworking.Config))
+		for _, entry := range instance.Spec.TraitBasedNetworking.Config {
+			tbnMap[entry.Name] = map[string]any{
+				"order":   entry.Order,
+				"actions": entry.Actions,
+			}
+		}
+		tbnYAML, err := yaml.Marshal(tbnMap)
+		if err != nil {
+			return err
+		}
+		customData["trait_based_networking.yaml"] = string(tbnYAML)
+	}
 
 	databaseAccount := db.GetAccount()
 	dbSecret := db.GetSecret()
