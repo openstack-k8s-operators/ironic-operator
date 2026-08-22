@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    core.openstack.org/ingress_create: "false"
+    metallb.io/ip-allocated-from-pool: ironic
+    metallb.universe.tf/address-pool: ironic
+    metallb.universe.tf/allow-shared-ip: ironic
+    metallb.universe.tf/loadBalancerIPs: 172.20.1.80
+  name: dnsmasq-dns-ironic
+  namespace: openstack
+  labels:
+    service: dnsmasq
+spec:
+  ports:
+    - name: dnsmasq
+      port: 53
+      protocol: UDP
+      targetPort: 5353
+    - name: dnsmasq-tcp
+      port: 53
+      protocol: TCP
+      targetPort: 5353
+  selector:
+    service: dnsmasq
+  type: LoadBalancer
