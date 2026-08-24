@@ -33,6 +33,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
@@ -644,6 +645,164 @@ var _ = Describe("IronicConductor controller", func() {
 				g.Expect(conf).NotTo(ContainSubstring("auth_type=password"))
 				g.Expect(conf).NotTo(ContainSubstring("username=ironic"))
 				g.Expect(conf).NotTo(ContainSubstring("project_name=service"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicConductor is created with TraitBasedNetworking enabled", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicConductorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["traitBasedNetworking"] = map[string]any{
+				"state": "Enabled",
+				"config": []any{
+					map[string]any{
+						"name":  "CUSTOM_HIGH_SPEED_BOND",
+						"order": 1,
+						"actions": []any{
+							map[string]any{
+								"action": "attach_port",
+								"filter": "port.vendor == 'vendor_string'",
+							},
+						},
+					},
+				},
+			}
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("adds trait_based_networking.yaml to the config Secret", func() {
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(HaveKey("trait_based_networking.yaml"))
+				g.Expect(string(configDataMap.Data["trait_based_networking.yaml"])).To(
+					ContainSubstring("CUSTOM_HIGH_SPEED_BOND"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("renders TBN options in 01-conductor.conf", func() {
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				conductorConf := string(configDataMap.Data["01-conductor.conf"])
+				g.Expect(conductorConf).To(ContainSubstring("enable_trait_based_networking = True"))
+				g.Expect(conductorConf).To(ContainSubstring(
+					"trait_based_networking_config_file = /etc/ironic/trait_based_networking.yaml"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicConductor is created with an invalid TraitBasedNetworking config", func() {
+		DescribeTable("the API server rejects invalid trait names",
+			func(config []any, expectedErr string) {
+				spec := GetDefaultIronicConductorSpec()
+				spec["traitBasedNetworking"] = map[string]any{
+					"state":  "Enabled",
+					"config": config,
+				}
+				raw := map[string]any{
+					"apiVersion": "ironic.openstack.org/v1beta1",
+					"kind":       "IronicConductor",
+					"metadata": map[string]any{
+						"name":      ironicNames.ConductorName.Name,
+						"namespace": ironicNames.ConductorName.Namespace,
+					},
+					"spec": spec,
+				}
+				err := k8sClient.Create(ctx, &unstructured.Unstructured{Object: raw})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedErr))
+			},
+			Entry("missing trait name", []any{
+				map[string]any{"order": 1},
+			}, "Required value"),
+			Entry("empty trait name", []any{
+				map[string]any{"name": ""},
+			}, "should match"),
+			Entry("trait name without CUSTOM_ prefix", []any{
+				map[string]any{"name": "HIGH_SPEED_BOND"},
+			}, "should match"),
+			Entry("duplicate trait names", []any{
+				map[string]any{"name": "CUSTOM_DUP"},
+				map[string]any{"name": "CUSTOM_DUP"},
+			}, "Duplicate value"),
+		)
+	})
+
+	When("IronicConductor is created without TraitBasedNetworking", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicConductorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("does not add TBN keys or options to the config Secret", func() {
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).ShouldNot(HaveKey("trait_based_networking.yaml"))
+				conductorConf := string(configDataMap.Data["01-conductor.conf"])
+				g.Expect(conductorConf).NotTo(ContainSubstring("enable_trait_based_networking"))
+				g.Expect(conductorConf).NotTo(ContainSubstring("trait_based_networking_config_file"))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
