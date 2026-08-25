@@ -286,8 +286,13 @@ func StatefulSet(
 				RunAsNonRoot: ptr.To(false),
 				Capabilities: &corev1.Capabilities{
 					Drop: []corev1.Capability{"ALL"},
+					// With ALL dropped, root grants nothing on its own --
+					// each capability dnsmasq uses must be listed:
 					Add: []corev1.Capability{
-						"NET_ADMIN", "NET_RAW",
+						"NET_BIND_SERVICE", // bind TFTP 69 / DHCP 67,547 (<1024)
+						"NET_ADMIN",
+						"NET_RAW",
+						"SETGID", // drop to the unprivileged dnsmasq group
 					},
 				},
 			},

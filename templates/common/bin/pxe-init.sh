@@ -80,7 +80,10 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
 
     # Copy the CA certificates
     cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /initramfs/etc/pki/ca-trust/source/anchors/
-    echo update-ca-trust | unshare -r chroot ./initramfs
+    # chroot directly as real root; `unshare -r`'s single-uid userns breaks
+    # update-ca-trust's symlink creation because it cannot access files
+    # owned by another user
+    chroot ./initramfs /bin/sh -c "update-ca-trust"
 
     # Repack the initramfs
     pushd initramfs
