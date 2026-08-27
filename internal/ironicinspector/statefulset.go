@@ -248,18 +248,6 @@ func StatefulSet(
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, ramdiskLogsEnvVars),
 		VolumeMounts:    ramdiskLogsVolumeMounts,
-		// inotifywait doesn't terminate on SIGTERM so call SIGKILL as a
-		// pre-stop command
-		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"/usr/bin/pkill",
-						"inotifywait",
-					},
-				},
-			},
-		},
 	}
 	containers = append(containers, ramdiskLogsContainer)
 
