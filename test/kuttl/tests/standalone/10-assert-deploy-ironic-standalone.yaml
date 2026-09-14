@@ -4,7 +4,6 @@
 # Ironic
 # IronicAPI
 # IronicConductor
-# IronicInspector
 #
 
 apiVersion: ironic.openstack.org/v1beta1
@@ -24,16 +23,6 @@ spec:
   ironicConductors:
   - replicas: 1
     storageRequest: 10G
-  ironicInspector:
-    customServiceConfig: |
-      [DEFAULT]
-      debug = true
-    databaseAccount: ironic-inspector
-    passwordSelectors:
-      service: IronicInspectorPassword
-    preserveJobs: true
-    replicas: 1
-    serviceUser: ironic-inspector
   passwordSelectors:
     service: IronicPassword
   preserveJobs: true
@@ -103,37 +92,4 @@ spec:
   standalone: true
   storageRequest: 10G
 status:
-  readyCount: 1
----
-apiVersion: ironic.openstack.org/v1beta1
-kind: IronicInspector
-metadata:
-  finalizers:
-  - openstack.org/ironicinspector
-  name: ironic-inspector
-  ownerReferences:
-  - apiVersion: ironic.openstack.org/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Ironic
-    name: ironic
-spec:
-  customServiceConfig: |
-    [DEFAULT]
-    debug = true
-  databaseInstance: openstack
-  databaseAccount: ironic-inspector
-  passwordSelectors:
-    service: IronicInspectorPassword
-  preserveJobs: true
-  messagingBus:
-    cluster: rabbitmq
-  replicas: 1
-  resources: {}
-  rpcTransport: json-rpc
-  secret: osp-secret
-  serviceUser: ironic-inspector
-  standalone: true
-status:
-  databaseHostname: openstack.ironic-kuttl-tests.svc
   readyCount: 1

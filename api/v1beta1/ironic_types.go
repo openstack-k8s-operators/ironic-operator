@@ -40,8 +40,6 @@ const (
 	IronicAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified"
 	// IronicConductorContainerImage is the fall-back container image for IronicConductor
 	IronicConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified"
-	// IronicInspectorContainerImage is the fall-back container image for IronicInspector
-	IronicInspectorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified"
 	// IronicPXEContainerImage is the fall-back container image for IronicPXE
 	IronicPXEContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified"
 	// IronicNeutronAgentContainerImage is the fall-back container image for IronicConductor
@@ -123,10 +121,6 @@ type IronicSpecCore struct {
 	IronicConductors []IronicConductorTemplate `json:"ironicConductors,omitempty"`
 
 	// +kubebuilder:validation:Required
-	// IronicInspector - Spec definition for the inspector service of this Ironic deployment
-	IronicInspector IronicInspectorTemplate `json:"ironicInspector"`
-
-	// +kubebuilder:validation:Required
 	// IronicNeutronAgent - Spec definition for the ML2 baremetal ironic-neutron-agent
 	// service of this Ironic deployment
 	IronicNeutronAgent IronicNeutronAgentTemplate `json:"ironicNeutronAgent"`
@@ -148,8 +142,8 @@ type IronicSpecCore struct {
 	// +kubebuilder:validation:Optional
 	// RPC transport type - Which RPC transport implementation to use between
 	// conductor and API services. 'oslo' to use oslo.messaging transport
-	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic and ironic-inspector
-	// require oslo.messaging transport when not in standalone mode.
+	// or 'json-rpc' to use JSON RPC transport. NOTE -> ironic
+	// requires oslo.messaging transport when not in standalone mode.
 	RPCTransport string `json:"rpcTransport"`
 
 	// +kubebuilder:validation:Optional
@@ -196,10 +190,6 @@ type IronicImages struct {
 	// +kubebuilder:validation:Optional
 	// Conductor - Ironic Conductor Container Image (will be set to environmental default if empty)
 	Conductor string `json:"conductor"`
-
-	// +kubebuilder:validation:Optional
-	// Inspector - Ironic Inspector Container Image (will be set to environmental default if empty)
-	Inspector string `json:"inspector"`
 
 	// +kubebuilder:validation:Optional
 	// NeutronAgent - ML2 baremtal - Ironic Neutron Agent Image (will be set to environmental default if empty)
@@ -271,9 +261,6 @@ type IronicStatus struct {
 	// ReadyCount of Ironic Conductor instance
 	IronicConductorReadyCount map[string]int32 `json:"ironicConductorReadyCount,omitempty"`
 
-	// ReadyCount of Ironic Inspector instance
-	InspectorReadyCount int32 `json:"ironicInspectorReadyCount,omitempty"`
-
 	// ReadyCount of Ironic Neutron Agent instance
 	IronicNeutronAgentReadyCount int32 `json:"ironicNeutronAgentReadyCount,omitempty"`
 
@@ -295,10 +282,6 @@ type IronicStatus struct {
 	// old secret when the openstack-operator rotates the reference.
 	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
 
-	// InspectorApplicationCredentialSecret - the AC secret ironic-inspector is
-	// currently consuming and protecting with the
-	// openstack.org/ironic-inspector-ac-consumer finalizer.
-	InspectorApplicationCredentialSecret string `json:"inspectorApplicationCredentialSecret,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -362,7 +345,6 @@ func SetupDefaults() {
 	imageDefaults := IronicImages{
 		API:               util.GetEnvVar("RELATED_IMAGE_IRONIC_API_IMAGE_URL_DEFAULT", IronicAPIContainerImage),
 		Conductor:         util.GetEnvVar("RELATED_IMAGE_IRONIC_CONDUCTOR_IMAGE_URL_DEFAULT", IronicConductorContainerImage),
-		Inspector:         util.GetEnvVar("RELATED_IMAGE_IRONIC_INSPECTOR_IMAGE_URL_DEFAULT", IronicInspectorContainerImage),
 		Pxe:               util.GetEnvVar("RELATED_IMAGE_IRONIC_PXE_IMAGE_URL_DEFAULT", IronicPXEContainerImage),
 		NeutronAgent:      util.GetEnvVar("RELATED_IMAGE_IRONIC_NEUTRON_AGENT_IMAGE_URL_DEFAULT", IronicNeutronAgentContainerImage),
 		IronicPythonAgent: util.GetEnvVar("RELATED_IMAGE_IRONIC_PYTHON_AGENT_IMAGE_URL_DEFAULT", IronicPythonAgentContainerImage),

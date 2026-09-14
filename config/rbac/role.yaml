@@ -67,7 +67,6 @@ rules:
   resources:
   - ironicapis
   - ironicconductors
-  - ironicinspectors
   - ironicneutronagents
   - ironics
   verbs:
@@ -83,7 +82,6 @@ rules:
   resources:
   - ironicapis/finalizers
   - ironicconductors/finalizers
-  - ironicinspectors/finalizers
   - ironicneutronagents/finalizers
   - ironics/finalizers
   verbs:
@@ -94,13 +92,20 @@ rules:
   resources:
   - ironicapis/status
   - ironicconductors/status
-  - ironicinspectors/status
   - ironicneutronagents/status
   - ironics/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - ironic.openstack.org
+  resources:
+  - ironicinspectors
+  verbs:
+  - delete
+  - get
+  - list
 - apiGroups:
   - k8s.cni.cncf.io
   resources:

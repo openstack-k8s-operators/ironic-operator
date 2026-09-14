@@ -93,7 +93,6 @@ var _ = Describe("Ironic controller", func() {
 			Expect(instance.Status.Hash).To(BeEmpty())
 			Expect(instance.Status.APIEndpoints).To(BeEmpty())
 			Expect(instance.Status.IronicAPIReadyCount).To(Equal(int32(0)))
-			Expect(instance.Status.InspectorReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.IronicNeutronAgentReadyCount).To(Equal(int32(0)))
 			Expect(instance.Status.IronicConductorReadyCount).To(BeEmpty())
 		})
@@ -196,7 +195,7 @@ var _ = Describe("Ironic controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
-		It("Creates deployment for API, Conductor, Inspector and INA", func() {
+		It("Creates deployment for API, Conductor and INA", func() {
 			infra.GetTransportURL(ironicNames.IronicTransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
 			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
@@ -214,12 +213,6 @@ var _ = Describe("Ironic controller", func() {
 					Namespace: ironicNames.Namespace,
 					Name:      "ironic-conductor",
 				}, &ironicv1.IronicConductor{})).Should(Succeed())
-			}, th.Timeout, th.Interval).Should(Succeed())
-			Eventually(func(g Gomega) {
-				g.Expect(th.K8sClient.Get(th.Ctx, types.NamespacedName{
-					Namespace: ironicNames.Namespace,
-					Name:      "ironic-inspector",
-				}, &ironicv1.IronicInspector{})).Should(Succeed())
 			}, th.Timeout, th.Interval).Should(Succeed())
 			Eventually(func(g Gomega) {
 				g.Expect(th.K8sClient.Get(th.Ctx, types.NamespacedName{
@@ -322,20 +315,14 @@ var _ = Describe("Ironic controller", func() {
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 
-			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
-			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
-
 			nestedINATransportURLName := ironicNames.INATransportURLName
 			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
 			infra.GetTransportURL(nestedINATransportURLName)
 			infra.SimulateTransportURLReady(nestedINATransportURLName)
 
-			// API, Conductor, Inspector and Worker and NeutronAgent deployment in progress
+			// API, Conductor and NeutronAgent deployment in progress
 			th.SimulateDeploymentProgressing(ironicNames.IronicName)
 			th.SimulateStatefulSetProgressing(ironicNames.ConductorName)
-			th.SimulateStatefulSetProgressing(ironicNames.InspectorName)
 			th.SimulateDeploymentProgressing(ironicNames.INAName)
 		})
 
@@ -378,32 +365,6 @@ var _ = Describe("Ironic controller", func() {
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-
-			// overall Ironic condition false
-			th.ExpectCondition(
-				ironicNames.IronicName,
-				ConditionGetterFunc(IronicConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-		})
-
-		It("shows the IronicInspector deployment progressing in DeploymentReadyCondition", func() {
-			// IronicInspector - deployment progressing
-			th.ExpectConditionWithDetails(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.DeploymentReadyCondition,
-				corev1.ConditionFalse,
-				condition.RequestedReason,
-				condition.DeploymentReadyRunningMessage,
-			)
-			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionFalse,
 			)
@@ -575,47 +536,6 @@ var _ = Describe("Ironic controller", func() {
 			)
 		})
 
-		It("IronicInspector reaches Ready when deployment rollout finished", func() {
-			th.ExpectConditionWithDetails(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.DeploymentReadyCondition,
-				corev1.ConditionFalse,
-				condition.RequestedReason,
-				condition.DeploymentReadyRunningMessage,
-			)
-			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-
-			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
-			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.DeploymentReadyCondition,
-				corev1.ConditionTrue,
-			)
-			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionTrue,
-			)
-
-			// overall Ironic condition false
-			th.ExpectCondition(
-				ironicNames.IronicName,
-				ConditionGetterFunc(IronicConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-		})
-
 		It("IronicNeutronAgent reaches Ready when deployment rollout finished", func() {
 			th.ExpectConditionWithDetails(
 				inaName,
@@ -669,12 +589,6 @@ var _ = Describe("Ironic controller", func() {
 				corev1.ConditionFalse,
 			)
 			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionFalse,
-			)
-			th.ExpectCondition(
 				inaName,
 				ConditionGetterFunc(INAConditionGetter),
 				condition.ReadyCondition,
@@ -692,9 +606,6 @@ var _ = Describe("Ironic controller", func() {
 			// set all deployments to finished
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
-			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 
 			th.ExpectCondition(
@@ -706,12 +617,6 @@ var _ = Describe("Ironic controller", func() {
 			th.ExpectCondition(
 				ironicNames.ConductorName,
 				ConditionGetterFunc(IronicConductorConditionGetter),
-				condition.ReadyCondition,
-				corev1.ConditionTrue,
-			)
-			th.ExpectCondition(
-				ironicNames.InspectorName,
-				ConditionGetterFunc(IronicInspectorConditionGetter),
 				condition.ReadyCondition,
 				corev1.ConditionTrue,
 			)
@@ -776,11 +681,6 @@ var _ = Describe("Ironic controller", func() {
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 
-			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
-			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
-
 			nestedINATransportURLName := ironicNames.INATransportURLName
 			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
 			infra.GetTransportURL(nestedINATransportURLName)
@@ -788,9 +688,6 @@ var _ = Describe("Ironic controller", func() {
 
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
-			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneServiceReady(ironicNames.InspectorName)
-			keystone.SimulateKeystoneEndpointReady(ironicNames.InspectorName)
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 
 			th.ExpectCondition(
@@ -812,15 +709,6 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(confSecret).ShouldNot(BeNil())
 
 				conf := confSecret.Data["ironic.conf"]
-				g.Expect(string(conf)).Should(
-					ContainSubstring("auth_url=%s", newInternalEndpoint))
-			}, timeout, interval).Should(Succeed())
-
-			Eventually(func(g Gomega) {
-				confSecret := th.GetSecret(ironicNames.InspectorConfigSecretName)
-				g.Expect(confSecret).ShouldNot(BeNil())
-
-				conf := confSecret.Data["01-inspector.conf"]
 				g.Expect(string(conf)).Should(
 					ContainSubstring("auth_url=%s", newInternalEndpoint))
 			}, timeout, interval).Should(Succeed())
@@ -896,11 +784,6 @@ var _ = Describe("Ironic controller", func() {
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 
-			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
-			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
-
 			nestedINATransportURLName := ironicNames.INATransportURLName
 			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
 			infra.GetTransportURL(nestedINATransportURLName)
@@ -908,7 +791,6 @@ var _ = Describe("Ironic controller", func() {
 
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
-			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 		})
 
@@ -919,7 +801,7 @@ var _ = Describe("Ironic controller", func() {
 					Namespace: topologyRef.Namespace,
 				})
 				finalizers := tp.GetFinalizers()
-				g.Expect(finalizers).To(HaveLen(4))
+				g.Expect(finalizers).To(HaveLen(3))
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
 				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
 				g.Expect(ironicAPI.Status.LastAppliedTopology).To(Equal(topologyRef))
@@ -931,12 +813,6 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(topologyRef))
 				g.Expect(finalizers).To(ContainElement(
 					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
-
-				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(topologyRef))
-				g.Expect(finalizers).To(ContainElement(
-					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
 			}, timeout, interval).Should(Succeed())
 		})
 		It("sets topology in resource specs", func() {
@@ -945,10 +821,6 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Affinity).To(BeNil())
-
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.Affinity).To(BeNil())
 
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(expectedTopologySpecObj))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
@@ -977,7 +849,7 @@ var _ = Describe("Ironic controller", func() {
 					Namespace: expectedTopology.Namespace,
 				})
 				finalizers = tp.GetFinalizers()
-				g.Expect(finalizers).To(HaveLen(4))
+				g.Expect(finalizers).To(HaveLen(3))
 
 				ironicAPI := GetIronicAPI(ironicNames.APIName)
 				g.Expect(ironicAPI.Status.LastAppliedTopology).ToNot(BeNil())
@@ -990,12 +862,6 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(ironicConductor.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
 				g.Expect(finalizers).To(ContainElement(
 					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
-
-				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
-				g.Expect(finalizers).To(ContainElement(
-					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
 
 				// Get the previous topology and verify there are no finalizers
 				// anymore
@@ -1017,10 +883,6 @@ var _ = Describe("Ironic controller", func() {
 				newCnd := GetIronicConductorSpec(ironicNames.ConductorName)
 				newCnd.TopologyRef.Name = ironicNames.IronicTopologies[2].Name
 				ironic.Spec.IronicConductors[0] = newCnd
-				//Patch ironicInspector Spec
-				newInsp := GetIronicInspectorSpec(ironicNames.InspectorName)
-				newInsp.TopologyRef.Name = ironicNames.IronicTopologies[3].Name
-				ironic.Spec.IronicInspector = newInsp
 				g.Expect(k8sClient.Update(ctx, ironic)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
@@ -1060,23 +922,6 @@ var _ = Describe("Ironic controller", func() {
 					fmt.Sprintf("openstack.org/ironicconductor-%s", ironicConductor.Name)))
 			}, timeout, interval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
-				expectedTopology := &topologyv1.TopoRef{
-					Name:      ironicNames.IronicTopologies[3].Name,
-					Namespace: ironicNames.IronicTopologies[3].Namespace,
-				}
-				tp := infra.GetTopology(types.NamespacedName{
-					Name:      expectedTopology.Name,
-					Namespace: expectedTopology.Namespace,
-				})
-				g.Expect(tp.GetFinalizers()).To(HaveLen(1))
-				finalizers := tp.GetFinalizers()
-				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).ToNot(BeNil())
-				g.Expect(ironicInspector.Status.LastAppliedTopology).To(Equal(expectedTopology))
-				g.Expect(finalizers).To(ContainElement(
-					fmt.Sprintf("openstack.org/ironicinspector-%s", ironicInspector.Name)))
-			}, timeout, interval).Should(Succeed())
 		})
 		It("removes topologyRef from the spec", func() {
 			Eventually(func(g Gomega) {
@@ -1091,15 +936,11 @@ var _ = Describe("Ironic controller", func() {
 				g.Expect(ironicAPI.Status.LastAppliedTopology).Should(BeNil())
 				ironicConductor := GetIronicConductor(ironicNames.ConductorName)
 				g.Expect(ironicConductor.Status.LastAppliedTopology).Should(BeNil())
-				ironicInspector := GetIronicInspector(ironicNames.InspectorName)
-				g.Expect(ironicInspector.Status.LastAppliedTopology).Should(BeNil())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.Affinity).ToNot(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.Affinity).ToNot(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
@@ -1160,11 +1001,6 @@ var _ = Describe("Ironic controller", func() {
 			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
 			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
 
-			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
-			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
-			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
-			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
-
 			nestedINATransportURLName := ironicNames.INATransportURLName
 			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
 			infra.GetTransportURL(nestedINATransportURLName)
@@ -1172,16 +1008,13 @@ var _ = Describe("Ironic controller", func() {
 
 			th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 			th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
-			th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 		})
 
 		It("sets nodeSelector in resource specs", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1209,9 +1042,7 @@ var _ = Describe("Ironic controller", func() {
 		It("updates nodeSelector in resource specs when changed", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1227,11 +1058,8 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
-				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
 			}, timeout, interval).Should(Succeed())
@@ -1240,9 +1068,7 @@ var _ = Describe("Ironic controller", func() {
 		It("removes nodeSelector from resource specs when cleared", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1256,11 +1082,8 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
-				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
@@ -1269,9 +1092,7 @@ var _ = Describe("Ironic controller", func() {
 		It("removes nodeSelector from resource specs when nilled", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1284,11 +1105,8 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
-				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
@@ -1297,9 +1115,7 @@ var _ = Describe("Ironic controller", func() {
 		It("allows nodeSelector service override", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1314,10 +1130,6 @@ var _ = Describe("Ironic controller", func() {
 					"foo": "conductor",
 				}
 				ironic.Spec.IronicConductors[0].NodeSelector = &conductorNodeSelector
-				inspectorNodeSelector := map[string]string{
-					"foo": "inspector",
-				}
-				ironic.Spec.IronicInspector.NodeSelector = &inspectorNodeSelector
 				INANodeSelector := map[string]string{
 					"foo": "ina",
 				}
@@ -1328,11 +1140,8 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
-				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "inspector"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "api"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "inspector"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "conductor"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "ina"}))
 			}, timeout, interval).Should(Succeed())
@@ -1341,9 +1150,7 @@ var _ = Describe("Ironic controller", func() {
 		It("allows nodeSelector service override to empty", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
 			}, timeout, interval).Should(Succeed())
@@ -1354,8 +1161,6 @@ var _ = Describe("Ironic controller", func() {
 				ironic.Spec.IronicAPI.NodeSelector = &apiNodeSelector
 				conductorNodeSelector := map[string]string{}
 				ironic.Spec.IronicConductors[0].NodeSelector = &conductorNodeSelector
-				inspectorNodeSelector := map[string]string{}
-				ironic.Spec.IronicInspector.NodeSelector = &inspectorNodeSelector
 				INANodeSelector := map[string]string{}
 				ironic.Spec.IronicNeutronAgent.NodeSelector = &INANodeSelector
 
@@ -1364,11 +1169,8 @@ var _ = Describe("Ironic controller", func() {
 
 			Eventually(func(g Gomega) {
 				th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
-				th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
-				g.Expect(th.GetJob(ironicNames.InspectorDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.IronicName).Spec.Template.Spec.NodeSelector).To(BeNil())
-				g.Expect(th.GetStatefulSet(ironicNames.InspectorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				g.Expect(th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.NodeSelector).To(BeNil())
 			}, timeout, interval).Should(Succeed())
@@ -1654,11 +1456,10 @@ var _ = Describe("Ironic controller", func() {
 	})
 
 	When("ApplicationCredential consumer finalizer is managed", func() {
-		var acIronicSecretName, acInspectorSecretName string
+		var acIronicSecretName string
 
 		BeforeEach(func() {
-			acIronicSecretName = "ac-ironic-a1b2c3-secret"       //nolint:gosec // G101
-			acInspectorSecretName = "ac-inspector-d4e5f6-secret" //nolint:gosec // G101
+			acIronicSecretName = "ac-ironic-a1b2c3-secret" //nolint:gosec // G101
 
 			DeferCleanup(
 				k8sClient.Delete,
@@ -1694,20 +1495,8 @@ var _ = Describe("Ironic controller", func() {
 					keystonev1.ACSecretSecretKey: []byte("test-ironic-ac-secret"),
 				},
 			}
-			acInspector := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: ironicNames.Namespace,
-					Name:      acInspectorSecretName,
-				},
-				Data: map[string][]byte{
-					keystonev1.ACIDSecretKey:     []byte("test-inspector-ac-id"),
-					keystonev1.ACSecretSecretKey: []byte("test-inspector-ac-secret"),
-				},
-			}
 			DeferCleanup(k8sClient.Delete, ctx, acIronic)
-			DeferCleanup(k8sClient.Delete, ctx, acInspector)
 			Expect(k8sClient.Create(ctx, acIronic)).To(Succeed())
-			Expect(k8sClient.Create(ctx, acInspector)).To(Succeed())
 
 			spec := GetDefaultIronicSpec()
 			spec["rpcTransport"] = "oslo"
@@ -1715,11 +1504,6 @@ var _ = Describe("Ironic controller", func() {
 			spec["auth"] = map[string]any{
 				"applicationCredentialSecret": acIronicSecretName,
 			}
-			insp := GetDefaultIronicInspectorSpec()
-			insp["auth"] = map[string]any{
-				"applicationCredentialSecret": acInspectorSecretName,
-			}
-			spec["ironicInspector"] = insp
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronic(ironicNames.IronicName, spec),
@@ -1742,23 +1526,11 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("should add the inspector consumer finalizer to the inspector AC secret", func() {
-			Eventually(func(g Gomega) {
-				secret := th.GetSecret(types.NamespacedName{
-					Namespace: ironicNames.Namespace,
-					Name:      acInspectorSecretName,
-				})
-				g.Expect(secret.Finalizers).To(
-					ContainElement(ironic.InspectorACConsumerFinalizer))
-			}, timeout, interval).Should(Succeed())
-		})
-
 		It("should track the consumed AC secrets in status", func() {
 			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
 			Eventually(func(g Gomega) {
 				i := GetIronic(ironicNames.IronicName)
 				g.Expect(i.Status.ApplicationCredentialSecret).To(Equal(acIronicSecretName))
-				g.Expect(i.Status.InspectorApplicationCredentialSecret).To(Equal(acInspectorSecretName))
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -1810,7 +1582,6 @@ var _ = Describe("Ironic controller", func() {
 			Eventually(func(g Gomega) {
 				th.SimulateDeploymentReplicaReady(ironicNames.IronicName)
 				th.SimulateStatefulSetReplicaReady(ironicNames.ConductorName)
-				th.SimulateStatefulSetReplicaReady(ironicNames.InspectorName)
 				th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 				secret := th.GetSecret(types.NamespacedName{
 					Namespace: ironicNames.Namespace,
@@ -1826,7 +1597,7 @@ var _ = Describe("Ironic controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("should remove the consumer finalizers from AC secrets on CR deletion", func() {
+		It("should remove the consumer finalizer from AC secret on CR deletion", func() {
 			Eventually(func(g Gomega) {
 				ironicSec := th.GetSecret(types.NamespacedName{
 					Namespace: ironicNames.Namespace,
@@ -1834,12 +1605,6 @@ var _ = Describe("Ironic controller", func() {
 				})
 				g.Expect(ironicSec.Finalizers).To(
 					ContainElement(ironic.ACConsumerFinalizer))
-				inspectorSec := th.GetSecret(types.NamespacedName{
-					Namespace: ironicNames.Namespace,
-					Name:      acInspectorSecretName,
-				})
-				g.Expect(inspectorSec.Finalizers).To(
-					ContainElement(ironic.InspectorACConsumerFinalizer))
 			}, timeout, interval).Should(Succeed())
 
 			th.DeleteInstance(GetIronic(ironicNames.IronicName))
@@ -1850,12 +1615,6 @@ var _ = Describe("Ironic controller", func() {
 			})
 			Expect(ironicSec.Finalizers).NotTo(
 				ContainElement(ironic.ACConsumerFinalizer))
-			inspectorSec := th.GetSecret(types.NamespacedName{
-				Namespace: ironicNames.Namespace,
-				Name:      acInspectorSecretName,
-			})
-			Expect(inspectorSec.Finalizers).NotTo(
-				ContainElement(ironic.InspectorACConsumerFinalizer))
 		})
 	})
 
@@ -1899,38 +1658,6 @@ var _ = Describe("Ironic Webhook", func() {
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
 		)
 	})
-	It("rejects with wrong IronicInspector service override endpoint type", func() {
-		spec := GetDefaultIronicSpec()
-		apiSpec := GetDefaultIronicInspectorSpec()
-		apiSpec["override"] = map[string]any{
-			"service": map[string]any{
-				"internal": map[string]any{},
-				"wrooong":  map[string]any{},
-			},
-		}
-		spec["ironicInspector"] = apiSpec
-
-		raw := map[string]any{
-			"apiVersion": "ironic.openstack.org/v1beta1",
-			"kind":       "Ironic",
-			"metadata": map[string]any{
-				"name":      ironicNames.IronicName.Name,
-				"namespace": ironicNames.IronicName.Namespace,
-			},
-			"spec": spec,
-		}
-
-		unstructuredObj := &unstructured.Unstructured{Object: raw}
-		_, err := controllerutil.CreateOrPatch(
-			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(
-			ContainSubstring(
-				"invalid: spec.ironicInspector.override.service[wrooong]: " +
-					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
-		)
-	})
-
 	DescribeTable("rejects wrong topology for",
 		func(serviceNameFunc func() (string, string)) {
 
@@ -1939,7 +1666,7 @@ var _ = Describe("Ironic Webhook", func() {
 
 			spec := GetDefaultIronicSpec()
 
-			// API, Inspector, NeutronAgent
+			// API, NeutronAgent
 			if component != "top-level" && component != "ironicConductors" {
 				spec[component] = map[string]any{
 					"topologyRef": map[string]any{
@@ -1988,10 +1715,6 @@ var _ = Describe("Ironic Webhook", func() {
 		}),
 		Entry("ironicAPI topologyRef", func() (string, string) {
 			component := "ironicAPI"
-			return component, fmt.Sprintf("%s.topologyRef", component)
-		}),
-		Entry("ironicInspector topologyRef", func() (string, string) {
-			component := "ironicInspector"
 			return component, fmt.Sprintf("%s.topologyRef", component)
 		}),
 		Entry("ironicNeutronAgent topologyRef", func() (string, string) {

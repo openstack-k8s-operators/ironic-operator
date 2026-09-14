@@ -3,6 +3,5 @@ resources:
 - ironic_v1beta1_ironic.yaml
 - ironic_v1beta1_ironicapi.yaml
 - ironic_v1beta1_ironicconductor.yaml
-- ironic_v1beta1_ironicinspector.yaml
 - ironic_v1beta1_ironicneutronagent.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

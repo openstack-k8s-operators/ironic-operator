@@ -39,7 +39,7 @@ func TestValidateDHCPRange(t *testing.T) {
 				End:     "192.168.1.20",
 				Gateway: "192.168.1.1",
 			},
-			path:         field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path:         field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: nil,
 		},
 		{
@@ -49,10 +49,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				Start: "192.168.1.10",
 				End:   "192.168.1.20",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("cidr"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("cidr"),
 					"not-a-cidr",
 					errInvalidCidr,
 				),
@@ -65,10 +65,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				Start: "not-an-ipaddr",
 				End:   "192.168.1.20",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("start"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("start"),
 					"not-an-ipaddr",
 					errNotIPAddr,
 				),
@@ -81,10 +81,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				Start: "192.168.1.10",
 				End:   "not-an-ipaddr",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("end"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("end"),
 					"not-an-ipaddr",
 					errNotIPAddr,
 				),
@@ -98,10 +98,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				End:     "192.168.1.20",
 				Gateway: "not-an-ipaddr",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("gateway"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("gateway"),
 					"not-an-ipaddr",
 					errNotIPAddr,
 				),
@@ -115,10 +115,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				End:     "192.168.1.20",
 				Gateway: "192.168.1.1",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 					DHCPRange{
 						Cidr:    "192.168.1.0/24",
 						Start:   "2001:db8::1",
@@ -128,17 +128,17 @@ func TestValidateDHCPRange(t *testing.T) {
 					errMixedAddressFamily,
 				),
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("start"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("start"),
 					"2001:db8::1",
 					fmt.Sprintf(errNotInCidr, "192.168.1.0/24"),
 				),
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("start"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("start"),
 					"2001:db8::1",
 					fmt.Sprintf(errInvalidRange, "2001:db8::1", "192.168.1.20"),
 				),
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("end"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("end"),
 					"192.168.1.20",
 					fmt.Sprintf(errInvalidRange, "2001:db8::1", "192.168.1.20"),
 				),
@@ -152,15 +152,15 @@ func TestValidateDHCPRange(t *testing.T) {
 				End:     "192.168.1.10",
 				Gateway: "192.168.1.1",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("start"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("start"),
 					"192.168.1.20",
 					fmt.Sprintf(errInvalidRange, "192.168.1.20", "192.168.1.10"),
 				),
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("end"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("end"),
 					"192.168.1.10",
 					fmt.Sprintf(errInvalidRange, "192.168.1.20", "192.168.1.10"),
 				),
@@ -173,7 +173,7 @@ func TestValidateDHCPRange(t *testing.T) {
 				Start: "2620:cf:cf:ffff::190",
 				End:   "2620:cf:cf:ffff::199",
 			},
-			path:         field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path:         field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: nil,
 		},
 		{
@@ -184,10 +184,10 @@ func TestValidateDHCPRange(t *testing.T) {
 				End:     "2620:cf:cf:ffff::199",
 				Gateway: "2620:cf:cf:ffff::1",
 			},
-			path: field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
+			path: field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0),
 			expectedErrs: field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0).Child("gateway"),
+					field.NewPath("spec").Child("ironicConductors").Child("dhcpRanges").Index(0).Child("gateway"),
 					"2620:cf:cf:ffff::1",
 					errIPv6Gateway,
 				),
@@ -309,13 +309,34 @@ func TestValidateConductorSpec(t *testing.T) {
 		expectedErrs field.ErrorList
 	}{
 		{
-			name:     "IronicConductors is not",
+			name:     "IronicConductors is not provided",
 			spec:     &IronicSpecCore{},
 			basePath: field.NewPath("spec"),
 			expectedErrs: field.ErrorList{
 				field.Required(
 					field.NewPath("spec").Child("ironicConductors"),
 					"IronicConductors must be provided",
+				),
+			},
+		},
+		{
+			name: "Overlapping DHCP ranges across conductors",
+			spec: &IronicSpecCore{
+				IronicConductors: []IronicConductorTemplate{
+					{DHCPRanges: []DHCPRange{{Start: "192.168.1.10", End: "192.168.1.20"}}},
+					{DHCPRanges: []DHCPRange{{Start: "192.168.1.15", End: "192.168.1.25"}}},
+				},
+			},
+			basePath: field.NewPath("spec"),
+			expectedErrs: field.ErrorList{
+				field.Forbidden(
+					field.NewPath("spec").Child("ironicConductors").Index(0).Child("dhcpRanges").Index(0),
+					fmt.Sprintf(
+						errForbiddenAddressOverlap,
+						"192.168.1.10->192.168.1.20",
+						field.NewPath("spec").Child("ironicConductors").Index(1).Child("dhcpRanges").Index(0),
+						"192.168.1.15->192.168.1.25",
+					),
 				),
 			},
 		},
@@ -327,90 +348,6 @@ func TestValidateConductorSpec(t *testing.T) {
 
 			if !reflect.DeepEqual(errs, tc.expectedErrs) {
 				t.Errorf("validateConductorSpec() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
-			}
-		})
-	}
-}
-
-func TestValidateDHCPRangesOverlap(t *testing.T) {
-	testCases := []struct {
-		name         string
-		spec         *IronicSpecCore
-		basePath     *field.Path
-		expectedErrs field.ErrorList
-	}{
-		{
-			name: "No overlap",
-			spec: &IronicSpecCore{
-				IronicConductors: []IronicConductorTemplate{
-					{DHCPRanges: []DHCPRange{{Start: "192.168.1.10", End: "192.168.1.20"}}},
-				},
-				IronicInspector: IronicInspectorTemplate{
-					DHCPRanges: []DHCPRange{{Start: "192.168.2.10", End: "192.168.2.20"}},
-				},
-			},
-			basePath:     field.NewPath("spec"),
-			expectedErrs: field.ErrorList{},
-		},
-		{
-			name: "Overlap between Conductor and Inspector",
-			spec: &IronicSpecCore{
-				IronicConductors: []IronicConductorTemplate{
-					{DHCPRanges: []DHCPRange{{Start: "192.168.1.10", End: "192.168.1.20"}}},
-				},
-				IronicInspector: IronicInspectorTemplate{
-					DHCPRanges: []DHCPRange{{Start: "192.168.1.15", End: "192.168.1.25"}},
-				},
-			},
-			basePath: field.NewPath("spec"),
-			expectedErrs: field.ErrorList{
-				field.Forbidden(
-					field.NewPath("spec").Child("ironicConductors").Index(0).Child("dhcpRanges").Index(0),
-					fmt.Sprintf(
-						errForbiddenAddressOverlap,
-						"192.168.1.10->192.168.1.20",
-						field.NewPath("spec").Child("ironicInspector").Child("dhcpRanges").Index(0),
-						"192.168.1.15->192.168.1.25",
-					),
-				),
-			},
-		},
-		{
-			name: "Overlap within same Conductors",
-			spec: &IronicSpecCore{
-				IronicConductors: []IronicConductorTemplate{
-					{DHCPRanges: []DHCPRange{
-						{Start: "192.168.1.10", End: "192.168.1.20"},
-						{Start: "192.168.1.15", End: "192.168.1.25"},
-					}},
-				},
-			},
-			basePath: field.NewPath("spec"),
-			expectedErrs: field.ErrorList{
-				field.Forbidden(
-					field.NewPath("spec").Child("ironicConductors").Index(0).Child("dhcpRanges").Index(1),
-					fmt.Sprintf(
-						errForbiddenAddressOverlap,
-						"192.168.1.15->192.168.1.25",
-						field.NewPath("spec").Child("ironicConductors").Index(0).Child("dhcpRanges").Index(0),
-						"192.168.1.10->192.168.1.20",
-					),
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			errs := validateDHCPRangesOverlap(tc.spec, tc.basePath)
-
-			// A successful validation can return nil or an empty list. We normalize to an empty list for comparison.
-			if errs == nil {
-				errs = field.ErrorList{}
-			}
-
-			if !reflect.DeepEqual(errs, tc.expectedErrs) {
-				t.Errorf("validateDHCPRangesOverlap failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
 			}
 		})
 	}

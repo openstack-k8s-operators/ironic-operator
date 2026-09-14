@@ -24,7 +24,6 @@ import (
 
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
-	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironicinspector"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,15 +68,6 @@ type IronicNames struct {
 	ConductorServiceAccount   types.NamespacedName
 	ConductorRole             types.NamespacedName
 	ConductorRoleBinding      types.NamespacedName
-	InspectorName             types.NamespacedName
-	InspectorTransportURLName types.NamespacedName
-	InspectorServiceAccount   types.NamespacedName
-	InspectorRole             types.NamespacedName
-	InspectorRoleBinding      types.NamespacedName
-	InspectorDatabaseName     types.NamespacedName
-	InspectorDatabaseAccount  types.NamespacedName
-	InspectorDBSyncJobName    types.NamespacedName
-	InspectorConfigSecretName types.NamespacedName
 	INAName                   types.NamespacedName
 	INATransportURLName       types.NamespacedName
 	INAConfigSecretName       types.NamespacedName
@@ -104,10 +94,6 @@ func GetIronicNames(
 	ironicConductor := types.NamespacedName{
 		Namespace: ironicName.Namespace,
 		Name:      "ironic-conductor",
-	}
-	ironicInspector := types.NamespacedName{
-		Namespace: ironicName.Namespace,
-		Name:      "ironic-inspector",
 	}
 	ironicNeutronAgent := types.NamespacedName{
 		Namespace: ironicName.Namespace,
@@ -192,42 +178,6 @@ func GetIronicNames(
 			Namespace: ironicConductor.Namespace,
 			Name:      "ironicconductor-" + ironicConductor.Name + "-rolebinding",
 		},
-		InspectorName: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      ironicInspector.Name,
-		},
-		InspectorTransportURLName: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      ironicInspector.Name + "-transport",
-		},
-		InspectorServiceAccount: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      "ironicinspector-" + ironicInspector.Name,
-		},
-		InspectorRole: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      "ironicinspector-" + ironicInspector.Name + "-role",
-		},
-		InspectorRoleBinding: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      "ironicinspector-" + ironicInspector.Name + "-rolebinding",
-		},
-		InspectorDatabaseName: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      ironic_inspector_pkg.DatabaseCRName,
-		},
-		InspectorDatabaseAccount: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      ironicInspector.Name,
-		},
-		InspectorDBSyncJobName: types.NamespacedName{
-			Namespace: ironicInspector.Namespace,
-			Name:      ironic_pkg.ServiceName + "-" + ironic_pkg.InspectorComponent + "-db-sync",
-		},
-		InspectorConfigSecretName: types.NamespacedName{
-			Namespace: ironicAPI.Namespace,
-			Name:      "ironic-inspector-config-data",
-		},
 		INAName: types.NamespacedName{
 			Namespace: ironicNeutronAgent.Namespace,
 			Name:      ironicNeutronAgent.Name,
@@ -270,10 +220,6 @@ func GetIronicNames(
 			},
 			{
 				Namespace: ironicName.Namespace,
-				Name:      fmt.Sprintf("%s-inspector-topology", ironicName.Name),
-			},
-			{
-				Namespace: ironicName.Namespace,
 				Name:      fmt.Sprintf("%s-nagent-topology", ironicName.Name),
 			},
 		},
@@ -286,10 +232,8 @@ func CreateIronicSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"IronicPassword":                  []byte(ironicNames.IronicPassword),
-			"IronicInspectorPassword":         []byte(ironicNames.IronicPassword),
-			"IronicDatabasePassword":          []byte(ironicNames.IronicPassword),
-			"IronicInspectorDatabasePassword": []byte(ironicNames.IronicPassword),
+			"IronicPassword":         []byte(ironicNames.IronicPassword),
+			"IronicDatabasePassword": []byte(ironicNames.IronicPassword),
 		},
 	)
 }
@@ -378,12 +322,10 @@ func GetDefaultIronicSpec() map[string]any {
 		"secret":             SecretName,
 		"ironicAPI":          GetDefaultIronicAPISpec(),
 		"ironicConductors":   []map[string]any{GetDefaultIronicConductorSpec()},
-		"ironicInspector":    GetDefaultIronicInspectorSpec(),
 		"ironicNeutronAgent": GetDefaultIronicNeutronAgentSpec(),
 		"images": map[string]any{
 			"api":               ContainerImage,
 			"conductor":         ContainerImage,
-			"inspector":         ContainerImage,
 			"neutronAgent":      ContainerImage,
 			"pxe":               ContainerImage,
 			"ironicPythonAgent": ContainerImage,
@@ -494,57 +436,6 @@ func GetDefaultIronicConductorSpec() map[string]any {
 		"storageRequest":                "10G",
 		"terminationGracePeriodSeconds": 120,
 	}
-}
-
-func CreateIronicInspector(
-	name types.NamespacedName,
-	spec map[string]any,
-) client.Object {
-	raw := map[string]any{
-		"apiVersion": "ironic.openstack.org/v1beta1",
-		"kind":       "IronicInspector",
-		"metadata": map[string]any{
-			"name":      name.Name,
-			"namespace": name.Namespace,
-		},
-		"spec": spec,
-	}
-	return CreateUnstructured(raw)
-}
-
-func GetIronicInspector(
-	name types.NamespacedName,
-) *ironicv1.IronicInspector {
-	instance := &ironicv1.IronicInspector{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance
-}
-
-func GetIronicInspectorSpec(
-	name types.NamespacedName,
-) ironicv1.IronicInspectorTemplate {
-	instance := &ironicv1.IronicInspector{}
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
-	return instance.Spec.IronicInspectorTemplate
-}
-
-func GetDefaultIronicInspectorSpec() map[string]any {
-	return map[string]any{
-		"databaseInstance":       DatabaseInstance,
-		"secret":                 SecretName,
-		"containerImage":         ContainerImage,
-		"ironicPythonAgentImage": IronicPythonAgentImage,
-		"serviceAccount":         "ironic",
-	}
-}
-
-func IronicInspectorConditionGetter(name types.NamespacedName) condition.Conditions {
-	instance := GetIronicInspector(name)
-	return instance.Status.Conditions
 }
 
 func CreateIronicNeutronAgent(
@@ -738,21 +629,12 @@ func simulateIronicSubServicesReady(names IronicNames) {
 	th.SimulateJobSuccess(names.IronicDBSyncJobName)
 	keystone.SimulateKeystoneServiceReady(names.IronicName)
 	keystone.SimulateKeystoneEndpointReady(names.IronicName)
-	infra.GetTransportURL(names.InspectorTransportURLName)
-	infra.SimulateTransportURLReady(names.InspectorTransportURLName)
-	mariadb.GetMariaDBDatabase(names.InspectorDatabaseName)
-	mariadb.SimulateMariaDBAccountCompleted(names.InspectorDatabaseAccount)
-	mariadb.SimulateMariaDBDatabaseCompleted(names.InspectorDatabaseName)
-	th.SimulateJobSuccess(names.InspectorDBSyncJobName)
-	keystone.SimulateKeystoneServiceReady(names.InspectorName)
-	keystone.SimulateKeystoneEndpointReady(names.InspectorName)
 	nestedINATransportURLName := names.INATransportURLName
 	nestedINATransportURLName.Name = names.IronicName.Name + "-" + nestedINATransportURLName.Name
 	infra.GetTransportURL(nestedINATransportURLName)
 	infra.SimulateTransportURLReady(nestedINATransportURLName)
 	th.SimulateDeploymentReplicaReady(names.IronicName)
 	th.SimulateStatefulSetReplicaReady(names.ConductorName)
-	th.SimulateStatefulSetReplicaReady(names.InspectorName)
 	th.SimulateDeploymentReplicaReady(names.INAName)
 }
 
@@ -761,10 +643,8 @@ func CreateIronicInvalidSecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"IronicPassword":                  []byte(ironicNames.IronicInvalidPassword),
-			"IronicInspectorPassword":         []byte(ironicNames.IronicInvalidPassword),
-			"IronicDatabasePassword":          []byte(ironicNames.IronicInvalidPassword),
-			"IronicInspectorDatabasePassword": []byte(ironicNames.IronicInvalidPassword),
+			"IronicPassword":         []byte(ironicNames.IronicInvalidPassword),
+			"IronicDatabasePassword": []byte(ironicNames.IronicInvalidPassword),
 		},
 	)
 }

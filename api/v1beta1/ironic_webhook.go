@@ -113,14 +113,6 @@ func (spec *IronicSpecCore) ValidateCreate(basePath *field.Path, namespace strin
 		allErrs = append(allErrs, err...)
 	}
 
-	if err := validateInspectorSpec(spec, basePath); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateDHCPRangesOverlap(spec, basePath); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
 	if err := validateNeutronAgentSpec(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
@@ -183,14 +175,6 @@ func (spec *IronicSpecCore) ValidateUpdate(old IronicSpecCore, basePath *field.P
 	}
 
 	if err := validateConductorSpec(spec, basePath); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateInspectorSpec(spec, basePath); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	if err := validateDHCPRangesOverlap(spec, basePath); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -272,26 +256,6 @@ func validateAPISpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList
 	return allErrs
 }
 
-func validateInspectorSpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
-	var allErrs field.ErrorList
-
-	// validate the service override key is valid
-	allErrs = append(allErrs, service.ValidateRoutedOverrides(
-		basePath.Child("ironicInspector").Child("override").Child("service"),
-		spec.IronicInspector.Override.Service)...)
-
-	fieldPath := basePath.Child("ironicInspector").Child("dhcpRanges")
-
-	// Validate DHCP ranges
-	for idx, dhcpRange := range spec.IronicInspector.DHCPRanges {
-		if err := validateDHCPRange(dhcpRange, fieldPath.Index(idx)); err != nil {
-			allErrs = append(allErrs, err...)
-		}
-	}
-
-	return allErrs
-}
-
 // validateConductorSpec
 func validateConductorSpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
@@ -308,13 +272,34 @@ func validateConductorSpec(spec *IronicSpecCore, basePath *field.Path) field.Err
 		allErrs = append(allErrs, err)
 	}
 
-	// Validate DHCP ranges - Ironic Conductor
+	// Validate individual DHCP ranges and collect them for overlap detection
+	conductorPath := basePath.Child("ironicConductors")
+	var allConductorRanges []netIPStartEnd
 	for condIdx, conductor := range spec.IronicConductors {
 		for idx, dhcpRange := range conductor.DHCPRanges {
-			path := basePath.Child("ironicConductors").Index(condIdx).Child("dhcpRanges").Index(idx)
+			path := conductorPath.Index(condIdx).Child("dhcpRanges").Index(idx)
 			if err := validateDHCPRange(dhcpRange, path); err != nil {
 				allErrs = append(allErrs, err...)
 			}
+			start := net.ParseIP(dhcpRange.Start)
+			end := net.ParseIP(dhcpRange.End)
+			if start != nil && end != nil {
+				allConductorRanges = append(allConductorRanges, netIPStartEnd{
+					start: start,
+					end:   end,
+					path:  path,
+				})
+			}
+		}
+	}
+
+	// Check for overlapping DHCP ranges across all conductors
+	for ax := 0; ax < len(allConductorRanges); ax++ {
+		for bx := 0; bx < len(allConductorRanges); bx++ {
+			if bx == ax {
+				continue
+			}
+			allErrs = append(allErrs, validateStartEndOverlap(allConductorRanges[ax], allConductorRanges[bx])...)
 		}
 	}
 
@@ -457,66 +442,6 @@ func validateDHCPRange(
 	return allErrs
 }
 
-// validateDHCPRangesOverlap
-// Check for overlapping start->end in all DHCP ranges. (Conductor and Inspector)
-func validateDHCPRangesOverlap(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
-	var allErrs field.ErrorList
-	var netIPStartEnds []netIPStartEnd
-	conductorPath := basePath.Child("ironicConductors")
-	inspectorPath := basePath.Child("ironicInspector").Child("dhcpRanges")
-
-	for idx, dhcpRange := range spec.IronicInspector.DHCPRanges {
-		start := net.ParseIP(dhcpRange.Start)
-		end := net.ParseIP(dhcpRange.End)
-		if start == nil || end == nil {
-			// If net.ParseIP returns 'nil' the address is not valid, the issue
-			// has already been detected by previous validation ...
-			// can safely skip here.
-			continue
-		}
-		netIPStartEnds = append(
-			netIPStartEnds,
-			netIPStartEnd{
-				start: start,
-				end:   end,
-				path:  inspectorPath.Index(idx),
-			},
-		)
-	}
-
-	for condIdx, conductor := range spec.IronicConductors {
-		for idx, dhcpRange := range conductor.DHCPRanges {
-			start := net.ParseIP(dhcpRange.Start)
-			end := net.ParseIP(dhcpRange.End)
-			if start == nil || end == nil {
-				// If net.ParseIP returns 'nil' the address is not valid, the issue
-				// has already been detected by previous validation ...
-				// can safely skip here.
-				continue
-			}
-			netIPStartEnds = append(
-				netIPStartEnds,
-				netIPStartEnd{
-					start: start,
-					end:   end,
-					path:  conductorPath.Index(condIdx).Child("dhcpRanges").Index(idx),
-				},
-			)
-		}
-	}
-
-	for ax := 0; ax < len(netIPStartEnds); ax++ {
-		for bx := 0; bx < len(netIPStartEnds); bx++ {
-			if bx == ax {
-				continue
-			}
-			allErrs = validateStartEndOverlap(netIPStartEnds[ax], netIPStartEnds[bx])
-		}
-	}
-
-	return allErrs
-}
-
 // validateStartEndOverlap -
 // Check that start->end does not overlap
 func validateStartEndOverlap(
@@ -611,9 +536,6 @@ func (spec *IronicSpec) Default() {
 	if spec.Images.Conductor == "" {
 		spec.Images.Conductor = imageDefaults.Conductor
 	}
-	if spec.Images.Inspector == "" {
-		spec.Images.Inspector = imageDefaults.Inspector
-	}
 	if spec.Images.NeutronAgent == "" {
 		spec.Images.NeutronAgent = imageDefaults.NeutronAgent
 	}
@@ -670,13 +592,6 @@ func (spec *IronicSpecCore) ValidateIronicTopology(basePath *field.Path, namespa
 	}
 
 	// When a TopologyRef CR is referenced with an override to an instance of
-	// IronicInspector, fail if a different Namespace is referenced because not
-	// supported
-	insPath := basePath.Child("ironicInspector")
-	allErrs = append(allErrs,
-		spec.IronicInspector.ValidateTopology(insPath, namespace)...)
-
-	// When a TopologyRef CR is referenced with an override to an instance of
 	// IronicNeutronAgent, fail if a different Namespace is referenced because
 	// not supported
 	nagentPath := basePath.Child("ironicNeutronAgent")
@@ -712,28 +627,3 @@ func (spec *IronicSpecCore) SetDefaultRouteAnnotations(annotations map[string]st
 	annotations[haProxyAnno] = timeout
 }
 
-// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
-func (spec *IronicSpecCore) SetDefaultInspectorRouteAnnotations(annotations map[string]string) {
-	const haProxyAnno = "haproxy.router.openshift.io/timeout"
-	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
-	// The annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
-	const ironicInspectorAnno = "inspector.ironic.openstack.org/timeout"
-
-	valIronic, okIronic := annotations[ironicInspectorAnno]
-	valHAProxy, okHAProxy := annotations[haProxyAnno]
-
-	// Human operator sets the HAProxy timeout manually
-	if !okIronic && okHAProxy {
-		return
-	}
-
-	// Human operator modified the HAProxy timeout manually without removing the Ironic flag
-	if okIronic && okHAProxy && valIronic != valHAProxy {
-		delete(annotations, ironicInspectorAnno)
-		return
-	}
-
-	timeout := fmt.Sprintf("%ds", spec.APITimeout)
-	annotations[ironicInspectorAnno] = timeout
-	annotations[haProxyAnno] = timeout
-}

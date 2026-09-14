@@ -44,7 +44,10 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -82,8 +85,7 @@ func (r *IronicReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicconductors/finalizers,verbs=update;patch
-// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicinspectors,verbs=get;list;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/finalizers,verbs=update;patch
@@ -180,7 +182,6 @@ func (r *IronicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 		condition.UnknownCondition(ironicv1.IronicAPIReadyCondition, condition.InitReason, ironicv1.IronicAPIReadyInitMessage),
 		condition.UnknownCondition(ironicv1.IronicConductorReadyCondition, condition.InitReason, ironicv1.IronicConductorReadyInitMessage),
-		condition.UnknownCondition(ironicv1.IronicInspectorReadyCondition, condition.InitReason, ironicv1.IronicInspectorReadyInitMessage),
 		condition.UnknownCondition(ironicv1.IronicNeutronAgentReadyCondition, condition.InitReason, ironicv1.IronicNeutronAgentReadyInitMessage),
 		condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
 		// service account, role, rolebinding conditions
@@ -219,7 +220,6 @@ func (r *IronicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&ironicv1.Ironic{}).
 		Owns(&ironicv1.IronicConductor{}).
 		Owns(&ironicv1.IronicAPI{}).
-		Owns(&ironicv1.IronicInspector{}).
 		Owns(&ironicv1.IronicNeutronAgent{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
 		Owns(&mariadbv1.MariaDBAccount{}).
@@ -295,14 +295,23 @@ func (r *IronicReconciler) reconcileDelete(ctx context.Context, instance *ironic
 		}
 	}
 
-	// Remove consumer finalizer from AC secrets ironic-inspector was consuming.
-	for _, secretName := range []string{
-		instance.Status.InspectorApplicationCredentialSecret,
-		instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret,
-	} {
-		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
-			secretName, ironic.InspectorACConsumerFinalizer); err != nil {
-			return ctrl.Result{}, err
+	// Upgrade path: remove any lingering openstack.org/ironic-inspector-ac-consumer
+	// finalizers from secrets in this namespace. These were added by a previous
+	// version of this operator when IronicInspector was configured with
+	// ApplicationCredentialSecret. With IronicInspector removed, no controller
+	// removes these finalizers; without cleanup they would prevent secret deletion.
+	const inspectorACFinalizer = "openstack.org/ironic-inspector-ac-consumer"
+	secretList := &corev1.SecretList{}
+	if err := r.List(ctx, secretList, client.InNamespace(instance.Namespace)); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to list secrets for inspector AC finalizer cleanup: %w", err)
+	}
+	for i := range secretList.Items {
+		secret := &secretList.Items[i]
+		if controllerutil.ContainsFinalizer(secret, inspectorACFinalizer) {
+			controllerutil.RemoveFinalizer(secret, inspectorACFinalizer)
+			if err := r.Update(ctx, secret); err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, fmt.Errorf("failed to remove inspector AC finalizer from secret %s: %w", secret.Name, err)
+			}
 		}
 	}
 
@@ -524,22 +533,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		}
 	}
 
-	// Add consumer finalizer to the new ironic-inspector AC secret.
-	if instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret != "" {
-		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
-			instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret,
-			"",
-			ironic.InspectorACConsumerFinalizer); err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ServiceConfigReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.ServiceConfigReadyErrorMessage,
-				err.Error()))
-			return ctrl.Result{}, err
-		}
-	}
-
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
 	serviceLabels := map[string]string{
@@ -660,68 +653,9 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		}
 	}
 
-	// deploy ironic-inspector
-	if *(instance.Spec.IronicInspector.Replicas) != 0 {
-		ironicInspector, op, err := r.inspectorDeploymentCreateOrUpdate(instance)
-		if err != nil {
-			instance.Status.Conditions.Set(
-				condition.FalseCondition(
-					ironicv1.IronicInspectorReadyCondition,
-					condition.ErrorReason,
-					condition.SeverityWarning,
-					ironicv1.IronicInspectorReadyErrorMessage,
-					err.Error()))
-			return ctrl.Result{}, err
-		}
-
-		// Check the observed Generation and mirror the condition from the
-		// underlying resource reconciliation
-		nspObsGen, err := r.checkIronicInspectorGeneration(instance)
-		if err != nil {
-			instance.Status.Conditions.Set(
-				condition.FalseCondition(
-					ironicv1.IronicInspectorReadyCondition,
-					condition.ErrorReason,
-					condition.SeverityWarning,
-					ironicv1.IronicInspectorReadyErrorMessage,
-					err.Error()))
-			return ctrl.Result{}, err
-		}
-		// Only mirror the underlying condition if the observedGeneration is
-		// the last seen
-		if !nspObsGen {
-			instance.Status.Conditions.Set(condition.UnknownCondition(
-				ironicv1.IronicInspectorReadyCondition,
-				condition.InitReason,
-				ironicv1.IronicInspectorReadyInitMessage,
-			))
-		} else {
-			// Mirror IronicInspector status APIEndpoints and ReadyCount to this parent CR
-			maps.Copy(instance.Status.APIEndpoints, ironicInspector.Status.APIEndpoints)
-			instance.Status.InspectorReadyCount = ironicInspector.Status.ReadyCount
-
-			// Mirror IronicInspector's condition status
-			c := ironicInspector.Status.Conditions.Mirror(ironicv1.IronicInspectorReadyCondition)
-			if c != nil {
-				instance.Status.Conditions.Set(c)
-			}
-			if op != controllerutil.OperationResultNone {
-				Log.Info(fmt.Sprintf("Deployment %s successfully reconciled - operation: %s", ironicInspector.Name, string(op)))
-			}
-		}
-	} else {
-		err := r.inspectorDeploymentDelete(ctx, instance)
-		if err != nil {
-			instance.Status.Conditions.Set(
-				condition.FalseCondition(
-					ironicv1.IronicInspectorReadyCondition,
-					condition.ErrorReason,
-					condition.SeverityWarning,
-					ironicv1.IronicInspectorReadyErrorMessage,
-					err.Error()))
-			return ctrl.Result{}, err
-		}
-		instance.Status.Conditions.MarkTrue(ironicv1.IronicInspectorReadyCondition, "")
+	// Cleanup: delete any legacy IronicInspector CRs (IronicInspector removed in RHOS19)
+	if err := r.cleanupIronicInspectorCRs(ctx, instance); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// deploy ironic-neutron-agent (ML2 baremetal agent)
@@ -806,20 +740,6 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 		}
 	} else {
 		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
-	}
-
-	isInspectorRotation := instance.Status.InspectorApplicationCredentialSecret != "" &&
-		instance.Status.InspectorApplicationCredentialSecret != instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
-	if isInspectorRotation {
-		if instance.Status.Conditions.AllSubConditionIsTrue() {
-			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
-				instance.Status.InspectorApplicationCredentialSecret, ironic.InspectorACConsumerFinalizer); err != nil {
-				return ctrl.Result{}, err
-			}
-			instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
-		}
-	} else {
-		instance.Status.InspectorApplicationCredentialSecret = instance.Spec.IronicInspector.Auth.ApplicationCredentialSecret
 	}
 
 	// We reached the end of the Reconcile, update the Ready condition based on
@@ -1217,94 +1137,6 @@ func (r *IronicReconciler) createHashOfInputHashes(
 	return hash, changed, nil
 }
 
-func (r *IronicReconciler) inspectorDeploymentCreateOrUpdate(
-	instance *ironicv1.Ironic,
-) (*ironicv1.IronicInspector, controllerutil.OperationResult, error) {
-	IronicInspectorSpec := ironicv1.IronicInspectorSpec{
-		IronicInspectorTemplate: instance.Spec.IronicInspector,
-		ContainerImage:          instance.Spec.Images.Inspector,
-		PxeContainerImage:       instance.Spec.Images.Pxe,
-		IronicPythonAgentImage:  instance.Spec.Images.IronicPythonAgent,
-		Standalone:              instance.Spec.Standalone,
-		RPCTransport:            instance.Spec.RPCTransport,
-		DatabaseInstance:        instance.Spec.DatabaseInstance,
-		RabbitMqClusterName:     instance.Spec.RabbitMqClusterName,
-		Secret:                  instance.Spec.Secret,
-	}
-
-	if IronicInspectorSpec.NodeSelector == nil {
-		IronicInspectorSpec.NodeSelector = instance.Spec.NodeSelector
-	}
-
-	// If topology is not present in the underlying IronicInspector Spec,
-	// inherit from the top-level CR
-	if IronicInspectorSpec.TopologyRef == nil {
-		IronicInspectorSpec.TopologyRef = instance.Spec.TopologyRef
-	}
-
-	if IronicInspectorSpec.APITimeout == 0 {
-		IronicInspectorSpec.APITimeout = instance.Spec.APITimeout
-	}
-
-	// Call Default() to populate MessagingBus from RabbitMqClusterName
-	// (IronicInspector doesn't have a webhook, so we need to call this manually)
-	IronicInspectorSpec.Default()
-
-	deployment := &ironicv1.IronicInspector{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-inspector", instance.Name),
-			Namespace: instance.Namespace,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(
-		context.TODO(), r.Client, deployment, func() error {
-			deployment.Spec = IronicInspectorSpec
-			err := controllerutil.SetControllerReference(
-				instance, deployment, r.Scheme)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-
-	return deployment, op, err
-}
-
-func (r *IronicReconciler) inspectorDeploymentDelete(
-	ctx context.Context,
-	instance *ironicv1.Ironic,
-) error {
-	deployment := &ironicv1.IronicInspector{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-inspector", instance.Name),
-			Namespace: instance.Namespace,
-		},
-	}
-	err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
-	if err != nil {
-		return err
-	}
-	deploymentObjectKey := client.ObjectKeyFromObject(deployment)
-	if err := r.Get(ctx, deploymentObjectKey, deployment); err != nil {
-		if k8s_errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	if err := r.Delete(ctx, deployment); err != nil {
-		return err
-	}
-	// Remove inspector APIEndpoints, Services and set ReadyCount 0
-	delete(instance.Status.APIEndpoints, "ironic-inspector")
-	instance.Status.InspectorReadyCount = 0
-	// Remove IronicInspectorReadyCondition
-	instance.Status.Conditions.Remove(ironicv1.IronicInspectorReadyCondition)
-
-	return nil
-}
-
 func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 	instance *ironicv1.Ironic,
 ) (*ironicv1.IronicNeutronAgent, controllerutil.OperationResult, error) {
@@ -1513,27 +1345,6 @@ func (r *IronicReconciler) checkIronicConductorGeneration(
 	return true, nil
 }
 
-// checkIronicInspectorGeneration -
-func (r *IronicReconciler) checkIronicInspectorGeneration(
-	instance *ironicv1.Ironic,
-) (bool, error) {
-	Log := r.GetLogger(context.Background())
-	nsp := &ironicv1.IronicInspectorList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(instance.Namespace),
-	}
-	if err := r.List(context.Background(), nsp, listOpts...); err != nil {
-		Log.Error(err, "Unable to retrieve IronicInspector CR %w")
-		return false, err
-	}
-	for _, item := range nsp.Items {
-		if item.Generation != item.Status.ObservedGeneration {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
 // checkNeutronAgentGeneration -
 func (r *IronicReconciler) checkNeutronAgentGeneration(
 	instance *ironicv1.Ironic,
@@ -1553,4 +1364,53 @@ func (r *IronicReconciler) checkNeutronAgentGeneration(
 		}
 	}
 	return true, nil
+}
+
+// cleanupIronicInspectorCRs deletes any IronicInspector CRs owned by this Ironic
+// instance. IronicInspector was removed in RHOS19; this handles the upgrade path
+// for clusters that had IronicInspector instances before the upgrade.
+// Uses the unstructured client so the typed IronicInspector Go type is not needed.
+func (r *IronicReconciler) cleanupIronicInspectorCRs(ctx context.Context, instance *ironicv1.Ironic) error {
+	Log := r.GetLogger(ctx)
+
+	inspectorList := &unstructured.UnstructuredList{}
+	inspectorList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "ironic.openstack.org",
+		Version: "v1beta1",
+		Kind:    "IronicInspectorList",
+	})
+
+	if err := r.List(ctx, inspectorList, client.InNamespace(instance.Namespace)); err != nil {
+		// If the CRD no longer exists (already manually deleted), nothing to clean up
+		if apimeta.IsNoMatchError(err) {
+			return nil
+		}
+		return err
+	}
+
+	for i := range inspectorList.Items {
+		inspector := &inspectorList.Items[i]
+		for _, ref := range inspector.GetOwnerReferences() {
+			if ref.UID == instance.UID {
+				// Clear all finalizers first so the API server will actually
+				// remove the object (Delete on an object with finalizers only
+				// sets DeletionTimestamp; the object remains until finalizers
+				// are removed). The old IronicInspector controller that would
+				// normally drain finalizers no longer exists.
+				if len(inspector.GetFinalizers()) > 0 {
+					patch := inspector.DeepCopy()
+					patch.SetFinalizers([]string{})
+					if err := r.Patch(ctx, patch, client.MergeFrom(inspector)); err != nil && !k8s_errors.IsNotFound(err) {
+						return fmt.Errorf("failed to clear finalizers on legacy IronicInspector CR %s: %w", inspector.GetName(), err)
+					}
+				}
+				Log.Info("Deleting legacy IronicInspector CR", "name", inspector.GetName())
+				if err := r.Delete(ctx, inspector); err != nil && !k8s_errors.IsNotFound(err) {
+					return err
+				}
+				break
+			}
+		}
+	}
+	return nil
 }
