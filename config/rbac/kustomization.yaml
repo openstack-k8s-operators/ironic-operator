@@ -25,9 +25,6 @@ resources:
 - ironicneutronagent_admin_role.yaml
 - ironicneutronagent_editor_role.yaml
 - ironicneutronagent_viewer_role.yaml
-- ironicinspector_admin_role.yaml
-- ironicinspector_editor_role.yaml
-- ironicinspector_viewer_role.yaml
 - ironicconductor_admin_role.yaml
 - ironicconductor_editor_role.yaml
 - ironicconductor_viewer_role.yaml

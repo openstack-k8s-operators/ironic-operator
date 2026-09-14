@@ -73,12 +73,6 @@ var (
 		topologyField,
 		authAppCredSecretField,
 	}
-	ironicInspectorWatchFields = []string{
-		passwordSecretField,
-		caBundleSecretNameField,
-		topologyField,
-		authAppCredSecretField,
-	}
 	ironicNeutronAgentWatchFields = []string{
 		passwordSecretField,
 		caBundleSecretNameField,

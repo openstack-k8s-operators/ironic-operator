@@ -13,10 +13,6 @@ spec:
   ironicAPI: {}
   ironicConductors:
   - storageRequest: 10G
-  ironicInspector:
-    customServiceConfig: |
-      [DEFAULT]
-      debug = true
   ironicNeutronAgent:
     customServiceConfig: |
       [DEFAULT]

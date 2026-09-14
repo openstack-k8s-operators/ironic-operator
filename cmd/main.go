@@ -273,14 +273,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "IronicConductor")
 		os.Exit(1)
 	}
-	if err := (&controller.IronicInspectorReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
-	}).SetupWithManager(context.Background(), mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "IronicInspector")
-		os.Exit(1)
-	}
 	if err := (&controller.IronicNeutronAgentReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  mgr.GetScheme(),
@@ -297,10 +289,6 @@ func main() {
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err := webhookv1beta1.SetupIronicWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Ironic")
-			os.Exit(1)
-		}
-		if err := webhookv1beta1.SetupIronicInspectorWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "IronicInspector")
 			os.Exit(1)
 		}
 		if err := webhookv1beta1.SetupIronicNeutronAgentWebhookWithManager(mgr); err != nil {

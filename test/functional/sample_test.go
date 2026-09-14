@@ -59,13 +59,6 @@ func CreateIronicConductorFromSample(sampleFileName string, name types.Namespace
 	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 }
 
-func CreateIronicInspectorFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
-	raw := ReadSample(sampleFileName)
-	instance := CreateIronicInspector(name, raw["spec"].(map[string]any))
-	DeferCleanup(th.DeleteInstance, instance)
-	return types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
-}
-
 func CreateIronicNeutronAgentFromSample(sampleFileName string, name types.NamespacedName) types.NamespacedName {
 	raw := ReadSample(sampleFileName)
 	instance := CreateIronicNeutronAgent(name, raw["spec"].(map[string]any))
@@ -88,16 +81,6 @@ var _ = Describe("Samples", func() {
 				ironicNames.INAName,
 			)
 			GetIronicNeutronAgent(name)
-		})
-	})
-
-	When("ironic_v1beta1_ironicinspector.yaml sample is applied", func() {
-		It("IronicInspector is created", func() {
-			name := CreateIronicInspectorFromSample(
-				"ironic_v1beta1_ironicinspector.yaml",
-				ironicNames.InspectorName,
-			)
-			GetIronicInspector(name)
 		})
 	})
 

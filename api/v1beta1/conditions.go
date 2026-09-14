@@ -27,9 +27,6 @@ const (
 	// IronicConductorReadyCondition Status=True condition which indicates if the IronicConductor is configured and operational
 	IronicConductorReadyCondition condition.Type = "IronicConductorReady"
 
-	// IronicInspectorReadyCondition Status=True condition which indicates if the Inspector is configured and operational
-	IronicInspectorReadyCondition condition.Type = "IronicInspectorReady"
-
 	// IronicNeutronAgentReadyCondition Status=True condition which indicates if the ML2 baremetal Ironic Neutron Agent is configured and operational
 	IronicNeutronAgentReadyCondition condition.Type = "IronicNeutronAgentReady"
 )
@@ -62,15 +59,6 @@ const (
 
 	// IronicConductorReadyErrorMessage
 	IronicConductorReadyErrorMessage = "IronicConductor error occurred %s"
-
-	//
-	// IronicInspectorReady condition messages
-	//
-	// IronicInspectorReadyInitMessage
-	IronicInspectorReadyInitMessage = "IronicInspector not started"
-
-	// IronicInspectorReadyErrorMessage
-	IronicInspectorReadyErrorMessage = "IronicInspector error occurred %s"
 
 	//
 	// IronicNeutronAgentReady condition messages

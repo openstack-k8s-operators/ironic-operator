@@ -5,7 +5,6 @@ resources:
 - bases/ironic.openstack.org_ironics.yaml
 - bases/ironic.openstack.org_ironicapis.yaml
 - bases/ironic.openstack.org_ironicconductors.yaml
-- bases/ironic.openstack.org_ironicinspectors.yaml
 - bases/ironic.openstack.org_ironicneutronagents.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
