@@ -37,21 +37,21 @@ const (
 	// Container image fall-back defaults
 
 	// IronicAPIContainerImage is the fall-back container image for IronicAPI
-	IronicAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified"
+	IronicAPIContainerImage = "quay.io/openstack-k8s-operators/openstack-ironic-api:master-latest"
 	// IronicConductorContainerImage is the fall-back container image for IronicConductor
-	IronicConductorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified"
+	IronicConductorContainerImage = "quay.io/openstack-k8s-operators/openstack-ironic-conductor:master-latest"
 	// IronicInspectorContainerImage is the fall-back container image for IronicInspector
 	IronicInspectorContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-inspector:current-podified"
 	// IronicPXEContainerImage is the fall-back container image for IronicPXE
-	IronicPXEContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified"
+	IronicPXEContainerImage = "quay.io/openstack-k8s-operators/openstack-ironic-conductor:master-latest"
 	// IronicNeutronAgentContainerImage is the fall-back container image for IronicConductor
 	IronicNeutronAgentContainerImage = "quay.io/podified-antelope-centos9/openstack-ironic-neutron-agent:current-podified"
 	// IronicPythonAgentContainerImage is the fall-back container image for IronicPythonAgent
 	IronicPythonAgentContainerImage = "quay.io/podified-antelope-centos9/ironic-python-agent:current-podified"
 	// IronicNoVNCProxyContainerImage is the fall-back container image for NoVNCProxy
-	IronicNoVNCProxyContainerImage = "quay.io/podified-antelope-centos9/ironic-novncproxy:current-podified"
+	IronicNoVNCProxyContainerImage = "quay.io/openstack-k8s-operators/openstack-ironic-api:master-latest"
 	// IronicGraphicalConsoleContainer image is the fall-back container image for GraphicalConsole
-	IronicGraphicalConsoleContainerImage = "quay.io/podified-antelope-centos9/ironic-graphical-console:current-podified"
+	IronicGraphicalConsoleContainerImage = "quay.io/openstack-k8s-operators/openstack-ironic-graphical-console:master-latest"
 )
 
 // IronicSpec defines the desired state of Ironic

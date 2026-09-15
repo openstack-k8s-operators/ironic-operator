@@ -26,11 +26,11 @@ spec:
   databaseInstance: openstack
   ironicAPI:
     replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-api:current-podified
+    containerImage: quay.io/openstack-k8s-operators/openstack-ironic-api:master-latest
   ironicConductors:
   - replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-ironic-conductor:current-podified
-    pxeContainerImage: quay.io/podified-antelope-centos9/openstack-ironic-pxe:current-podified
+    containerImage: quay.io/openstack-k8s-operators/openstack-ironic-conductor:master-latest
+    pxeContainerImage: quay.io/openstack-k8s-operators/openstack-ironic-conductor:master-latest
     provisionNetwork: provision-net
     terminationGracePeriodSeconds: 120
   secret: ironic-secret
