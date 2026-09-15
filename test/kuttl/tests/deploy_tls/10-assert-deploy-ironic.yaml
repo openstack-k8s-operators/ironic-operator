@@ -4,9 +4,8 @@
 # Ironic
 # IronicAPI
 # IronicConductor
-# IronicInspector
 # IronicNeutronAgent
-# Registered TLS endpoints for api and inspector
+# Registered TLS endpoints for api
 #
 
 apiVersion: ironic.openstack.org/v1beta1
@@ -26,15 +25,6 @@ spec:
       caBundleSecretName: combined-ca-bundle
   ironicConductors:
   - replicas: 1
-  ironicInspector:
-    replicas: 1
-    tls:
-      api:
-        internal:
-          secretName: cert-ironic-inspector-internal-svc
-        public:
-          secretName: cert-ironic-inspector-public-svc
-      caBundleSecretName: combined-ca-bundle
   ironicNeutronAgent:
     replicas: 1
 status:
@@ -42,7 +32,6 @@ status:
   ironicAPIReadyCount: 1
   ironicConductorReadyCount:
     null_conductor_group_null: 1
-  ironicInspectorReadyCount: 1
   ironicNeutronAgentReadyCount: 1
 ---
 apiVersion: ironic.openstack.org/v1beta1
@@ -73,23 +62,6 @@ status:
   readyCount: 1
 ---
 apiVersion: ironic.openstack.org/v1beta1
-kind: IronicInspector
-metadata:
-  name: ironic-inspector
-spec:
-  replicas: 1
-  tls:
-    api:
-      internal:
-        secretName: cert-ironic-inspector-internal-svc
-      public:
-        secretName: cert-ironic-inspector-public-svc
-    caBundleSecretName: combined-ca-bundle
-status:
-  databaseHostname: openstack.ironic-kuttl-tests.svc
-  readyCount: 1
----
-apiVersion: ironic.openstack.org/v1beta1
 kind: IronicNeutronAgent
 metadata:
   name: ironic-ironic-neutron-agent
@@ -111,19 +83,6 @@ commands:
       template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
       regex="https:\/\/ironic-internal\.$NAMESPACE\..*:https:\/\/ironic-public\.$NAMESPACE\..*"
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic -o go-template="$template")
-      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
-      if [[ -n "$matches" ]]; then
-        exit 1
-      fi
-      exit 0
-# the actual addresses of the api endpoints are platform specific, so we can't rely on
-# kuttl asserts to check them. This short script gathers the addresses and checks that
-# the two endpoints are defined and their addresses follow the default pattern
-  - script: |
-      set -euxo pipefail
-      template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
-      regex="https:\/\/ironic-inspector-internal\.$NAMESPACE\..*:https:\/\/ironic-inspector-public\.$NAMESPACE\..*"
-      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint ironic-inspector -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [[ -n "$matches" ]]; then
         exit 1

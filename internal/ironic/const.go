@@ -39,8 +39,6 @@ const (
 	DhcpComponent = "dhcp"
 	// APIComponent -
 	APIComponent = "api"
-	// InspectorComponent -
-	InspectorComponent = "inspector"
 	// ConductorGroupSelector -
 	ConductorGroupSelector = "conductorGroup"
 	// ImageDirectory -
@@ -50,7 +48,4 @@ const (
 
 	// ACConsumerFinalizer is added to AC secrets that ironic is actively consuming
 	ACConsumerFinalizer = "openstack.org/ironic-ac-consumer"
-
-	// InspectorACConsumerFinalizer is added to AC secrets that ironic-inspector is actively consuming
-	InspectorACConsumerFinalizer = "openstack.org/ironic-inspector-ac-consumer"
 )

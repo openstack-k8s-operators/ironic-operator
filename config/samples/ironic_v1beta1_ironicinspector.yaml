@@ -1,6 +1,0 @@
-apiVersion: ironic.openstack.org/v1beta1
-kind: IronicInspector
-metadata:
-  name: ironicinspector-sample
-spec:
-  secret: osp-secret
