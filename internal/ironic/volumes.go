@@ -125,6 +125,7 @@ func GetDBSyncVolumeMounts() []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		GetMergedConfVolumeMount("/etc/ironic/ironic.conf", "ironic.conf"),
 		GetMergedConfVolumeMount("/etc/ironic/ironic.conf.d/02-ironic-custom.conf", "02-ironic-custom.conf"),
+		GetMergedConfVolumeMount("/etc/ironic/ironic.conf.d/dbsync.conf", "dbsync.conf"),
 		GetMergedConfVolumeMount("/etc/my.cnf", "my.cnf"),
 	}
 
