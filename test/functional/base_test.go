@@ -357,6 +357,24 @@ func CreateIronic(
 	return CreateUnstructured(raw)
 }
 
+func CreateIronicWithAnnotations(
+	name types.NamespacedName,
+	spec map[string]any,
+	annotations map[string]string,
+) client.Object {
+	raw := map[string]any{
+		"apiVersion": "ironic.openstack.org/v1beta1",
+		"kind":       "Ironic",
+		"metadata": map[string]any{
+			"name":        name.Name,
+			"namespace":   name.Namespace,
+			"annotations": annotations,
+		},
+		"spec": spec,
+	}
+	return CreateUnstructured(raw)
+}
+
 func GetIronic(
 	name types.NamespacedName,
 ) *ironicv1.Ironic {

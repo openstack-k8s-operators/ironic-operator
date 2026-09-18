@@ -1101,6 +1101,7 @@ func (r *IronicReconciler) generateServiceConfigMaps(
 		templateParameters["IronicPublicURL"] = ""
 	}
 	templateParameters["Standalone"] = instance.Spec.Standalone
+	templateParameters["DefaultInspectInterface"] = getInspectInterface(instance.GetAnnotations())
 	templateParameters["LogPath"] = ironic.LogPath
 	templateParameters["APITimeout"] = instance.Spec.APITimeout
 

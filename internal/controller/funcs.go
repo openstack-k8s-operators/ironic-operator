@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -300,4 +301,16 @@ func getNotificationsTransportURL(
 		templateParameters["NotificationsTransportURL"] = fallbackTransportURL
 	}
 	return nil
+}
+
+// getInspectInterface returns the inspect interface from the object's annotations.
+// Returns "inspector" if the annotation is absent or empty (backward compatible
+// default for RHOSP18 and pre-annotation deployments).
+func getInspectInterface(annotations map[string]string) string {
+	if annotations != nil {
+		if val := annotations[ironicv1.IronicInspectInterfaceAnnotation]; val != "" {
+			return val
+		}
+	}
+	return "inspector"
 }
