@@ -68,6 +68,7 @@ repos:
       args:
       - --write-changes
       - --ignore-words=.codespell.ignore
+      exclude: (^|.*/)go\.sum$
 
 - repo: https://github.com/openstack/bashate.git
   rev: 2.1.1
