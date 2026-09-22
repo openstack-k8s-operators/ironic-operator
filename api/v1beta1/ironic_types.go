@@ -25,6 +25,12 @@ import (
 )
 
 const (
+	// IronicInspectInterfaceAnnotation is set by openstack-operator to signal
+	// which inspect interface to use: "inspector" or "agent"
+	// agent for deployments with ironic v32.0+ and inspector for the reverse
+	// Absent or empty means "inspector" (backward compatible default).
+	IronicInspectInterfaceAnnotation = "ironic.openstack.org/inspect-interface"
+
 	// DbSyncHash hash
 	DbSyncHash = "dbsync"
 

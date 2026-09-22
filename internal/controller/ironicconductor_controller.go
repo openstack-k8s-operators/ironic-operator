@@ -965,6 +965,7 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	}
 	templateParameters["DHCPRanges"] = dhcpRanges
 	templateParameters["Standalone"] = instance.Spec.Standalone
+	templateParameters["DefaultInspectInterface"] = getInspectInterface(instance.GetAnnotations())
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
 

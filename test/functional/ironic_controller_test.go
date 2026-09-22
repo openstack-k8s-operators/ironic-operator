@@ -2089,4 +2089,56 @@ var _ = Describe("Ironic Webhook", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
+
+	When("Ironic has no inspect interface annotation", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+		})
+		It("defaults to agent in ironic.conf", func() {
+			infra.GetTransportURL(ironicNames.IronicTransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.IronicTransportURLName)
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+
+			Eventually(func(g Gomega) {
+				configDataMap := th.GetSecret(ironicNames.IronicConfigSecretName)
+				g.Expect(configDataMap).ShouldNot(BeNil())
+				g.Expect(configDataMap.Data).Should(HaveKey("ironic.conf"))
+				conf := string(configDataMap.Data["ironic.conf"])
+				g.Expect(conf).To(ContainSubstring("default_inspect_interface=inspector"))
+				g.Expect(conf).To(ContainSubstring("enabled_inspect_interfaces=inspector,"))
+				g.Expect(conf).To(ContainSubstring("[inspector]"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
