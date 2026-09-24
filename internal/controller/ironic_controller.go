@@ -1093,6 +1093,9 @@ func (r *IronicReconciler) conductorDeploymentCreateOrUpdate(
 			deployment.Annotations = map[string]string{}
 		}
 		deployment.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
+		if val, ok := instance.Annotations[ironicv1.IronicInspectInterfaceAnnotation]; ok {
+			deployment.Annotations[ironicv1.IronicInspectInterfaceAnnotation] = val
+		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
 			return err
@@ -1158,6 +1161,9 @@ func (r *IronicReconciler) apiDeploymentCreateOrUpdate(
 			deployment.Annotations = map[string]string{}
 		}
 		deployment.Annotations["openstack.org/input-secret-hash"] = expectedInputHash
+		if val, ok := instance.Annotations[ironicv1.IronicInspectInterfaceAnnotation]; ok {
+			deployment.Annotations[ironicv1.IronicInspectInterfaceAnnotation] = val
+		}
 		err := controllerutil.SetControllerReference(instance, deployment, r.Scheme)
 		if err != nil {
 			return err
