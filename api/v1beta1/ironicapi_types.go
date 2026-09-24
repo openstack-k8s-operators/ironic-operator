@@ -150,6 +150,10 @@ type IronicAPIStatus struct {
 	// the openstack-operator in the top-level CR (e.g. the ContainerImage)
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// AppliedInputSecretHash is the hash of the input Secret consumed by the
+	// currently ready workload.
+	AppliedInputSecretHash string `json:"appliedInputSecretHash,omitempty"`
+
 	// LastAppliedTopology - the last applied Topology
 	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
 }
