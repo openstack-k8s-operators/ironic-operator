@@ -8,3 +8,10 @@
         - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.42.3
+        - ironic-s2i-content-provider:
+            voting: false
+        - ironic-s2i-hotstack-sno-1-bm:
+            voting: false
+            dependencies:
+              - openstack-k8s-operators-content-provider
+              - ironic-s2i-content-provider
