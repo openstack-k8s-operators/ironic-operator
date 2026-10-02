@@ -1,0 +1,70 @@
+---
+- job:
+    name: ironic-s2i-content-provider
+    parent: s2i-openstack-container-content-provider
+    description: |
+      Build s2i ironic images for ironic-s2i-hotstack-sno-1-bm.
+    required-projects:
+      - name: openstack-k8s-operators/s2i-openstack-containers
+        override-checkout: main
+    vars:
+      s2i_ci_images:
+        - neutron/ironic-neutron-agent
+        - neutron/neutron-dhcp-agent
+        - neutron/neutron-metadata-agent-ovn
+        - neutron/neutron-ovn-agent
+        - neutron/neutron-server
+        - neutron/neutron-sriov-agent
+        - ironic/ironic-api
+        - ironic/ironic-conductor
+        - ironic/ironic-graphical-console
+
+- job:
+    name: ironic-s2i-hotstack-sno-1-bm
+    parent: base-hotstack-vexxhost
+    description: |
+      Hotstack scenario: sno-1-bm -- SNO with Sushy Emulator and 1 Ironic node
+      (virtual-media boot). Uses s2i-built container images from the content
+      provider, injected via OpenStackVersion customContainerImages.
+    timeout: 7200
+    attempts: 1
+    required-projects:
+      - openstack-k8s-operators/hotstack
+      - openstack-k8s-operators/s2i-openstack-containers
+    dependencies:
+      - ironic-s2i-content-provider
+    vars:
+      scenario: sno-1-bm
+      sushy_emulator_os_rescue_pxe_image_uefi: uefi-netboot
+      content_provider_registry_ip: "{{ s2i_content_provider_registry_ip }}"
+      openstack_operators_image: "quay.io/openstack-k8s-operators/openstack-operator-index:latest"
+      customContainerImages: "{{ s2i_content_provider_os_custom_container_images }}"
+      scenario_dir: >-
+        {{
+          [ansible_user_dir,
+           zuul.projects['github.com/openstack-k8s-operators/ironic-operator'].src_dir,
+           'ci', 'scenarios']
+          | ansible.builtin.path_join
+        }}
+
+- project-template:
+    name: ironic-operator-s2i-component-jobs
+    description: |
+      Project template to be used in the s2i repository
+      to validate changes to containers impacting Ironic.
+    github-check:
+      jobs:
+        - ironic-s2i-hotstack-sno-1-bm:
+            required-projects:
+              - name: openstack-k8s-operators/s2i-openstack-containers
+                override-checkout: main
+              - name: openstack-k8s-operators/ironic-operator
+                override-checkout: main
+            vars:
+              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
+            files:
+              - ^containers/ironic/
+              - ^containers/base/
+            dependencies:
+              - s2i-openstack-container-content-provider
+              - s2i-openstack-container-consumer-smoke
