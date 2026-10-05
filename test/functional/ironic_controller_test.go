@@ -118,8 +118,9 @@ var _ = Describe("Ironic controller", func() {
 				corev1.ConditionTrue,
 			)
 			role := th.GetRole(ironicNames.IronicRole)
-			Expect(role.Rules).To(HaveLen(1))
+			Expect(role.Rules).To(HaveLen(2))
 			Expect(role.Rules[0].Resources).To(Equal([]string{"securitycontextconstraints"}))
+			Expect(role.Rules[1].Resources).To(Equal([]string{"pods"}))
 			th.ExpectCondition(
 				ironicNames.IronicName,
 				ConditionGetterFunc(IronicConditionGetter),
@@ -1199,11 +1200,10 @@ var _ = Describe("Ironic controller", func() {
 				// Ironic dbsync job
 				g.Expect(th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
 				g.Expect(*th.GetJob(ironicNames.IronicDBSyncJobName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
-				// IronicConductor statefulset - get_net_ip reads from the
-				// DownwardAPI volume (/etc/podinfo/network-status), not
-				// from the k8s API, so no token is needed
+				// IronicConductor statefulset - needs SA token for kubectl
+				// access to manage pods (e.g. graphical console pods)
 				g.Expect(th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
-				g.Expect(*th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeFalse())
+				g.Expect(*th.GetStatefulSet(ironicNames.ConductorName).Spec.Template.Spec.AutomountServiceAccountToken).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 

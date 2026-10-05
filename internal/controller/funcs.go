@@ -27,16 +27,18 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	common_rbac "github.com/openstack-k8s-operators/lib-common/modules/common/rbac"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Static errors for ironic controllers
@@ -95,6 +97,34 @@ func getCommonRbacRules() []rbacv1.PolicyRule {
 			ResourceNames: []string{"anyuid", "privileged", "nonroot-v2"},
 			Resources:     []string{"securitycontextconstraints"},
 			Verbs:         []string{"use"},
+		},
+	}
+}
+
+func getGraphicalConsoleRbacRules() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{"security.openshift.io"},
+			ResourceNames: []string{"anyuid", "privileged"},
+			Resources:     []string{"securitycontextconstraints"},
+			Verbs:         []string{"use"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"secrets"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
+		{
+			// The ironic-conductor manages a NetworkPolicy per console pod so
+			// that only the BMC endpoint of the node is reachable from it.
+			APIGroups: []string{"networking.k8s.io"},
+			Resources: []string{"networkpolicies"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
 		},
 	}
 }
@@ -164,6 +194,206 @@ func getQuorumQueues(
 	}
 	quorumQueues := string(transportURLSecret.Data["quorumqueues"]) == "true"
 	return quorumQueues, nil
+}
+
+// getConsoleNamespaceName returns the namespace name for console pods based on the service namespace.
+// The full service namespace is used as the prefix so that distinct service namespaces
+// (e.g. "openstack" and "openstack-dev") map to distinct console namespaces
+// (e.g. "openstack-ironic-consoles" and "openstack-dev-ironic-consoles").
+func getConsoleNamespaceName(serviceNamespace string) string {
+	return serviceNamespace + "-ironic-consoles"
+}
+
+// ensureConsoleNamespace creates the console namespace if it doesn't exist
+func ensureConsoleNamespace(
+	ctx context.Context,
+	h *helper.Helper,
+	serviceNamespace string,
+) error {
+	consolesNamespace := getConsoleNamespaceName(serviceNamespace)
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: consolesNamespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), ns, func() error {
+		// Set labels
+		if ns.Labels == nil {
+			ns.Labels = make(map[string]string)
+		}
+		ns.Labels["app"] = "ironic"
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to reconcile console namespace %s: %w", consolesNamespace, err)
+	}
+
+	if op != controllerutil.OperationResultNone {
+		h.GetLogger().Info(fmt.Sprintf("Namespace %s %s", consolesNamespace, op))
+	}
+
+	return nil
+}
+
+// getGraphicalConsoleRbacResourceNames returns the names of the Role and the
+// RoleBinding that reconcileGraphicalConsoleRbac manages in the console namespace.
+func getGraphicalConsoleRbacResourceNames(serviceAccountName string) (string, string) {
+	return serviceAccountName + "-console-role", serviceAccountName + "-console-rolebinding"
+}
+
+// reconcileGraphicalConsoleRbac creates a Role and RoleBinding in the console namespace
+// that grants the ServiceAccount from the service namespace permissions to create console pods.
+// This enables cross-namespace RBAC where the ironic ServiceAccount in the 'openstack' namespace
+// can create pods and secrets in the 'openstack-ironic-consoles' namespace.
+// Note: These resources cannot have owner references since cross-namespace ownership is not allowed,
+// so they have to be deleted explicitly via deleteGraphicalConsoleRbac.
+func reconcileGraphicalConsoleRbac(
+	ctx context.Context,
+	h *helper.Helper,
+	instance common_rbac.Reconciler,
+	serviceAccountName string,
+	consoleNamespace string,
+	rules []rbacv1.PolicyRule,
+) (ctrl.Result, error) {
+	serviceNamespace := instance.RbacNamespace()
+	roleName, roleBindingName := getGraphicalConsoleRbacResourceNames(serviceAccountName)
+
+	labels := map[string]string{
+		"app":                          "ironic",
+		"ironic.openstack.org/service": serviceAccountName,
+	}
+
+	// Create or update Role in the console namespace without owner references
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: consoleNamespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrPatch(ctx, h.GetClient(), role, func() error {
+		// Set labels
+		role.Labels = labels
+		// Set rules
+		role.Rules = rules
+		return nil
+	})
+
+	if err != nil {
+		instance.RbacConditionsSet(condition.FalseCondition(
+			condition.RoleReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.RoleReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		h.GetLogger().Info(fmt.Sprintf("Role %s %s in namespace %s", roleName, op, consoleNamespace))
+	}
+
+	instance.RbacConditionsSet(condition.TrueCondition(
+		condition.RoleReadyCondition,
+		condition.RoleReadyMessage))
+
+	// Create or update RoleBinding in the console namespace that references the ServiceAccount
+	// from the service namespace (cross-namespace reference)
+	roleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleBindingName,
+			Namespace: consoleNamespace,
+		},
+	}
+
+	op, err = controllerutil.CreateOrPatch(ctx, h.GetClient(), roleBinding, func() error {
+		// Set labels
+		roleBinding.Labels = labels
+		// Set RoleRef (immutable, but safe to set on create)
+		roleBinding.RoleRef = rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     roleName,
+		}
+		// Set Subjects
+		roleBinding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: serviceNamespace,
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		instance.RbacConditionsSet(condition.FalseCondition(
+			condition.RoleBindingReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.RoleBindingReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		h.GetLogger().Info(fmt.Sprintf("RoleBinding %s %s in namespace %s", roleBindingName, op, consoleNamespace))
+	}
+
+	instance.RbacConditionsSet(condition.TrueCondition(
+		condition.RoleBindingReadyCondition,
+		condition.RoleBindingReadyMessage))
+
+	return ctrl.Result{}, nil
+}
+
+// deleteGraphicalConsoleRbac removes the Role and RoleBinding created by
+// reconcileGraphicalConsoleRbac from the console namespace. Since these resources
+// cannot be owned by the IronicConductor instance (cross-namespace ownership is not
+// allowed), they are not garbage collected and must be deleted explicitly when
+// graphical consoles get disabled or the instance is deleted.
+// Resources that are already gone (including a missing console namespace) are ignored,
+// which makes this function idempotent.
+func deleteGraphicalConsoleRbac(
+	ctx context.Context,
+	h *helper.Helper,
+	serviceAccountName string,
+	consoleNamespace string,
+) error {
+	roleName, roleBindingName := getGraphicalConsoleRbacResourceNames(serviceAccountName)
+
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: consoleNamespace,
+		},
+	}
+	if err := h.GetClient().Delete(ctx, role); err != nil {
+		if !k8s_errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete Role %s in namespace %s: %w", roleName, consoleNamespace, err)
+		}
+	} else {
+		h.GetLogger().Info(fmt.Sprintf("Role %s deleted in namespace %s", roleName, consoleNamespace))
+	}
+
+	roleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleBindingName,
+			Namespace: consoleNamespace,
+		},
+	}
+	if err := h.GetClient().Delete(ctx, roleBinding); err != nil {
+		if !k8s_errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete RoleBinding %s in namespace %s: %w", roleBindingName, consoleNamespace, err)
+		}
+	} else {
+		h.GetLogger().Info(fmt.Sprintf("RoleBinding %s deleted in namespace %s", roleBindingName, consoleNamespace))
+	}
+
+	return nil
 }
 
 // setApplicationCredentialParams - shared function to set ApplicationCredential template parameters
