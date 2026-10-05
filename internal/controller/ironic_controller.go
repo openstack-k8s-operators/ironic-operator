@@ -48,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -751,6 +752,11 @@ func (r *IronicReconciler) reconcileNormal(ctx context.Context, instance *ironic
 			condition.SeverityInfo,
 			condition.DeploymentReadyRunningMessage))
 		allServicesReady = false
+	}
+
+	// When inspect-interface=agent, IPA handles inspection directly; force inspector replicas to 0.
+	if getInspectInterface(instance.GetAnnotations()) == "agent" {
+		instance.Spec.IronicInspector.Replicas = ptr.To(int32(0))
 	}
 
 	// deploy ironic-inspector
