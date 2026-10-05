@@ -366,6 +366,19 @@ func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instanc
 
 	Log.Info("Reconciling Conductor delete")
 
+	// Delete the console Role and RoleBinding created for graphical consoles.
+	// They live in the console namespace and therefore have no owner reference
+	// pointing at this instance, so they are not garbage collected with it.
+	err := deleteGraphicalConsoleRbac(
+		ctx,
+		helper,
+		instance.Name,
+		getConsoleNamespaceName(instance.Namespace),
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Remove finalizer on the Topology CR
 	if ctrlResult, err := topologyv1.EnsureDeletedTopologyRef(
 		ctx,
@@ -465,6 +478,41 @@ func (r *IronicConductorReconciler) reconcileServices(
 				Log.Info(fmt.Sprintf("Route %s %s", conductorRoute.Name, op))
 			}
 		}
+		if instance.Spec.GraphicalConsoles == "Enabled" {
+
+			//
+			// Create the conductor pod route to enable traffic to the
+			// novnc service, which graphical consoles are enabled
+			//
+			conductorRouteLabels := map[string]string{
+				common.AppSelector:            ironic.ServiceName,
+				common.ComponentSelector:      ironic.NoVNCComponent,
+				ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+			}
+			if instance.Spec.ConductorGroup != "" {
+				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
+			}
+
+			desiredNoVNCRoute := ironicconductor.RouteNoVNC(conductorPod.Name, instance, conductorRouteLabels)
+			novncRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredNoVNCRoute.Name,
+					Namespace: desiredNoVNCRoute.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, novncRoute, func() error {
+				novncRoute.Labels = desiredNoVNCRoute.Labels
+				novncRoute.Spec = desiredNoVNCRoute.Spec
+				return controllerutil.SetOwnerReference(&conductorPod, novncRoute, helper.GetScheme())
+			})
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Route %s %s", novncRoute.Name, op))
+			}
+
+		}
 	}
 
 	Log.Info("Reconciled Conductor Services successfully")
@@ -497,6 +545,48 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			return ctrlResult, nil
+		}
+	}
+
+	// Namespace and RBAC for the graphical console pods
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		//
+		// Create the console namespace for graphical console pods
+		//
+		err := ensureConsoleNamespace(ctx, helper, instance.Namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		consoleNamespace := getConsoleNamespaceName(instance.Namespace)
+		serviceAccountName := instance.RbacResourceName()
+		gcRbacResult, err := reconcileGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance,
+			instance.Name,
+			serviceAccountName,
+			consoleNamespace,
+			getGraphicalConsoleRbacRules(),
+		)
+		if err != nil {
+			return gcRbacResult, err
+		} else if (gcRbacResult != ctrl.Result{}) {
+			return gcRbacResult, nil
+		}
+	} else {
+		//
+		// Graphical consoles are disabled: remove the console RBAC that a
+		// previously enabled configuration may have created.
+		//
+		err := deleteGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance.Name,
+			getConsoleNamespaceName(instance.Namespace),
+		)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -975,6 +1065,12 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["DefaultInspectInterface"] = getInspectInterface(instance.GetAnnotations())
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
+	graphicalConsolesEnabled := instance.Spec.GraphicalConsoles == "Enabled"
+	templateParameters["GraphicalConsolesEnabled"] = graphicalConsolesEnabled
+	templateParameters["ConsoleNamespace"] = getConsoleNamespaceName(instance.Namespace)
+	if graphicalConsolesEnabled {
+		templateParameters["ConsoleImage"] = instance.Spec.ConsoleImage
+	}
 
 	// Set GracefulShutdownTimeout for conductor pods
 	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
@@ -1038,8 +1134,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"ironic.conf":                      "/common/config/ironic.conf",
 				"01-conductor.conf":                "/ironicconductor/config/01-conductor.conf",
+				"01-novnc.conf":                    "/ironicconductor/config/01-novnc.conf",
 				"03-init-container-conductor.conf": "/ironicconductor/config/03-init-container-conductor.conf",
 				"dnsmasq.conf":                     "/common/config/dnsmasq.conf",
+				"ironic-console-pod.yaml.template": "/ironicconductor/config/ironic-console-pod.yaml.template",
 			},
 			Labels: cmLabels,
 		},
