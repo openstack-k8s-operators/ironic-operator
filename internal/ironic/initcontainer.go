@@ -38,6 +38,7 @@ type APIDetails struct {
 	PxeInit                bool
 	ConductorInit          bool
 	DeployHTTPURL          string
+	NoVNCProxyURL          string
 	IngressDomain          string
 	ProvisionNetwork       string
 	ImageDirectory         string
@@ -63,6 +64,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
 	envVars["DeployHTTPURL"] = env.SetValue(init.DeployHTTPURL)
+	envVars["NoVNCProxyURL"] = env.SetValue(init.NoVNCProxyURL)
 	envVars["IngressDomain"] = env.SetValue(init.IngressDomain)
 
 	envs := []corev1.EnvVar{

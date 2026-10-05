@@ -175,3 +175,8 @@ func GetDnsmasqVolumeMounts() []corev1.VolumeMount {
 func GetRamdiskLogsVolumeMounts() []corev1.VolumeMount {
 	return append(ironic.GetVolumeMounts(), varLibIronicVolumeMount())
 }
+
+// GetNoVNCVolumeMounts - NoVNC is stateless so only config is required
+func GetNoVNCVolumeMounts() []corev1.VolumeMount {
+	return ironic.GetVolumeMounts()
+}

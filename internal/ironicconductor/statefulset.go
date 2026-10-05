@@ -80,6 +80,16 @@ func StatefulSet(
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
+	novncLivenessProbe := &corev1.Probe{
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
+	}
+	novncReadinessProbe := &corev1.Probe{
+		TimeoutSeconds:      10,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
+	}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -101,6 +111,12 @@ func StatefulSet(
 	}
 	httpbootReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8088)},
+	}
+	novncLivenessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(6090)},
+	}
+	novncReadinessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(6090)},
 	}
 
 	// Parse the storageRequest defined in the CR
@@ -140,6 +156,10 @@ func StatefulSet(
 	httpbootEnvVars := map[string]env.Setter{}
 	httpbootEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
+	novncEnvVars := map[string]env.Setter{}
+	novncEnvVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	novncEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
+
 	ramdiskLogsEnvVars := map[string]env.Setter{}
 	ramdiskLogsEnvVars["CONFIG_HASH"] = env.SetValue(configHash)
 
@@ -148,6 +168,7 @@ func StatefulSet(
 	httpbootVolumeMounts := GetHttpbootVolumeMounts()
 	dnsmasqVolumeMounts := GetDnsmasqVolumeMounts()
 	ramdiskLogsVolumeMounts := GetRamdiskLogsVolumeMounts()
+	novncVolumeMounts := GetNoVNCVolumeMounts()
 	initVolumeMounts := GetInitVolumeMounts(instance)
 
 	// Add the CA bundle
@@ -158,6 +179,7 @@ func StatefulSet(
 		dnsmasqVolumeMounts = append(dnsmasqVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		ramdiskLogsVolumeMounts = append(ramdiskLogsVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		initVolumeMounts = append(initVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		novncVolumeMounts = append(novncVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
 	resourceName := fmt.Sprintf("%s-%s", ironic.ServiceName, ironic.ConductorComponent)
@@ -243,11 +265,27 @@ func StatefulSet(
 			LivenessProbe:  dnsmasqLivenessProbe,
 			// StartupProbe:   startupProbe,
 		}
-		containers = []corev1.Container{
-			conductorContainer,
-			httpbootContainer,
-			dnsmasqContainer,
+		containers = append(containers, dnsmasqContainer)
+	}
+
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		// Only include the novnc container if graphical consoles are enabled
+		novncContainer := corev1.Container{
+			Name: "novnc",
+			Command: []string{
+				"/bin/bash",
+			},
+			Args:            []string{},
+			Image:           instance.Spec.NoVNCProxyImage,
+			SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+			Env:             env.MergeEnvs([]corev1.EnvVar{}, novncEnvVars),
+			VolumeMounts:    novncVolumeMounts,
+			Resources:       instance.Spec.Resources,
+			ReadinessProbe:  novncReadinessProbe,
+			LivenessProbe:   novncLivenessProbe,
+			// StartupProbe:   startupProbe,
 		}
+		containers = append(containers, novncContainer)
 	}
 
 	// Use terminationGracePeriodSeconds from CR
@@ -324,6 +362,14 @@ func StatefulSet(
 		// Build what the fully qualified Route hostname will be when the Route exists
 		deployHTTPURL = "http://%(PodName)s-%(PodNamespace)s.%(IngressDomain)s/"
 	}
+	novncProxyURL := ""
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+
+		novncProtocol := "http"
+		// TODO(stevebaker) detect if https should be used, and also for deployHTTPURL above
+		novncDomain := "%(PodName)s-novnc-%(PodNamespace)s.%(IngressDomain)s"
+		novncProxyURL = fmt.Sprintf("%s://%s/vnc_auto.html", novncProtocol, novncDomain)
+	}
 
 	initContainerDetails := ironic.APIDetails{
 		ContainerImage:         instance.Spec.ContainerImage,
@@ -339,6 +385,7 @@ func StatefulSet(
 		PxeInit:                true,
 		ConductorInit:          true,
 		DeployHTTPURL:          deployHTTPURL,
+		NoVNCProxyURL:          novncProxyURL,
 		IngressDomain:          ingressDomain,
 		ProvisionNetwork:       instance.Spec.ProvisionNetwork,
 	}

@@ -96,6 +96,16 @@ func getCommonRbacRules() []rbacv1.PolicyRule {
 			Resources:     []string{"securitycontextconstraints"},
 			Verbs:         []string{"use"},
 		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"secrets"},
+			Verbs:     []string{"create", "get", "list", "delete"},
+		},
 	}
 }
 
