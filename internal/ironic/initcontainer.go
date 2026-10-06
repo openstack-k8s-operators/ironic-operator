@@ -179,7 +179,6 @@ func InitContainer(init APIDetails) []corev1.Container {
 				Capabilities: &corev1.Capabilities{
 					Drop: []corev1.Capability{"ALL"},
 					Add: []corev1.Capability{
-						"CHOWN",
 						"DAC_OVERRIDE",
 						"FOWNER",
 						"SYS_ADMIN",
