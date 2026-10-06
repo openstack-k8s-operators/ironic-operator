@@ -36,8 +36,14 @@
     vars:
       scenario: sno-1-bm
       sushy_emulator_os_rescue_pxe_image_uefi: uefi-netboot
-      content_provider_registry_ip: "{{ s2i_content_provider_registry_ip }}"
-      openstack_operators_image: "quay.io/openstack-k8s-operators/openstack-operator-index:latest"
+      openstack_operators_image: >-
+        {{
+          cifmw_operator_build_output.operators['openstack-operator'].image_catalog
+          if (cifmw_operator_build_output is defined and
+              cifmw_operator_build_output.operators is defined and
+              'openstack-operator' in cifmw_operator_build_output.operators)
+          else 'quay.io/openstack-k8s-operators/openstack-operator-index:latest'
+        }}
       customContainerImages: "{{ s2i_content_provider_os_custom_container_images }}"
       scenario_dir: >-
         {{
@@ -60,8 +66,6 @@
                 override-checkout: main
               - name: openstack-k8s-operators/ironic-operator
                 override-checkout: main
-            vars:
-              content_provider_registry_ip: '{{ s2i_content_provider_registry_ip }}'
             files:
               - ^containers/ironic/
               - ^containers/base/
