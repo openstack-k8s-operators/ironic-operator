@@ -33,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -405,32 +406,25 @@ func (r *IronicConductorReconciler) reconcileServices(
 		if instance.Spec.ConductorGroup != "" {
 			conductorServiceLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 		}
-		conductorService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
-		if conductorService != nil {
-			err = controllerutil.SetOwnerReference(&conductorPod, conductorService, helper.GetScheme())
+		desiredService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
+		if desiredService != nil {
+			conductorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredService.Name,
+					Namespace: desiredService.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductorService, func() error {
+				conductorService.Labels = desiredService.Labels
+				conductorService.Spec.Selector = desiredService.Spec.Selector
+				conductorService.Spec.Ports = desiredService.Spec.Ports
+				return controllerutil.SetOwnerReference(&conductorPod, conductorService, helper.GetScheme())
+			})
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = r.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      conductorService.Name,
-					Namespace: conductorService.Namespace,
-				},
-				conductorService,
-			)
-			if err != nil && k8s_errors.IsNotFound(err) {
-				Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", conductorService.Name))
-				err = r.Create(ctx, conductorService)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			} else {
-				Log.Info(fmt.Sprintf("Service port %s exists, updating it", conductorService.Name))
-				err = r.Update(ctx, conductorService)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Service %s %s", conductorService.Name, op))
 			}
 		}
 		// create service - end
@@ -449,31 +443,23 @@ func (r *IronicConductorReconciler) reconcileServices(
 				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 			}
 
-			conductorRoute := ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels)
-			err = controllerutil.SetOwnerReference(&conductorPod, conductorRoute, helper.GetScheme())
+			desiredRoute := ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels)
+			conductorRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredRoute.Name,
+					Namespace: desiredRoute.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductorRoute, func() error {
+				conductorRoute.Labels = desiredRoute.Labels
+				conductorRoute.Spec = desiredRoute.Spec
+				return controllerutil.SetOwnerReference(&conductorPod, conductorRoute, helper.GetScheme())
+			})
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = r.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      conductorRoute.Name,
-					Namespace: conductorRoute.Namespace,
-				},
-				conductorRoute,
-			)
-			if err != nil && k8s_errors.IsNotFound(err) {
-				Log.Info(fmt.Sprintf("Route %s does not exist, creating it", conductorRoute.Name))
-				err = r.Create(ctx, conductorRoute)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			} else {
-				Log.Info(fmt.Sprintf("Route %s exists, updating it", conductorRoute.Name))
-				err = r.Update(ctx, conductorRoute)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Route %s %s", conductorRoute.Name, op))
 			}
 		}
 	}
