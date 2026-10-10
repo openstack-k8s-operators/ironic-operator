@@ -39,6 +39,17 @@ func Service(
 		ports = append(ports, httpbootPort)
 	}
 
+	// Expose the ironic-novncproxy HTTP port if graphical consoles is enabled
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		novncPort := corev1.ServicePort{
+			Name:     ironic.NoVNCComponent,
+			Port:     6090,
+			Protocol: corev1.ProtocolTCP,
+		}
+		ports = append(ports, novncPort)
+
+	}
+
 	if len(ports) == 0 {
 		return nil
 	}
@@ -71,6 +82,32 @@ func Route(
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,
+			Namespace: instance.Namespace,
+			Labels:    routeLabels,
+		},
+		Spec: routev1.RouteSpec{
+			To:   serviceRef,
+			Port: routePort,
+		},
+	}
+}
+
+// RouteNoVNC - Route for novnc service when graphical consoles are enabled
+func RouteNoVNC(
+	serviceName string,
+	instance *ironicv1.IronicConductor,
+	routeLabels map[string]string,
+) *routev1.Route {
+	serviceRef := routev1.RouteTargetReference{
+		Kind: "Service",
+		Name: serviceName,
+	}
+	routePort := &routev1.RoutePort{
+		TargetPort: intstr.FromString(ironic.NoVNCComponent),
+	}
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName + "-novnc",
 			Namespace: instance.Namespace,
 			Labels:    routeLabels,
 		},
