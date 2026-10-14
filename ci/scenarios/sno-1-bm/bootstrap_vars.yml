@@ -30,6 +30,8 @@ cinder_volume_pvs:
   - /dev/vdd
   - /dev/vde
 
+sushy_emulator_os_rescue_pxe_image_uefi: uefi-netboot
+
 # Nova console recorder NFS settings
 nova_console_recorder_nfs_server: controller-0.openstack.lab
 nova_console_recorder_nfs_path: /export/nova-console-recordings

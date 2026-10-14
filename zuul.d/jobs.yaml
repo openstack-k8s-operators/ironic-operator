@@ -24,7 +24,7 @@
     parent: base-hotstack-vexxhost
     description: |
       Hotstack scenario: sno-1-bm -- SNO with Sushy Emulator and 1 Ironic node
-      (virtual-media boot). Uses s2i-built container images from the content
+      (pxe boot). Uses s2i-built container images from the content
       provider, injected via OpenStackVersion customContainerImages.
     timeout: 7200
     attempts: 1
