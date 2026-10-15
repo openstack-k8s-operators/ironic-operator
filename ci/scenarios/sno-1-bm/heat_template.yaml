@@ -2,7 +2,7 @@
 heat_template_version: rocky
 
 description: >
-  Heat template to set up infrastructure for SNO with 1 bare metal node (virtual-media boot)
+  Heat template to set up infrastructure for SNO with 1 bare metal node
 
 parameters:
   dns_servers:
@@ -532,7 +532,7 @@ outputs:
 
   ironic_boot_interface:
     description: Ironic boot interface configured for the redfish nodes
-    value: redfish-virtual-media
+    value: pxe
 
   sushy_tools_vmedia_type:
     description: Sushy-tools virtual media implementation type
@@ -560,7 +560,7 @@ outputs:
         - name: ironic0
           driver: redfish
           bios_interface: no-bios
-          boot_interface: redfish-virtual-media
+          boot_interface: ipxe
           properties:
             capabilities: 'boot_mode:uefi'
           driver_info:
