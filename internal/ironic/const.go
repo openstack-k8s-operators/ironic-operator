@@ -41,6 +41,8 @@ const (
 	APIComponent = "api"
 	// InspectorComponent -
 	InspectorComponent = "inspector"
+	// NoVNCComponent -
+	NoVNCComponent = "novnc"
 	// ConductorGroupSelector -
 	ConductorGroupSelector = "conductorGroup"
 	// ImageDirectory -
