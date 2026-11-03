@@ -4,7 +4,7 @@
 
 A Single Node OpenShift (SNO) scenario designed to test s2i-built OpenStack
 container images with Ironic bare metal provisioning. Uses 1 dedicated Ironic
-node with virtual-media boot interface. This scenario validates the OpenStack
+node with PXE network boot. This scenario validates the OpenStack
 bare metal lifecycle including node enrollment, provisioning, and Tempest
 testing.
 
@@ -89,8 +89,9 @@ This scenario deploys a comprehensive OpenStack environment:
 
 ## Ironic Boot Interface
 
-The virtual Ironic node uses `redfish-virtual-media` boot via sushy-tools
-rescue mode.
+The virtual Ironic node uses the `ipxe` boot interface. Network boot is
+implemented via sushy-tools Nova rescue mode, using the `uefi-netboot`
+image.
 
 ## s2i Content Provider Integration
 
@@ -108,7 +109,7 @@ container images and exposes them in a paused registry. This scenario:
 
 - `bootstrap_vars.yml`: Infrastructure and OpenShift configuration.
 - `automation-vars.yml`: Hotloop deployment stages (includes OpenStackVersion stage)
-- `heat_template.yaml`: OpenStack infrastructure template (virtual-media boot)
+- `heat_template.yaml`: OpenStack infrastructure template (PXE boot)
 - `manifests/openstack-version.yaml`: OpenStackVersion CR for custom container images
 - `manifests/control-plane/control-plane.yaml.j2`: OpenStack service configuration
 - `test-operator/automation-vars.yml`: Comprehensive test automation
