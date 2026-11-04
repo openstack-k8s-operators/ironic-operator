@@ -786,3 +786,20 @@ func CreateIronicInvalidSecret(namespace string, name string) *corev1.Secret {
 		},
 	)
 }
+
+// simulateLoadBalancerIPs gives every named LoadBalancer Service an IP. The
+// controller creates the Services one by one and stops at the first
+// LoadBalancer without an IP, so Services that do not exist yet are tolerated
+// and retried until all of them have been assigned an IP.
+func simulateLoadBalancerIPs(names ...types.NamespacedName) {
+	Eventually(func(g Gomega) {
+		for _, name := range names {
+			s := &corev1.Service{}
+			g.Expect(k8sClient.Get(ctx, name, s)).To(Succeed())
+			if len(s.Status.LoadBalancer.Ingress) == 0 {
+				s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "1.1.1.1"}}
+				g.Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			}
+		}
+	}, timeout, interval).Should(Succeed())
+}

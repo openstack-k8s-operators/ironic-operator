@@ -29,6 +29,7 @@ import (
 	"github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -791,4 +792,74 @@ var _ = Describe("IronicAPI controller", func() {
 		})
 	})
 
+	When("IronicAPI has LoadBalancer endpoints with endpointURL set", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateIronicSecret(ironicNames.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicAPISpec()
+			spec["rpcTransport"] = "oslo"
+			spec["override"] = map[string]any{
+				"service": map[string]any{
+					"public": map[string]any{
+						"endpointURL": "https://ironic.foo.bar:6385",
+						"spec":        map[string]any{"type": "LoadBalancer"},
+					},
+					"internal": map[string]any{
+						"endpointURL": "https://ironic-int.foo.bar:6385",
+						"spec":        map[string]any{"type": "LoadBalancer"},
+					},
+				},
+			}
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(th.DeleteInstance, CreateIronicAPI(ironicNames.APIName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			simulateLoadBalancerIPs(
+				types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"},
+				types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"},
+			)
+		})
+
+		It("renders vhost ServerName from endpointURL with the in-cluster names as ServerAlias", func() {
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(ironicNames.APIConfigSecretName).Data["ironic-api-httpd.conf"])
+				ns := ironicNames.Namespace
+				g.Expect(configData).To(ContainSubstring("ServerName ironic.foo.bar"))
+				g.Expect(configData).To(ContainSubstring("ServerAlias ironic-public." + ns + ".svc"))
+				g.Expect(configData).To(ContainSubstring("ServerName ironic-int.foo.bar"))
+				g.Expect(configData).To(ContainSubstring("ServerAlias ironic-internal." + ns + ".svc"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("creates services with bare public/internal port names and unchanged object names", func() {
+			public := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"})
+			Expect(public.Name).To(Equal("ironic-public"))
+			Expect(public.Spec.Ports[0].Name).To(Equal("public"))
+
+			internal := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"})
+			Expect(internal.Name).To(Equal("ironic-internal"))
+			Expect(internal.Spec.Ports[0].Name).To(Equal("internal"))
+		})
+
+		It("registers only the internal LoadBalancer in dnsmasq", func() {
+			public := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"})
+			Expect(public.Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+
+			internal := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"})
+			Expect(internal.Annotations).To(HaveKeyWithValue(
+				service.AnnotationHostnameKey, "ironic-internal."+ironicNames.Namespace+".svc"))
+		})
+	})
 })
