@@ -175,9 +175,14 @@ func Deployment(
 						{
 							Name: ironic.ServiceName + "-" + ironic.APIComponent,
 							Command: []string{
-								"/usr/sbin/httpd",
+								"/usr/bin/dumb-init",
 							},
-							Args:            []string{"-DFOREGROUND"},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/sbin/httpd",
+								"-DFOREGROUND",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),

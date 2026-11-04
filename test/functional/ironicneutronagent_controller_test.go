@@ -280,6 +280,8 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 
 			// cert volumeMounts
 			container := depl.Spec.Template.Spec.Containers[0]
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/ironic-neutron-agent", "--config-dir", "/etc/neutron/neutron.conf.d"}))
 			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
 		})
 

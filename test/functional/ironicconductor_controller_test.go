@@ -290,6 +290,11 @@ var _ = Describe("IronicConductor controller", func() {
 
 			// cert volumeMounts
 			container := depl.Spec.Template.Spec.Containers[1]
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
+			conductorContainer := depl.Spec.Template.Spec.Containers[0]
+			Expect(conductorContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(conductorContainer.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/ironic-conductor", "--config-file", "/etc/ironic/ironic.conf", "--config-dir", "/etc/ironic/ironic.conf.d"}))
 			th.AssertVolumeMountExists(ironicNames.CaBundleSecretName.Name, "tls-ca-bundle.pem", container.VolumeMounts)
 
 			configDataMap := th.GetSecret(ironicNames.ConductorConfigSecretName)

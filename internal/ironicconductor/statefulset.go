@@ -164,9 +164,15 @@ func StatefulSet(
 	conductorContainer := corev1.Container{
 		Name: resourceName,
 		Command: []string{
-			"/usr/bin/ironic-conductor",
+			"/usr/bin/dumb-init",
 		},
-		Args:            []string{"--config-file", "/etc/ironic/ironic.conf", "--config-dir", "/etc/ironic/ironic.conf.d"},
+		Args: []string{
+			"--single-child",
+			"--",
+			"/usr/bin/ironic-conductor",
+			"--config-file", "/etc/ironic/ironic.conf",
+			"--config-dir", "/etc/ironic/ironic.conf.d",
+		},
 		Image:           instance.Spec.ContainerImage,
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
@@ -178,9 +184,14 @@ func StatefulSet(
 	httpbootContainer := corev1.Container{
 		Name: "httpboot",
 		Command: []string{
-			"/usr/sbin/httpd",
+			"/usr/bin/dumb-init",
 		},
-		Args:            []string{"-DFOREGROUND"},
+		Args: []string{
+			"--single-child",
+			"--",
+			"/usr/sbin/httpd",
+			"-DFOREGROUND",
+		},
 		Image:           instance.Spec.PxeContainerImage,
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
@@ -212,9 +223,14 @@ func StatefulSet(
 		dnsmasqContainer := corev1.Container{
 			Name: "dnsmasq",
 			Command: []string{
-				"/usr/sbin/dnsmasq",
+				"/usr/bin/dumb-init",
 			},
-			Args:  []string{"-k"},
+			Args: []string{
+				"--single-child",
+				"--",
+				"/usr/sbin/dnsmasq",
+				"-k",
+			},
 			Image: instance.Spec.PxeContainerImage,
 			// dnsmasq binds ports <1024 and handles raw DHCP packets --
 			// genuine need. Explicit RunAsUser 0 / RunAsNonRoot false:
