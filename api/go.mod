@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261107161102-892967eb3028
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261102122626-a5970f05c6a9
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261111093153-d3e5c656b371
 	k8s.io/api v0.33.13
 	k8s.io/apimachinery v0.33.13
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2

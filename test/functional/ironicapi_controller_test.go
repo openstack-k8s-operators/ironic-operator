@@ -29,6 +29,7 @@ import (
 	"github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -791,4 +792,139 @@ var _ = Describe("IronicAPI controller", func() {
 		})
 	})
 
+	When("IronicAPI has LoadBalancer endpoints with endpointURL set", func() {
+		BeforeEach(func() {
+			DeferCleanup(k8sClient.Delete, ctx, CreateIronicSecret(ironicNames.Namespace, SecretName))
+			DeferCleanup(k8sClient.Delete, ctx, CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicAPISpec()
+			spec["rpcTransport"] = "oslo"
+			spec["override"] = map[string]any{
+				"service": map[string]any{
+					"public": map[string]any{
+						"endpointURL": "https://ironic.foo.bar:6385",
+						"spec":        map[string]any{"type": "LoadBalancer"},
+					},
+					"internal": map[string]any{
+						"endpointURL": "https://ironic-int.foo.bar:6385",
+						"spec":        map[string]any{"type": "LoadBalancer"},
+					},
+				},
+			}
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(th.DeleteInstance, CreateIronicAPI(ironicNames.APIName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			simulateLoadBalancerIPs(
+				types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"},
+				types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"},
+			)
+		})
+
+		It("renders vhost ServerName from endpointURL with the in-cluster names as ServerAlias", func() {
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(ironicNames.APIConfigSecretName).Data["ironic-api-httpd.conf"])
+				ns := ironicNames.Namespace
+				g.Expect(configData).To(ContainSubstring("ServerName ironic.foo.bar"))
+				g.Expect(configData).To(ContainSubstring("ServerAlias ironic-public." + ns + ".svc"))
+				g.Expect(configData).To(ContainSubstring("ServerName ironic-int.foo.bar"))
+				g.Expect(configData).To(ContainSubstring("ServerAlias ironic-internal." + ns + ".svc"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("keeps the default public vhost ServerName when the public endpointURL has no LoadBalancer (Route)", func() {
+			Eventually(func(g Gomega) {
+				instance := GetIronicAPI(ironicNames.APIName)
+				override := instance.Spec.Override.Service[service.EndpointPublic]
+				override.Spec = nil
+				instance.Spec.Override.Service[service.EndpointPublic] = override
+				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				configData := string(th.GetSecret(ironicNames.APIConfigSecretName).Data["ironic-api-httpd.conf"])
+				// the router sends no SNI, so the route host must not become a ServerName
+				g.Expect(configData).NotTo(ContainSubstring("ironic.foo.bar"))
+				g.Expect(configData).To(ContainSubstring("ServerName ironic-public." + ironicNames.Namespace + ".svc"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("creates services with bare public/internal port names and unchanged object names", func() {
+			public := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"})
+			Expect(public.Name).To(Equal("ironic-public"))
+			Expect(public.Spec.Ports[0].Name).To(Equal("public"))
+
+			internal := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"})
+			Expect(internal.Name).To(Equal("ironic-internal"))
+			Expect(internal.Spec.Ports[0].Name).To(Equal("internal"))
+		})
+
+		It("registers only the internal LoadBalancer in dnsmasq", func() {
+			public := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"})
+			Expect(public.Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+
+			internal := th.GetService(types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"})
+			Expect(internal.Annotations).To(HaveKeyWithValue(
+				service.AnnotationHostnameKey, "ironic-internal."+ironicNames.Namespace+".svc"))
+		})
+
+		It("drops a stale dnsmasq hostname annotation when the public Service becomes ClusterIP", func() {
+			name := types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-public"}
+			Eventually(func(g Gomega) {
+				instance := GetIronicAPI(ironicNames.APIName)
+				override := instance.Spec.Override.Service[service.EndpointPublic]
+				override.Spec = nil
+				instance.Spec.Override.Service[service.EndpointPublic] = override
+				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(name).Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+			}, timeout, interval).Should(Succeed())
+
+			// inject the stale registration only once the Service is ClusterIP: while it
+			// was still a LoadBalancer a reconcile would strip it before the switch
+			Eventually(func(g Gomega) {
+				svc := th.GetService(name)
+				svc.Annotations[service.AnnotationHostnameKey] = "ironic-public.stale.svc"
+				g.Expect(k8sClient.Update(ctx, svc)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(name).Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("drops the dnsmasq hostname annotation when the internal LoadBalancer is switched to ClusterIP", func() {
+			name := types.NamespacedName{Namespace: ironicNames.Namespace, Name: "ironic-internal"}
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetService(name).Annotations).To(HaveKey(service.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				instance := GetIronicAPI(ironicNames.APIName)
+				override := instance.Spec.Override.Service[service.EndpointInternal]
+				override.Spec = nil
+				instance.Spec.Override.Service[service.EndpointInternal] = override
+				g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				svc := th.GetService(name)
+				g.Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+				g.Expect(svc.Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
