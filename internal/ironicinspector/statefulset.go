@@ -186,9 +186,14 @@ func StatefulSet(
 		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent + "-httpd",
 		Image: instance.Spec.ContainerImage,
 		Command: []string{
-			"/usr/sbin/httpd",
+			"/usr/bin/dumb-init",
 		},
-		Args:            []string{"-DFOREGROUND"},
+		Args: []string{
+			"--single-child",
+			"--",
+			"/usr/sbin/httpd",
+			"-DFOREGROUND",
+		},
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpdEnvVars),
 		VolumeMounts:    httpdVolumeMounts,
@@ -205,9 +210,15 @@ func StatefulSet(
 		Name:  ironic.ServiceName + "-" + ironic.InspectorComponent,
 		Image: instance.Spec.ContainerImage,
 		Command: []string{
-			"/usr/bin/ironic-inspector",
+			"/usr/bin/dumb-init",
 		},
-		Args:            []string{"--config-file", "/etc/ironic-inspector/inspector.conf", "--config-dir", "/etc/ironic-inspector/inspector.conf.d"},
+		Args: []string{
+			"--single-child",
+			"--",
+			"/usr/bin/ironic-inspector",
+			"--config-file", "/etc/ironic-inspector/inspector.conf",
+			"--config-dir", "/etc/ironic-inspector/inspector.conf.d",
+		},
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, inspectorEnvVars),
 		VolumeMounts:    inspectorVolumeMounts,
@@ -224,9 +235,14 @@ func StatefulSet(
 		Name:  ironic.InspectorComponent + "-" + "httpboot",
 		Image: instance.Spec.PxeContainerImage,
 		Command: []string{
-			"/usr/sbin/httpd",
+			"/usr/bin/dumb-init",
 		},
-		Args:            []string{"-DFOREGROUND"},
+		Args: []string{
+			"--single-child",
+			"--",
+			"/usr/sbin/httpd",
+			"-DFOREGROUND",
+		},
 		SecurityContext: pod.RestrictiveSecurityContext(users.IronicInspectorUID, users.IronicInspectorGID),
 		Env:             env.MergeEnvs([]corev1.EnvVar{}, httpbootEnvVars),
 		VolumeMounts:    httpbootVolumeMounts,
@@ -259,9 +275,14 @@ func StatefulSet(
 			Name:  ironic.InspectorComponent + "-" + "dnsmasq",
 			Image: instance.Spec.ContainerImage,
 			Command: []string{
-				"/usr/sbin/dnsmasq",
+				"/usr/bin/dumb-init",
 			},
-			Args: []string{"-k"},
+			Args: []string{
+				"--single-child",
+				"--",
+				"/usr/sbin/dnsmasq",
+				"-k",
+			},
 			// dnsmasq binds ports <1024 (67/69/547) and handles raw DHCP
 			// packets -- genuine need, root is implicit (SCC stays
 			// anyuid;privileged for this pod, see docs/remove-kolla-plan.md).

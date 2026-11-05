@@ -215,12 +215,16 @@ var _ = Describe("IronicInspector controller", func() {
 			// Check the ironic-inspector-httpd container
 			container := ss.Spec.Template.Spec.Containers[0]
 			Expect(container.Name).To(Equal("ironic-inspector-httpd"))
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 			Expect(container.VolumeMounts).To(HaveLen(7))
 
 			// Check the ironic-inspector container
 			container = ss.Spec.Template.Spec.Containers[1]
 			Expect(container.VolumeMounts).To(HaveLen(7))
 			Expect(container.Name).To(Equal("ironic-inspector"))
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/bin/ironic-inspector", "--config-file", "/etc/ironic-inspector/inspector.conf", "--config-dir", "/etc/ironic-inspector/inspector.conf.d"}))
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(5050)))
 			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(5050)))
 
@@ -228,6 +232,8 @@ var _ = Describe("IronicInspector controller", func() {
 			container = ss.Spec.Template.Spec.Containers[2]
 			Expect(container.VolumeMounts).To(HaveLen(7))
 			Expect(container.Name).To(Equal("inspector-httpboot"))
+			Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(container.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 
 			th.ExpectCondition(
 				ironicNames.InspectorName,

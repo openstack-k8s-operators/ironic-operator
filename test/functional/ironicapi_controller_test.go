@@ -371,6 +371,8 @@ var _ = Describe("IronicAPI controller", func() {
 
 			// httpd container certs
 			apiContainer := depl.Spec.Template.Spec.Containers[1]
+			Expect(apiContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+			Expect(apiContainer.Args).To(Equal([]string{"--single-child", "--", "/usr/sbin/httpd", "-DFOREGROUND"}))
 			th.AssertVolumeMountExists(ironicNames.InternalCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
 			th.AssertVolumeMountExists(ironicNames.InternalCertSecretName.Name, "tls.crt", apiContainer.VolumeMounts)
 			th.AssertVolumeMountExists(ironicNames.PublicCertSecretName.Name, "tls.key", apiContainer.VolumeMounts)
