@@ -33,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -89,12 +90,13 @@ func (r *IronicConductorReconciler) GetLogger(ctx context.Context) logr.Logger {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=operator.openshift.io,resources=ingresscontrollers,verbs=get;list
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 
 // service account, role, rolebinding
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // service account permissions that are needed to grant permission to the above
 // +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;privileged;nonroot-v2,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
@@ -364,6 +366,19 @@ func (r *IronicConductorReconciler) reconcileDelete(ctx context.Context, instanc
 
 	Log.Info("Reconciling Conductor delete")
 
+	// Delete the console Role and RoleBinding created for graphical consoles.
+	// They live in the console namespace and therefore have no owner reference
+	// pointing at this instance, so they are not garbage collected with it.
+	err := deleteGraphicalConsoleRbac(
+		ctx,
+		helper,
+		instance.RbacResourceName(),
+		getConsoleNamespaceName(instance.Namespace),
+	)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Remove finalizer on the Topology CR
 	if ctrlResult, err := topologyv1.EnsureDeletedTopologyRef(
 		ctx,
@@ -407,32 +422,25 @@ func (r *IronicConductorReconciler) reconcileServices(
 		if instance.Spec.ConductorGroup != "" {
 			conductorServiceLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 		}
-		conductorService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
-		if conductorService != nil {
-			err = controllerutil.SetOwnerReference(&conductorPod, conductorService, helper.GetScheme())
+		desiredService := ironicconductor.Service(conductorPod.Name, instance, conductorServiceLabels)
+		if desiredService != nil {
+			conductorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredService.Name,
+					Namespace: desiredService.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductorService, func() error {
+				conductorService.Labels = desiredService.Labels
+				conductorService.Spec.Selector = desiredService.Spec.Selector
+				conductorService.Spec.Ports = desiredService.Spec.Ports
+				return controllerutil.SetOwnerReference(&conductorPod, conductorService, helper.GetScheme())
+			})
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = r.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      conductorService.Name,
-					Namespace: conductorService.Namespace,
-				},
-				conductorService,
-			)
-			if err != nil && k8s_errors.IsNotFound(err) {
-				Log.Info(fmt.Sprintf("Service port %s does not exist, creating it", conductorService.Name))
-				err = r.Create(ctx, conductorService)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			} else {
-				Log.Info(fmt.Sprintf("Service port %s exists, updating it", conductorService.Name))
-				err = r.Update(ctx, conductorService)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Service %s %s", conductorService.Name, op))
 			}
 		}
 		// create service - end
@@ -451,32 +459,59 @@ func (r *IronicConductorReconciler) reconcileServices(
 				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
 			}
 
-			conductorRoute := ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels)
-			err = controllerutil.SetOwnerReference(&conductorPod, conductorRoute, helper.GetScheme())
+			desiredRoute := ironicconductor.Route(conductorPod.Name, instance, conductorRouteLabels)
+			conductorRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredRoute.Name,
+					Namespace: desiredRoute.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, conductorRoute, func() error {
+				conductorRoute.Labels = desiredRoute.Labels
+				conductorRoute.Spec = desiredRoute.Spec
+				return controllerutil.SetOwnerReference(&conductorPod, conductorRoute, helper.GetScheme())
+			})
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = r.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      conductorRoute.Name,
-					Namespace: conductorRoute.Namespace,
-				},
-				conductorRoute,
-			)
-			if err != nil && k8s_errors.IsNotFound(err) {
-				Log.Info(fmt.Sprintf("Route %s does not exist, creating it", conductorRoute.Name))
-				err = r.Create(ctx, conductorRoute)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			} else {
-				Log.Info(fmt.Sprintf("Route %s exists, updating it", conductorRoute.Name))
-				err = r.Update(ctx, conductorRoute)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Route %s %s", conductorRoute.Name, op))
 			}
+		}
+		if instance.Spec.GraphicalConsoles == "Enabled" {
+
+			//
+			// Create the conductor pod route to enable traffic to the
+			// novnc service, which graphical consoles are enabled
+			//
+			conductorRouteLabels := map[string]string{
+				common.AppSelector:            ironic.ServiceName,
+				common.ComponentSelector:      ironic.NoVNCComponent,
+				ironic.ConductorGroupSelector: ironicv1.ConductorGroupNull,
+			}
+			if instance.Spec.ConductorGroup != "" {
+				conductorRouteLabels[ironic.ConductorGroupSelector] = strings.ToLower(instance.Spec.ConductorGroup)
+			}
+
+			desiredNoVNCRoute := ironicconductor.RouteNoVNC(conductorPod.Name, instance, conductorRouteLabels)
+			novncRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      desiredNoVNCRoute.Name,
+					Namespace: desiredNoVNCRoute.Namespace,
+				},
+			}
+			op, err := controllerutil.CreateOrPatch(ctx, r.Client, novncRoute, func() error {
+				novncRoute.Labels = desiredNoVNCRoute.Labels
+				novncRoute.Spec = desiredNoVNCRoute.Spec
+				return controllerutil.SetOwnerReference(&conductorPod, novncRoute, helper.GetScheme())
+			})
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if op != controllerutil.OperationResultNone {
+				Log.Info(fmt.Sprintf("Route %s %s", novncRoute.Name, op))
+			}
+
 		}
 	}
 
@@ -510,6 +545,47 @@ func (r *IronicConductorReconciler) reconcileNormal(ctx context.Context, instanc
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			return ctrlResult, nil
+		}
+	}
+
+	// Namespace and RBAC for the graphical console pods
+	if instance.Spec.GraphicalConsoles == "Enabled" {
+		//
+		// Create the console namespace for graphical console pods
+		//
+		err := ensureConsoleNamespace(ctx, helper, instance.Namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		consoleNamespace := getConsoleNamespaceName(instance.Namespace)
+		serviceAccountName := instance.RbacResourceName()
+		gcRbacResult, err := reconcileGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance,
+			serviceAccountName,
+			consoleNamespace,
+			getGraphicalConsoleRbacRules(),
+		)
+		if err != nil {
+			return gcRbacResult, err
+		} else if (gcRbacResult != ctrl.Result{}) {
+			return gcRbacResult, nil
+		}
+	} else {
+		//
+		// Graphical consoles are disabled: remove the console RBAC that a
+		// previously enabled configuration may have created.
+		//
+		err := deleteGraphicalConsoleRbac(
+			ctx,
+			helper,
+			instance.RbacResourceName(),
+			getConsoleNamespaceName(instance.Namespace),
+		)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -988,6 +1064,12 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 	templateParameters["DefaultInspectInterface"] = getInspectInterface(instance.GetAnnotations())
 	templateParameters["ConductorGroup"] = instance.Spec.ConductorGroup
 	templateParameters["LogPath"] = ironicconductor.LogPath
+	graphicalConsolesEnabled := instance.Spec.GraphicalConsoles == "Enabled"
+	templateParameters["GraphicalConsolesEnabled"] = graphicalConsolesEnabled
+	templateParameters["ConsoleNamespace"] = getConsoleNamespaceName(instance.Namespace)
+	if graphicalConsolesEnabled {
+		templateParameters["ConsoleImage"] = instance.Spec.ConsoleImage
+	}
 
 	// Set GracefulShutdownTimeout for conductor pods
 	templateParameters["GracefulShutdownTimeout"] = instance.Spec.TerminationGracePeriodSeconds
@@ -1051,8 +1133,10 @@ func (r *IronicConductorReconciler) generateServiceConfigMaps(
 			AdditionalTemplate: map[string]string{
 				"ironic.conf":                      "/common/config/ironic.conf",
 				"01-conductor.conf":                "/ironicconductor/config/01-conductor.conf",
+				"01-novnc.conf":                    "/ironicconductor/config/01-novnc.conf",
 				"03-init-container-conductor.conf": "/ironicconductor/config/03-init-container-conductor.conf",
 				"dnsmasq.conf":                     "/common/config/dnsmasq.conf",
+				"ironic-console-pod.yaml.template": "/ironicconductor/config/ironic-console-pod.yaml.template",
 			},
 			Labels: cmLabels,
 		},
