@@ -261,11 +261,21 @@ func (spec *IronicSpecCore) validateDeprecatedFieldsUpdate(old IronicSpecCore, b
 	return common_webhook.ValidateDeprecatedFieldsUpdate(deprecatedFields, basePath)
 }
 
+// validateServicePortNames rejects a service override (public or internal)
+// whose ports[].name is not the bare endpoint name, or whose endpointURL is
+// invalid. See webhook.ValidatePortNameOverrides.
+func validateServicePortNames(basePath *field.Path, overrides map[service.Endpoint]service.RoutedOverrideSpec) field.ErrorList {
+	return common_webhook.ValidatePortNameOverrides(basePath, overrides, common_webhook.DefaultServicePortNames())
+}
+
 func validateAPISpec(spec *IronicSpecCore, basePath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(
+		basePath.Child("ironicAPI").Child("override").Child("service"),
+		spec.IronicAPI.Override.Service)...)
+	allErrs = append(allErrs, validateServicePortNames(
 		basePath.Child("ironicAPI").Child("override").Child("service"),
 		spec.IronicAPI.Override.Service)...)
 
@@ -277,6 +287,9 @@ func validateInspectorSpec(spec *IronicSpecCore, basePath *field.Path) field.Err
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(
+		basePath.Child("ironicInspector").Child("override").Child("service"),
+		spec.IronicInspector.Override.Service)...)
+	allErrs = append(allErrs, validateServicePortNames(
 		basePath.Child("ironicInspector").Child("override").Child("service"),
 		spec.IronicInspector.Override.Service)...)
 
