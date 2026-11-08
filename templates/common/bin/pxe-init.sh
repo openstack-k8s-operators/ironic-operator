@@ -94,6 +94,17 @@ if [ -f "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" ] && [ -f "/var/lib/
     pushd initramfs
     find . | cpio -o -c --quiet -R root:root | gzip -1 > /var/lib/ironic/httpboot/x86_64/ironic-python-agent.initramfs
     popd
+
+    # Regenerate the checksum files after modifying the initramfs. The
+    # ironic-python-agent image ships ironic-python-agent.sha256 (all boot
+    # files) and a per-image ironic-python-agent.initramfs.sha256; both are
+    # used to verify the files served over HTTP, so they must match the
+    # rebuilt initramfs.
+    pushd /var/lib/ironic/httpboot/x86_64
+    sha256sum ironic-python-agent.initramfs > ironic-python-agent.initramfs.sha256
+    sha256sum ironic-python-agent.initramfs ironic-python-agent.kernel > ironic-python-agent.sha256
+    popd
+
     rm -rf /initramfs
 fi
 
