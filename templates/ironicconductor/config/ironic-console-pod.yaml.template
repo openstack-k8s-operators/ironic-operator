@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "ironic-console-{{`{{ uuid }}`}}"
+  namespace: {{ .ConsoleNamespace }}
+  labels:
+    app: ironic
+    component: ironic-console
+    conductor: "{{`{{ conductor }}`}}"
+stringData:
+  app-info: '{{`{{ app_info }}`}}'
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "ironic-console-{{`{{ uuid }}`}}"
+  namespace: {{ .ConsoleNamespace }}
+  labels:
+    app: ironic
+    component: ironic-console
+    conductor: "{{`{{ conductor }}`}}"
+spec:
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: service
+                  operator: In
+                  values:
+                    - ironic
+                - key: component
+                  operator: In
+                  values:
+                    - conductor
+            topologyKey: kubernetes.io/hostname
+  containers:
+    - name: x11vnc
+      image: "{{`{{ image }}`}}"
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 5900
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1024Mi
+      env:
+        - name: APP
+          value: "{{`{{ app }}`}}"
+        - name: READ_ONLY
+          value: "{{`{{ read_only }}`}}"
+        - name: APP_INFO
+          valueFrom:
+            secretKeyRef:
+              name: "ironic-console-{{`{{ uuid }}`}}"
+              key: app-info

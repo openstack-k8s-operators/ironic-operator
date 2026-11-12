@@ -32,6 +32,8 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -757,6 +759,262 @@ var _ = Describe("IronicConductor controller", func() {
 				map[string]any{"name": "CUSTOM_DUP"},
 			}, "Duplicate value"),
 		)
+	})
+
+	When("IronicConductor is created with graphical consoles enabled", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicConductorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			spec["graphicalConsoles"] = "Enabled"
+			spec["consoleImage"] = "test://console-image"
+			spec["novncproxyImage"] = "test://novnc-image"
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("creates the graphical console namespace", func() {
+			// getConsoleNamespaceName uses the full service namespace as the
+			// prefix, so distinct namespaces get distinct console namespaces
+			consoleNamespace := ironicNames.Namespace + "-ironic-consoles"
+			Eventually(func(g Gomega) {
+				ns := &corev1.Namespace{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: consoleNamespace}, ns)).Should(Succeed())
+				g.Expect(ns.Labels).To(HaveKeyWithValue("app", "ironic"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("creates the graphical console Role and RoleBinding", func() {
+			consoleNamespace := ironicNames.Namespace + "-ironic-consoles"
+			saName := "ironicconductor-" + ironicNames.ConductorName.Name
+			Eventually(func(g Gomega) {
+				role := &rbacv1.Role{}
+				g.Expect(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-role", Namespace: consoleNamespace},
+					role,
+				)).Should(Succeed())
+				g.Expect(role.Rules).To(ContainElement(HaveField("Resources", ContainElement("pods"))))
+
+				roleBinding := &rbacv1.RoleBinding{}
+				g.Expect(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-rolebinding", Namespace: consoleNamespace},
+					roleBinding,
+				)).Should(Succeed())
+				g.Expect(roleBinding.RoleRef.Name).To(Equal(ironicNames.ConductorName.Name + "-console-role"))
+				g.Expect(roleBinding.Subjects).To(ContainElement(HaveField("Name", saName)))
+				g.Expect(roleBinding.Subjects).To(ContainElement(HaveField("Namespace", ironicNames.Namespace)))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes the graphical console Role and RoleBinding when consoles get disabled", func() {
+			consoleNamespace := ironicNames.Namespace + "-ironic-consoles"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-role", Namespace: consoleNamespace},
+					&rbacv1.Role{},
+				)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				conductor := GetIronicConductor(ironicNames.ConductorName)
+				conductor.Spec.GraphicalConsoles = "Disabled"
+				g.Expect(k8sClient.Update(ctx, conductor)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-role", Namespace: consoleNamespace},
+					&rbacv1.Role{},
+				)
+				g.Expect(k8s_errors.IsNotFound(err)).Should(BeTrue())
+				err = k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-rolebinding", Namespace: consoleNamespace},
+					&rbacv1.RoleBinding{},
+				)
+				g.Expect(k8s_errors.IsNotFound(err)).Should(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("removes the graphical console Role and RoleBinding when the conductor is deleted", func() {
+			consoleNamespace := ironicNames.Namespace + "-ironic-consoles"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-rolebinding", Namespace: consoleNamespace},
+					&rbacv1.RoleBinding{},
+				)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.DeleteInstance(GetIronicConductor(ironicNames.ConductorName))
+
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-role", Namespace: consoleNamespace},
+					&rbacv1.Role{},
+				)
+				g.Expect(k8s_errors.IsNotFound(err)).Should(BeTrue())
+				err = k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-rolebinding", Namespace: consoleNamespace},
+					&rbacv1.RoleBinding{},
+				)
+				g.Expect(k8s_errors.IsNotFound(err)).Should(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("adds a console-image-pull init container to pre-pull the console image", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetStatefulSet(ironicNames.ConductorName)
+				initContainers := depl.Spec.Template.Spec.InitContainers
+				// Should have init, ironic-python-agent-init, pxe-init, and console-image-pull
+				g.Expect(initContainers).To(HaveLen(4))
+				consoleInitContainer := initContainers[3]
+				g.Expect(consoleInitContainer.Name).To(Equal("console-image-pull"))
+				g.Expect(consoleInitContainer.Image).To(Equal("test://console-image"))
+				g.Expect(consoleInitContainer.Command).To(Equal([]string{"/bin/true"}))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("uses https for the noVNC public URL to match the TLS Route", func() {
+			Eventually(func(g Gomega) {
+				sts := th.GetStatefulSet(ironicNames.ConductorName)
+				initContainer := sts.Spec.Template.Spec.InitContainers[0]
+				novncURL := GetEnvVarValue(initContainer.Env, "NoVNCProxyURL", "")
+				g.Expect(novncURL).To(HavePrefix("https://"))
+				g.Expect(novncURL).To(HaveSuffix("/vnc_lite.html"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("adds a novnc sidecar container", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetStatefulSet(ironicNames.ConductorName)
+				containers := depl.Spec.Template.Spec.Containers
+				// Should have ironic-conductor, httpboot, ramdisk-logs, and novnc
+				g.Expect(containers).To(HaveLen(4))
+				novncContainer := containers[3]
+				g.Expect(novncContainer.Name).To(Equal("novnc"))
+				g.Expect(novncContainer.Image).To(Equal("test://novnc-image"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("mounts the service account token to manage graphical console pods", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetStatefulSet(ironicNames.ConductorName)
+				g.Expect(depl.Spec.Template.Spec.AutomountServiceAccountToken).ToNot(BeNil())
+				g.Expect(*depl.Spec.Template.Spec.AutomountServiceAccountToken).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicConductor is created with graphical consoles disabled", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			spec := GetDefaultIronicConductorSpec()
+			spec["rpcTransport"] = "oslo"
+			spec["transportURLSecret"] = MessageBusSecretName
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronicConductor(ironicNames.ConductorName, spec))
+			mariadb.CreateMariaDBDatabase(ironicNames.Namespace, ironic.DatabaseName, mariadbv1.MariaDBDatabaseSpec{})
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+		})
+
+		It("does not create the graphical console Role and RoleBinding", func() {
+			consoleNamespace := ironicNames.Namespace + "-ironic-consoles"
+			Eventually(func(g Gomega) {
+				g.Expect(th.GetStatefulSet(ironicNames.ConductorName)).NotTo(BeNil())
+				g.Expect(k8s_errors.IsNotFound(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-role", Namespace: consoleNamespace},
+					&rbacv1.Role{},
+				))).Should(BeTrue())
+				g.Expect(k8s_errors.IsNotFound(k8sClient.Get(
+					ctx,
+					types.NamespacedName{Name: ironicNames.ConductorName.Name + "-console-rolebinding", Namespace: consoleNamespace},
+					&rbacv1.RoleBinding{},
+				))).Should(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("does not add a console-image-pull init container", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetStatefulSet(ironicNames.ConductorName)
+				initContainers := depl.Spec.Template.Spec.InitContainers
+				// Should have init, ironic-python-agent-init, pxe-init only
+				g.Expect(initContainers).To(HaveLen(3))
+				for _, c := range initContainers {
+					g.Expect(c.Name).NotTo(Equal("console-image-pull"))
+				}
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("does not add a novnc sidecar container", func() {
+			Eventually(func(g Gomega) {
+				depl := th.GetStatefulSet(ironicNames.ConductorName)
+				containers := depl.Spec.Template.Spec.Containers
+				// Should have ironic-conductor, httpboot, ramdisk-logs only
+				g.Expect(containers).To(HaveLen(3))
+				for _, c := range containers {
+					g.Expect(c.Name).NotTo(Equal("novnc"))
+				}
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	When("IronicConductor is created without TraitBasedNetworking", func() {
