@@ -18,6 +18,7 @@ package functional_test
 
 import (
 	"errors"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
@@ -25,6 +26,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -86,5 +88,89 @@ var _ = Describe("Ironic webhook", func() {
 			g.Expect(statusError.ErrStatus.Message).To(
 				ContainSubstring("use \"spec.messagingBus.cluster\" instead"))
 		}, timeout, interval).Should(Succeed())
+	})
+
+	Describe("service override validation", func() {
+		// createIronicWithOverride creates an Ironic CR with the given
+		// component ("ironicAPI"/"ironicInspector") service override for one
+		// endpoint and returns the admission result.
+		createIronicWithOverride := func(component string, endpt string, override map[string]any) error {
+			spec := GetDefaultIronicSpec()
+			spec[component].(map[string]any)["override"] = map[string]any{
+				"service": map[string]any{endpt: override},
+			}
+			obj := &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "ironic.openstack.org/v1beta1",
+				"kind":       "Ironic",
+				"metadata": map[string]any{
+					"name":      "ironic-override-test",
+					"namespace": ironicNames.Namespace,
+				},
+				"spec": spec,
+			}}
+			// Dry run exercises the webhook without persisting (and thereby
+			// reconciling) the CR.
+			return k8sClient.Create(ctx, obj, client.DryRunAll)
+		}
+
+		ports := func(name string, port int) map[string]any {
+			return map[string]any{"ports": []any{map[string]any{"name": name, "port": port}}}
+		}
+
+		for _, comp := range []struct {
+			field string
+			port  int
+		}{{"ironicAPI", 6385}, {"ironicInspector", 5050}} {
+			for _, endpt := range []string{"public", "internal"} {
+				It("accepts the bare "+endpt+" port name for "+comp.field, func() {
+					Expect(createIronicWithOverride(comp.field, endpt,
+						map[string]any{"spec": ports(endpt, comp.port)})).To(Succeed())
+				})
+
+				It("rejects a wrong "+endpt+" port name for "+comp.field, func() {
+					err := createIronicWithOverride(comp.field, endpt,
+						map[string]any{"spec": ports("wrong", comp.port)})
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(
+						"spec." + comp.field + ".override.service[" + endpt + "].spec.ports[0].name: " +
+							"Invalid value: \"wrong\": must be \"" + endpt + "\""))
+				})
+
+				It("accepts an FQDN "+endpt+" endpointURL for "+comp.field, func() {
+					Expect(createIronicWithOverride(comp.field, endpt, map[string]any{
+						"endpointURL": fmt.Sprintf("https://ironic.example.com:%d", comp.port),
+					})).To(Succeed())
+				})
+
+				for name, url := range map[string]string{
+					"a bare short name": fmt.Sprintf("https://ironic:%d", comp.port),
+					"a missing scheme":  fmt.Sprintf("ironic.example.com:%d", comp.port),
+					"an IP literal":     fmt.Sprintf("https://192.168.1.10:%d", comp.port),
+				} {
+					It("rejects "+name+" as "+endpt+" endpointURL for "+comp.field, func() {
+						err := createIronicWithOverride(comp.field, endpt, map[string]any{"endpointURL": url})
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(ContainSubstring(
+							"spec." + comp.field + ".override.service[" + endpt + "].endpointURL"))
+					})
+				}
+
+				It("rejects a "+endpt+" ports[].port that differs from the endpointURL port for "+comp.field, func() {
+					err := createIronicWithOverride(comp.field, endpt, map[string]any{
+						"endpointURL": "https://ironic.example.com:8443",
+						"spec":        ports(endpt, comp.port),
+					})
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("must match the port in endpointURL"))
+				})
+
+				It("accepts a "+endpt+" ports[].port matching the endpointURL port for "+comp.field, func() {
+					Expect(createIronicWithOverride(comp.field, endpt, map[string]any{
+						"endpointURL": "https://ironic.example.com:8443",
+						"spec":        ports(endpt, 8443),
+					})).To(Succeed())
+				})
+			}
+		}
 	})
 })
