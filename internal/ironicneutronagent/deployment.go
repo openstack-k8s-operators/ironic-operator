@@ -99,9 +99,14 @@ func Deployment(
 						{
 							Name: ServiceName,
 							Command: []string{
-								"/usr/bin/ironic-neutron-agent",
+								"/usr/bin/dumb-init",
 							},
-							Args:            []string{"--config-dir", "/etc/neutron/neutron.conf.d"},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/usr/bin/ironic-neutron-agent",
+								"--config-dir", "/etc/neutron/neutron.conf.d",
+							},
 							Image:           instance.Spec.ContainerImage,
 							SecurityContext: pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
