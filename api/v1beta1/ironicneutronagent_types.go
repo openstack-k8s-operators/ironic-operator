@@ -42,6 +42,22 @@ type IronicNeutronAgentTemplate struct {
 	// +kubebuilder:validation:Optional
 	// NotificationsBus configuration (username, vhost, and cluster) for notifications
 	NotificationsBus *rabbitmqv1.RabbitMqConfig `json:"notificationsBus,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS IronicNeutronAgentTLS `json:"tls,omitempty"`
+}
+
+// IronicNeutronAgentTLS defines the TLS input parameters
+type IronicNeutronAgentTLS struct {
+	// +kubebuilder:validation:Optional
+	// Secret containing CA bundle
+	tls.Ca `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	// Ovn holds the secret for the OVN DB client cert
+	Ovn tls.GenericService `json:"ovn,omitempty"`
 }
 
 // IronicNeutronAgentSpec defines the desired state of ML2 baremetal - ironic-neutron-agent agents
@@ -66,11 +82,6 @@ type IronicNeutronAgentSpec struct {
 	// +kubebuilder:default={service: IronicPassword}
 	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
-
-	// +kubebuilder:validation:Optional
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// TLS - Parameters related to the TLS
-	TLS tls.Ca `json:"tls,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
