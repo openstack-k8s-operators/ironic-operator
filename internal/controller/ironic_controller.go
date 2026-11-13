@@ -1486,7 +1486,6 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 		Secret:                     instance.Spec.Secret,
 		PasswordSelectors:          instance.Spec.PasswordSelectors,
 		ServiceUser:                instance.Spec.ServiceUser,
-		TLS:                        instance.Spec.IronicAPI.TLS.Ca,
 		Auth:                       instance.Spec.Auth,
 	}
 
@@ -1498,6 +1497,12 @@ func (r *IronicReconciler) ironicNeutronAgentDeploymentCreateOrUpdate(
 	// inherit from the top-level CR
 	if IronicNeutronAgentSpec.TopologyRef == nil {
 		IronicNeutronAgentSpec.TopologyRef = instance.Spec.TopologyRef
+	}
+
+	// If the CA bundle is not present in the underlying IronicNeutronAgent Spec,
+	// inherit from the IronicAPI
+	if IronicNeutronAgentSpec.TLS.CaBundleSecretName == "" {
+		IronicNeutronAgentSpec.TLS.Ca = instance.Spec.IronicAPI.TLS.Ca
 	}
 
 	deployment := &ironicv1.IronicNeutronAgent{
