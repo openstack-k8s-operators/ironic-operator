@@ -57,6 +57,7 @@ import (
 	common_test "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 	"github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
+	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -107,6 +108,9 @@ var _ = BeforeSuite(func() {
 	rabbitCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/infra-operator/apis", gomod, "bases")
 	Expect(err).ShouldNot(HaveOccurred())
+	ovnCRDs, err := test.GetCRDDirFromModule(
+		"github.com/openstack-k8s-operators/ovn-operator/api", gomod, "bases")
+	Expect(err).ShouldNot(HaveOccurred())
 	routev1CRDs, err := test.GetOpenShiftCRDDir("route/v1", gomod)
 	Expect(err).ShouldNot(HaveOccurred())
 
@@ -121,6 +125,7 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			mariadbCRDs,
 			rabbitCRDs,
+			ovnCRDs,
 			routev1CRDs,
 		},
 		ErrorIfCRDPathMissing: true,
@@ -162,6 +167,8 @@ var _ = BeforeSuite(func() {
 	err = routev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = topologyv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = ovnv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	//+kubebuilder:scaffold:scheme
 

@@ -32,7 +32,9 @@ import (
 	ironic "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -52,6 +54,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 		})
 		It("initializes Status fields", func() {
@@ -106,6 +109,22 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			)
 			instance := GetIronicNeutronAgent(ironicNames.INAName)
 			Expect(instance.Status.ReadyCount).To(Equal(int32(1)))
+		})
+		It("renders OVN connections in the config", func() {
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := string(confSecret.Data["01-ironic_neutron_agent.conf"])
+				g.Expect(conf).To(ContainSubstring("[l2vni]"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_connection = tcp:10.1.1.1:6641"))
+				g.Expect(conf).To(ContainSubstring("ovn_sb_connection = tcp:10.1.1.1:6642"))
+				// no TLS is configured so no [ovn] section is rendered
+				g.Expect(conf).NotTo(ContainSubstring("[ovn]"))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -188,6 +207,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 					ctx,
 					CreateIronicSecret(ironicNames.Namespace, SecretName),
 				)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 				th.SimulateDeploymentReplicaReady(ironicNames.INAName)
 			})
 			It("is reporting inputs are ready", func() {
@@ -236,6 +256,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				"caBundleSecretName": ironicNames.CaBundleSecretName.Name,
 			}
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			infra.GetTransportURL(ironicNames.INATransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
@@ -334,6 +355,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 			)
 
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 
 			infra.GetTransportURL(ironicNames.INATransportURLName)
@@ -482,6 +504,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				"applicationCredentialSecret": acSecretName,
 			}
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 
 			infra.GetTransportURL(ironicNames.INATransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
@@ -521,6 +544,7 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
 			)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
 			infra.GetTransportURL(ironicNames.INATransportURLName)
 			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
@@ -595,6 +619,295 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 				instance := GetIronicNeutronAgent(ironicNames.INAName)
 				g.Expect(instance.Status.TransportURLSecret).To(Equal(newSecretName))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicNeutronAgent is created without OVN DBs", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+		})
+		It("waits for the OVN DBs", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Service config create error occurred failed to find DBCluster of type NB",
+			)
+		})
+		It("is false Ready", func() {
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionFalse,
+			)
+		})
+	})
+
+	When("IronicNeutronAgent is created with SSL OVN DBs and no OVN client cert", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateSSLOVNDBClusters(ironicNames.Namespace))
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+		})
+		It("reports that the OVN client cert is missing", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ServiceConfigReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"Service config create error occurred OVN DB endpoints use TLS but no OVN client cert secret is set in spec.tls.ovn",
+			)
+		})
+	})
+
+	When("IronicNeutronAgent is created with SSL OVN DBs and an OVN client cert", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateSSLOVNDBClusters(ironicNames.Namespace))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				th.CreateCertSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      OVNDbCertSecretName,
+				}),
+			)
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["tls"] = map[string]any{
+				"ovn": map[string]any{
+					"secretName": OVNDbCertSecretName,
+				},
+			}
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+		It("renders OVN connections and TLS config", func() {
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				g.Expect(confSecret).ShouldNot(BeNil())
+
+				conf := string(confSecret.Data["01-ironic_neutron_agent.conf"])
+				g.Expect(conf).To(ContainSubstring("[l2vni]"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_connection = ssl:10.1.1.1:6641"))
+				g.Expect(conf).To(ContainSubstring("ovn_sb_connection = ssl:10.1.1.1:6642"))
+				g.Expect(conf).To(ContainSubstring("[ovn]"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_private_key = /etc/pki/tls/private/ovndb.key"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_certificate = /etc/pki/tls/certs/ovndb.crt"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_ca_cert = /etc/pki/tls/certs/ovndbca.crt"))
+			}, timeout, interval).Should(Succeed())
+		})
+		It("mounts the OVN client cert in the Deployment", func() {
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			th.AssertVolumeExists(OVNDbCertSecretName, depl.Spec.Template.Spec.Volumes)
+
+			container := depl.Spec.Template.Spec.Containers[0]
+			th.AssertVolumeMountExists(OVNDbCertSecretName, "tls.crt", container.VolumeMounts)
+		})
+		It("reconfigures the deployment when the OVN cert changes", func() {
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			originalHash := GetEnvVarValue(
+				depl.Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the cert secret. The OVN endpoints
+			// stay fixed so the cert update is the only input change.
+			th.UpdateSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      OVNDbCertSecretName,
+			}, "tls.crt", []byte("DifferentCertData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetDeployment(ironicNames.INAName).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("IronicNeutronAgent is created with SSL OVN DBs and the OVN client cert is created later", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateSSLOVNDBClusters(ironicNames.Namespace))
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["tls"] = map[string]any{
+				"ovn": map[string]any{
+					"secretName": OVNDbCertSecretName,
+				},
+			}
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+		})
+		It("waits for the OVN client cert and creates the Deployment once available", func() {
+			th.ExpectConditionWithDetails(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				fmt.Sprintf("TLSInput is missing: secrets %q not found",
+					OVNDbCertSecretName+" in namespace "+ironicNames.Namespace),
+			)
+
+			// no Deployment is created while the cert secret is missing
+			err := k8sClient.Get(ctx, ironicNames.INAName, &appsv1.Deployment{})
+			Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+
+			// the cert secret gets created by the control plane
+			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(types.NamespacedName{
+				Namespace: ironicNames.Namespace,
+				Name:      OVNDbCertSecretName,
+			}))
+
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				confSecret := th.GetSecret(ironicNames.INAConfigSecretName)
+				conf := string(confSecret.Data["01-ironic_neutron_agent.conf"])
+				g.Expect(conf).To(ContainSubstring("[ovn]"))
+				g.Expect(conf).To(ContainSubstring("ovn_nb_ca_cert = /etc/pki/tls/certs/ovndbca.crt"))
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+			th.ExpectCondition(
+				ironicNames.INAName,
+				ConditionGetterFunc(INAConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			th.AssertVolumeExists(OVNDbCertSecretName, depl.Spec.Template.Spec.Volumes)
+		})
+	})
+
+	When("IronicNeutronAgent is created with an OVN client cert secret missing the CA", func() {
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateSSLOVNDBClusters(ironicNames.Namespace))
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				th.CreateSecret(types.NamespacedName{
+					Namespace: ironicNames.Namespace,
+					Name:      OVNDbCertSecretName,
+				}, map[string][]byte{
+					"tls.crt": []byte("Zm9v"),
+					"tls.key": []byte("Zm9v"),
+				}),
+			)
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["tls"] = map[string]any{
+				"ovn": map[string]any{
+					"secretName": OVNDbCertSecretName,
+				},
+			}
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+		})
+		It("reports that the CA cert is missing", func() {
+			Eventually(func(g Gomega) {
+				conditions := INAConditionGetter(ironicNames.INAName)
+				c := conditions.Get(condition.TLSInputReadyCondition)
+				g.Expect(c).NotTo(BeNil())
+				g.Expect(c.Status).To(Equal(corev1.ConditionFalse))
+				g.Expect(c.Reason).To(BeEquivalentTo(condition.ErrorReason))
+				g.Expect(c.Message).To(ContainSubstring("field ca.crt not found"))
+			}, timeout, interval).Should(Succeed())
+
+			// no Deployment is created with an incomplete cert secret
+			err := k8sClient.Get(ctx, ironicNames.INAName, &appsv1.Deployment{})
+			Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
 		})
 	})
 })

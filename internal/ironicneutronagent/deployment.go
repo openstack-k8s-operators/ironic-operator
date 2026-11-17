@@ -23,6 +23,7 @@ import (
 	affinity "github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	env "github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	"github.com/openstack-k8s-operators/lib-common/modules/users"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,12 +32,25 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+// OvnCertService returns the tls.Service for the OVN DB client cert.
+// It is used for both the validation of the secret and the volume
+// mounts so the two cannot diverge.
+func OvnCertService(secretName string) tls.Service {
+	return tls.Service{
+		SecretName: secretName,
+		CertMount:  ptr.To("/etc/pki/tls/certs/ovndb.crt"),
+		KeyMount:   ptr.To("/etc/pki/tls/private/ovndb.key"),
+		CaMount:    ptr.To("/etc/pki/tls/certs/ovndbca.crt"),
+	}
+}
+
 // Deployment func
 func Deployment(
 	instance *ironicv1.IronicNeutronAgent,
 	configHash string,
 	labels map[string]string,
 	topology *topologyv1.Topology,
+	ovnCRDAvailable bool,
 ) *appsv1.Deployment {
 
 	livenessProbe := &corev1.Probe{
@@ -72,6 +86,13 @@ func Deployment(
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		volumeMounts = append(volumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	// Add the OVN DB client cert
+	if ovnCRDAvailable && instance.Spec.TLS.Ovn.Enabled() {
+		svc := OvnCertService(*instance.Spec.TLS.Ovn.SecretName)
+		volumes = append(volumes, svc.CreateVolume("ovndb"))
+		volumeMounts = append(volumeMounts, svc.CreateVolumeMounts("ovndb")...)
 	}
 
 	// Default oslo.service graceful_shutdown_timeout is 60, so align with that
