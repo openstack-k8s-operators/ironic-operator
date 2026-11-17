@@ -44,6 +44,8 @@ var (
 	ErrNetworkAttachmentConfig = errors.New("not all pods have interfaces with ips as configured in NetworkAttachments")
 	ErrACSecretNotFound        = errors.New("ApplicationCredential secret not found")
 	ErrACSecretMissingKeys     = errors.New("ApplicationCredential secret missing required keys")
+	ErrOVNClientCertMissing    = errors.New("OVN DB endpoints use TLS but no OVN client cert secret is set in spec.tls.ovn")
+	ErrOVNDBClusterStale       = errors.New("OVNDBCluster status not observed for the current generation")
 )
 
 // fields to index to reconcile when change
@@ -55,6 +57,7 @@ const (
 	transportURLSecretField = ".spec.transportURLSecret"
 	topologyField           = ".spec.topologyRef.Name"
 	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec G101
+	tlsOVNCertSecretField   = ".spec.tls.ovn.secretName"               // #nosec G101
 )
 
 var (
@@ -85,6 +88,7 @@ var (
 		caBundleSecretNameField,
 		topologyField,
 		authAppCredSecretField,
+		tlsOVNCertSecretField,
 	}
 )
 

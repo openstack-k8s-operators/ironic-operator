@@ -22,11 +22,14 @@ import (
 
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 
+	"github.com/google/uuid"
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	ironic_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironic"
 	ironic_inspector_pkg "github.com/openstack-k8s-operators/ironic-operator/internal/ironicinspector"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +48,7 @@ const (
 	ContainerImage         = "test://ironic"
 	PxeContainerImage      = "test://pxe-image"
 	IronicPythonAgentImage = "test://ipa-image"
+	OVNDbCertSecretName    = "ovndb-tls-certs" // #nosec G101 -- Test constant, not a credential
 )
 
 type IronicNames struct {
@@ -714,6 +718,85 @@ func CreateUnstructured(rawObj map[string]any) *unstructured.Unstructured {
 		g.Expect(err).ShouldNot(HaveOccurred())
 	}, th.Timeout, th.Interval).Should(Succeed())
 	return unstructuredObj
+}
+
+func GetOVNDBCluster(name types.NamespacedName) *ovnv1.OVNDBCluster {
+	instance := &ovnv1.OVNDBCluster{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+	return instance
+}
+
+// CreateOVNDBClusters creates NB and SB OVNDBClusters with tcp endpoints
+func CreateOVNDBClusters(namespace string) []types.NamespacedName {
+	return createOVNDBClusters(namespace, "tcp")
+}
+
+// CreateSSLOVNDBClusters creates NB and SB OVNDBClusters with ssl endpoints
+func CreateSSLOVNDBClusters(namespace string) []types.NamespacedName {
+	return createOVNDBClusters(namespace, "ssl")
+}
+
+func createOVNDBClusters(namespace string, scheme string) []types.NamespacedName {
+	dbs := []types.NamespacedName{}
+	for _, db := range []string{"NB", "SB"} {
+		ovndbcluster := &ovnv1.OVNDBCluster{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "ovn.openstack.org/v1beta1",
+				Kind:       "OVNDBCluster",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ovn-" + uuid.New().String(),
+				Namespace: namespace,
+			},
+			Spec: ovnv1.OVNDBClusterSpec{
+				OVNDBClusterSpecCore: ovnv1.OVNDBClusterSpecCore{
+					DBType: db,
+				},
+			},
+		}
+
+		Expect(k8sClient.Create(ctx, ovndbcluster.DeepCopy())).Should(Succeed())
+		name := types.NamespacedName{Namespace: namespace, Name: ovndbcluster.Name}
+
+		port := "6641"
+		if db == "SB" {
+			port = "6642"
+		}
+		dbaddr := scheme + ":10.1.1.1:" + port
+
+		// the Status field needs to be written via a separate client
+		ovndbcluster = GetOVNDBCluster(name)
+		ovndbcluster.Status = ovnv1.OVNDBClusterStatus{
+			ObservedGeneration: ovndbcluster.Generation,
+			InternalDBAddress:  dbaddr,
+		}
+		Expect(k8sClient.Status().Update(ctx, ovndbcluster.DeepCopy())).Should(Succeed())
+		dbs = append(dbs, name)
+	}
+
+	logger.Info("OVNDBClusters created", "OVNDBCluster", dbs)
+	return dbs
+}
+
+func DeleteOVNDBClusters(names []types.NamespacedName) {
+	for _, db := range names {
+		Eventually(func(g Gomega) {
+			ovndbcluster := &ovnv1.OVNDBCluster{}
+			err := k8sClient.Get(ctx, db, ovndbcluster)
+			// if it is already gone that is OK
+			if k8s_errors.IsNotFound(err) {
+				return
+			}
+			g.Expect(err).ShouldNot(HaveOccurred())
+
+			g.Expect(k8sClient.Delete(ctx, ovndbcluster)).Should(Succeed())
+
+			err = k8sClient.Get(ctx, db, ovndbcluster)
+			g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
+		}, timeout, interval).Should(Succeed())
+	}
 }
 
 // GetSampleTopologySpec - An opinionated Topology Spec sample used to
