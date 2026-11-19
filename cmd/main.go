@@ -51,6 +51,7 @@ import (
 	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1beta1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -69,6 +70,7 @@ func init() {
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(networkv1.AddToScheme(scheme))
 	utilruntime.Must(topologyv1.AddToScheme(scheme))
+	utilruntime.Must(ovnv1.AddToScheme(scheme))
 	err := keystonev1beta1.AddToScheme(scheme)
 	if err != nil {
 		setupLog.Info("Adding keystone schema failed, only standalone deployments are available")
