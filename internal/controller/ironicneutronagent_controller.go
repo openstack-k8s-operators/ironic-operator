@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,7 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -49,6 +52,7 @@ import (
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	endpoint "github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	ovnclient "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -69,6 +73,11 @@ type IronicNeutronAgentReconciler struct {
 	Kclient   kubernetes.Interface
 	Scheme    *runtime.Scheme
 	APIReader client.Reader
+
+	// OvnCRDAvailable is set in SetupWithManager. The OVN integration
+	// of the agent stays disabled when the OVNDBCluster CRD is not
+	// installed in the cluster.
+	OvnCRDAvailable bool
 }
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
@@ -79,6 +88,7 @@ func (r *IronicNeutronAgentReconciler) GetLogger(ctx context.Context) logr.Logge
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ironic.openstack.org,resources=ironicneutronagents/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=ovn.openstack.org,resources=ovndbclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create;update;patch;delete;watch
@@ -277,7 +287,34 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	// index tlsOVNCertSecretField
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &ironicv1.IronicNeutronAgent{}, tlsOVNCertSecretField, func(rawObj client.Object) []string {
+		// Extract the OVN DB client cert secret name from the spec, if one is provided
+		cr := rawObj.(*ironicv1.IronicNeutronAgent)
+		if cr.Spec.TLS.Ovn.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.Ovn.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// Check if the OVN CRD is available in the cluster. Without it the
+	// OVN integration of the agent stays disabled.
+	_, err := mgr.GetRESTMapper().RESTMapping(
+		schema.GroupKind{Group: "ovn.openstack.org", Kind: "OVNDBCluster"},
+	)
+	switch {
+	case err == nil:
+		r.OvnCRDAvailable = true
+	case meta.IsNoMatchError(err):
+		r.OvnCRDAvailable = false
+	default:
+		return fmt.Errorf("failed to check for the OVNDBCluster CRD: %w", err)
+	}
+
+	crs := &ironicv1.IronicNeutronAgentList{}
+	bldr := ctrl.NewControllerManagedBy(mgr).
 		For(&ironicv1.IronicNeutronAgent{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
@@ -285,7 +322,16 @@ func (r *IronicNeutronAgentReconciler) SetupWithManager(
 		Owns(&rabbitmqv1.TransportURL{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
-		Owns(&rbacv1.RoleBinding{}).
+		Owns(&rbacv1.RoleBinding{})
+
+	if r.OvnCRDAvailable {
+		bldr = bldr.Watches(
+			&ovnclient.OVNDBCluster{},
+			handler.EnqueueRequestsFromMapFunc(ovnclient.OVNCRNamespaceMapFunc(crs, mgr.GetClient())),
+		)
+	}
+
+	return bldr.
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
@@ -630,6 +676,37 @@ func (r *IronicNeutronAgentReconciler) reconcileConfigMapsAndSecrets(
 			configMapVars[tls.CABundleKey] = env.SetValue(hash)
 		}
 	}
+
+	// Validate the OVN DB client cert secret if provided. The same
+	// tls.Service is used for the volume mounts so the validation and
+	// the mounts cannot diverge.
+	if r.OvnCRDAvailable && instance.Spec.TLS.Ovn.Enabled() {
+		ovnCertSvc := ironicneutronagent.OvnCertService(*instance.Spec.TLS.Ovn.SecretName)
+		ovnCertsHash, err := ovnCertSvc.ValidateCertSecret(ctx, helper, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				// This cert secret should be automatically created by the encompassing OpenStackControlPlane,
+				// so we treat this as info with the expectation that it will be created soon.
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					condition.TLSInputReadyWaitingMessage, err.Error()))
+				return ctrl.Result{RequeueAfter: time.Second * 10}, "", nil
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, "", err
+		}
+
+		if ovnCertsHash != "" {
+			configMapVars["ovnCertsHash"] = env.SetValue(ovnCertsHash)
+		}
+	}
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
 
@@ -710,6 +787,7 @@ func (r *IronicNeutronAgentReconciler) reconcileDeployment(
 		inputHash,
 		serviceLabels,
 		topology,
+		r.OvnCRDAvailable,
 	)
 	depl := deployment.NewDeployment(deplomentDef, 5)
 	ctrlResult, err := depl.CreateOrPatch(ctx, helper)
@@ -1061,6 +1139,53 @@ func (r *IronicNeutronAgentReconciler) generateServiceSecrets(
 		return err
 	}
 	templateParameters["Region"] = keystoneAPI.GetRegion()
+
+	// The L2VNI reconciliation of the agent needs to reach the OVN NB
+	// and SB databases. The OVN integration is only active when the
+	// OVNDBCluster CRD is installed in the cluster.
+	if r.OvnCRDAvailable {
+		// The OVN DBs are discovered from the OVNDBCluster CRs in the
+		// namespace. Not found or not ready yet means requeue until the
+		// endpoints become available.
+		nbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.NBDBType)
+		if err != nil {
+			return err
+		}
+		// The status of the cluster can lag behind a spec change. Only
+		// use the endpoint observed for the current generation.
+		if nbCluster.Status.ObservedGeneration != nbCluster.Generation {
+			return ErrOVNDBClusterStale
+		}
+		nbEndpoint, err := nbCluster.GetInternalEndpoint()
+		if err != nil {
+			return err
+		}
+
+		sbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.SBDBType)
+		if err != nil {
+			return err
+		}
+		if sbCluster.Status.ObservedGeneration != sbCluster.Generation {
+			return ErrOVNDBClusterStale
+		}
+		sbEndpoint, err := sbCluster.GetInternalEndpoint()
+		if err != nil {
+			return err
+		}
+
+		// OVN DB endpoints use ssl when the OVN DBs run with TLS. The agent
+		// then needs a client cert to connect.
+		if (strings.HasPrefix(nbEndpoint, "ssl:") || strings.HasPrefix(sbEndpoint, "ssl:")) && !instance.Spec.TLS.Ovn.Enabled() {
+			return ErrOVNClientCertMissing
+		}
+
+		templateParameters["NBConnection"] = nbEndpoint
+		templateParameters["SBConnection"] = sbEndpoint
+		templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
+	} else {
+		// Without OVN the L2VNI reconciliation of the agent is disabled
+		templateParameters["DisableL2VNI"] = true
+	}
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])

@@ -311,6 +311,7 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronic(ironicNames.IronicName, GetDefaultIronicSpec()),
@@ -765,6 +766,7 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				keystone.DeleteKeystoneAPI,
 				keystoneAPIName)
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(
 				th.DeleteInstance,
 				CreateIronic(ironicNames.IronicName, GetDefaultIronicSpec()),
@@ -876,6 +878,7 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
 			spec["topologyRef"] = map[string]any{
 				"name": topologyRef.Name,
@@ -1139,6 +1142,7 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			spec := GetDefaultIronicSpec()
 			spec["nodeSelector"] = map[string]any{
 				"foo": "bar",
@@ -1591,6 +1595,7 @@ var _ = Describe("Ironic controller", func() {
 			)
 			DeferCleanup(keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 
 			spec := GetDefaultIronicSpec()
 			spec["rpcTransport"] = "oslo"
@@ -1916,6 +1921,7 @@ var _ = Describe("Ironic controller", func() {
 			DeferCleanup(
 				keystone.DeleteKeystoneAPI,
 				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 
 			acIronic := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -2260,6 +2266,7 @@ var _ = Describe("Ironic Webhook", func() {
 				},
 			))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
 			DeferCleanup(th.DeleteInstance, CreateIronic(ironicNames.IronicName, spec))
 
 			notificationsTransportURLName = types.NamespacedName{
