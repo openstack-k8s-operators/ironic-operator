@@ -321,7 +321,7 @@ stages:
           exit 1
         fi
 
-        echo "Waiting for nodes to reach state: available"
+        echo "Waiting for nodes to reach state: available, current states: $(echo "$node_states" | tr '\n' ' ')"
         sleep 10
       done
 
