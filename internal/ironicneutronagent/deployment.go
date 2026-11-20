@@ -79,8 +79,8 @@ func Deployment(
 	envVars := map[string]env.Setter{}
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
-	volumes := GetVolumes(instance.Name)
-	volumeMounts := GetVolumeMounts()
+	volumes := GetVolumes(instance.Name, instance.Spec.ExtraMounts, IronicNeutronAgentPropagation)
+	volumeMounts := GetVolumeMounts(instance.Spec.ExtraMounts, IronicNeutronAgentPropagation)
 
 	// Add the CA bundle
 	if instance.Spec.TLS.CaBundleSecretName != "" {
