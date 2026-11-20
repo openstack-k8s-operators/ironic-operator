@@ -38,9 +38,11 @@ type APIDetails struct {
 	PxeInit                bool
 	ConductorInit          bool
 	DeployHTTPURL          string
+	NoVNCProxyURL          string
 	IngressDomain          string
 	ProvisionNetwork       string
 	ImageDirectory         string
+	ConsoleImage           string
 }
 
 const (
@@ -63,6 +65,7 @@ func InitContainer(init APIDetails) []corev1.Container {
 	envVars["DatabaseHost"] = env.SetValue(init.DatabaseHost)
 	envVars["DatabaseName"] = env.SetValue(init.DatabaseName)
 	envVars["DeployHTTPURL"] = env.SetValue(init.DeployHTTPURL)
+	envVars["NoVNCProxyURL"] = env.SetValue(init.NoVNCProxyURL)
 	envVars["IngressDomain"] = env.SetValue(init.IngressDomain)
 
 	envs := []corev1.EnvVar{
@@ -199,6 +202,16 @@ func InitContainer(init APIDetails) []corev1.Container {
 			VolumeMounts: init.VolumeMounts,
 		}
 		containers = append(containers, pxeInit)
+	}
+
+	if init.ConsoleImage != "" {
+		consoleImagePull := corev1.Container{
+			Name:            "console-image-pull",
+			Image:           init.ConsoleImage,
+			SecurityContext: pod.RestrictiveSecurityContext(users.IronicUID, users.IronicGID),
+			Command:         []string{"/bin/true"},
+		}
+		containers = append(containers, consoleImagePull)
 	}
 
 	return containers

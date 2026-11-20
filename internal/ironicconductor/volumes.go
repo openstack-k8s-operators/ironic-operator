@@ -109,6 +109,12 @@ func GetConductorVolumeMounts(instance *ironicv1.IronicConductor) []corev1.Volum
 			SubPath:   "my.cnf",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "config-data",
+			MountPath: "/etc/ironic/ironic-console-pod.yaml.template",
+			SubPath:   "ironic-console-pod.yaml.template",
+			ReadOnly:  true,
+		},
 		varLibIronicVolumeMount(),
 	}
 
@@ -174,4 +180,41 @@ func GetDnsmasqVolumeMounts() []corev1.VolumeMount {
 // watch for new ramdisk logs.
 func GetRamdiskLogsVolumeMounts() []corev1.VolumeMount {
 	return append(ironic.GetVolumeMounts(), varLibIronicVolumeMount())
+}
+
+// GetNoVNCVolumeMounts - NoVNC is stateless so only config is required
+func GetNoVNCVolumeMounts(instance *ironicv1.IronicConductor) []corev1.VolumeMount {
+	vm := []corev1.VolumeMount{
+		{
+			Name:      "config-data",
+			MountPath: "/etc/ironic/ironic.conf",
+			SubPath:   "ironic.conf",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data",
+			MountPath: "/etc/ironic/ironic.conf.d/01-conductor.conf",
+			SubPath:   "01-conductor.conf",
+			ReadOnly:  true,
+		},
+		ironic.GetMergedConfVolumeMount("/etc/ironic/ironic.conf.d/03-init-container-conductor.conf", "03-init-container-conductor.conf"),
+		{
+			Name:      "config-data",
+			MountPath: "/etc/ironic/ironic.conf.d/04-conductor-custom.conf",
+			SubPath:   "04-conductor-custom.conf",
+			ReadOnly:  true,
+		},
+	}
+	// 02-ironic-custom.conf is cross-cutting (shared by api/conductor/
+	// inspector), stored in the parent Ironic CR's own "-config-data"
+	// Secret ("config-data-custom" here), not this component's own.
+	if ironicv1.GetOwningIronicName(instance) != "" {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      "config-data-custom",
+			MountPath: "/etc/ironic/ironic.conf.d/02-ironic-custom.conf",
+			SubPath:   "02-ironic-custom.conf",
+			ReadOnly:  true,
+		})
+	}
+	return append(ironic.GetVolumeMounts(), vm...)
 }
