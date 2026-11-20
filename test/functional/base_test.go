@@ -608,6 +608,40 @@ func INAConditionGetter(name types.NamespacedName) condition.Conditions {
 	return instance.Status.Conditions
 }
 
+// GetExtraMounts - Utility function that simulates extraMounts pointing
+// to a secret
+func GetExtraMounts(nemName string, nemPath string) []map[string]any {
+	return []map[string]any{
+		{
+			"name":   nemName,
+			"region": "az0",
+			"extraVol": []map[string]any{
+				{
+					"extraVolType": nemName,
+					"propagation": []string{
+						"Ironic",
+					},
+					"volumes": []map[string]any{
+						{
+							"name": nemName,
+							"secret": map[string]any{
+								"secretName": nemName,
+							},
+						},
+					},
+					"mounts": []map[string]any{
+						{
+							"name":      nemName,
+							"mountPath": nemPath,
+							"readOnly":  true,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // func GetEnvValue(envs []corev1.EnvVar, name string, defaultValue string) string {
 // 	for _, e := range envs {
 // 		if e.Name == name {

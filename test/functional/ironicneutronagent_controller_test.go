@@ -128,6 +128,57 @@ var _ = Describe("IronicNeutronAgent controller", func() {
 		})
 	})
 
+	When("IronicNeutronAgent is created with extraMounts", func() {
+		extraMountsSecretName := "l2vni-network-nodes" //nolint:gosec // G101
+		extraMountsPath := "/etc/neutron/l2vni_network_nodes.yaml"
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
+
+			spec := GetDefaultIronicNeutronAgentSpec()
+			spec["extraMounts"] = GetExtraMounts(extraMountsSecretName, extraMountsPath)
+			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, spec))
+
+			infra.GetTransportURL(ironicNames.INATransportURLName)
+			infra.SimulateTransportURLReady(ironicNames.INATransportURLName)
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+
+		It("creates a Deployment with the extraMounts volume mounted", func() {
+			depl := th.GetDeployment(ironicNames.INAName)
+			// config secret volume + var-log-neutron + the extraMount volume
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			th.AssertVolumeExists(extraMountsSecretName, depl.Spec.Template.Spec.Volumes)
+
+			// the extraMount volume projects the referenced Secret
+			var secretVolume corev1.Volume
+			for _, vol := range depl.Spec.Template.Spec.Volumes {
+				if vol.Name == extraMountsSecretName {
+					secretVolume = vol
+				}
+			}
+			Expect(secretVolume.Secret).NotTo(BeNil())
+			Expect(secretVolume.Secret.SecretName).To(Equal(extraMountsSecretName))
+
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := depl.Spec.Template.Spec.Containers[0]
+			// 2 config mounts + var-log-neutron + the extraMount mount
+			Expect(container.VolumeMounts).To(HaveLen(4))
+			th.AssertVolumeMountPathExists(extraMountsSecretName, extraMountsPath, "", container.VolumeMounts)
+		})
+	})
+
 	When("IronicNeutronAgent is created pointing to non existent Secret", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateIronicNeutronAgent(ironicNames.INAName, GetDefaultIronicNeutronAgentSpec()))
