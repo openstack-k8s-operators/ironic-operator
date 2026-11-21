@@ -17,17 +17,23 @@ limitations under the License.
 package ironicneutronagent
 
 import (
+	ironicv1 "github.com/openstack-k8s-operators/ironic-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // GetVolumes -
-func GetVolumes(name string) []corev1.Volume {
+func GetVolumes(
+	name string,
+	extraVol []ironicv1.IronicNeutronAgentExtraVolMounts,
+	svc []storage.PropagationType,
+) []corev1.Volume {
 	var config0440AccessMode int32 = 0440
 
-	return []corev1.Volume{
+	res := []corev1.Volume{
 		{
-			Name: "config",
+			Name: ironicv1.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0440AccessMode,
@@ -35,28 +41,54 @@ func GetVolumes(name string) []corev1.Volume {
 				},
 			},
 		},
-		volume.WritableDirVolume("var-log-neutron"),
+		volume.WritableDirVolume(ironicv1.LogsVolumeName),
 	}
+
+	for _, exv := range extraVol {
+		for _, vol := range exv.Propagate(svc) {
+			for _, v := range vol.Volumes {
+				volumeSource, _ := v.ToCoreVolumeSource()
+				convertedVolume := corev1.Volume{
+					Name:         v.Name,
+					VolumeSource: *volumeSource,
+				}
+				res = append(res, convertedVolume)
+			}
+		}
+	}
+
+	return res
 
 }
 
 // GetVolumeMounts - IronicNeutronAgent VolumeMounts. Each file mounted
 // directly at its final destination via SubPath from the same "config"
 // Secret config.json used to stage-then-copy.
-func GetVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func GetVolumeMounts(
+	extraVol []ironicv1.IronicNeutronAgentExtraVolMounts,
+	svc []storage.PropagationType,
+) []corev1.VolumeMount {
+	res := []corev1.VolumeMount{
 		{
-			Name:      "config",
+			Name:      ironicv1.ConfigVolumeName,
 			MountPath: "/etc/neutron/neutron.conf.d/01-ironic_neutron_agent.conf",
 			SubPath:   "01-ironic_neutron_agent.conf",
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
+			Name:      ironicv1.ConfigVolumeName,
 			MountPath: "/etc/neutron/neutron.conf.d/02-ironic_neutron_agent-custom.conf",
 			SubPath:   "02-ironic_neutron_agent-custom.conf",
 			ReadOnly:  true,
 		},
-		volume.WritableDirVolumeMount("var-log-neutron", "/var/log/neutron"),
+		volume.WritableDirVolumeMount(ironicv1.LogsVolumeName, "/var/log/neutron"),
 	}
+
+	for _, exv := range extraVol {
+		for _, vol := range exv.Propagate(svc) {
+			res = append(res, vol.Mounts...)
+		}
+	}
+
+	return res
 }
