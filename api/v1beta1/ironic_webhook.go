@@ -384,6 +384,9 @@ func validateNeutronAgentSpec(spec *IronicSpecCore, basePath *field.Path) field.
 		))
 	}
 
+	allErrs = append(allErrs, spec.IronicNeutronAgent.ValidateExtraMounts(
+		basePath.Child("ironicNeutronAgent"))...)
+
 	return allErrs
 }
 

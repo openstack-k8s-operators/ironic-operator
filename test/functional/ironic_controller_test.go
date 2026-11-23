@@ -1380,6 +1380,90 @@ var _ = Describe("Ironic controller", func() {
 
 	})
 
+	When("Ironic is created with ironicNeutronAgent extraMounts", func() {
+		extraMountsSecretName := "l2vni-network-nodes" //nolint:gosec // G101
+		extraMountsPath := "/etc/neutron/l2vni_network_nodes.yaml"
+
+		BeforeEach(func() {
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateIronicSecret(ironicNames.Namespace, SecretName),
+			)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					ironicNames.Namespace,
+					"openstack",
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			DeferCleanup(
+				keystone.DeleteKeystoneAPI,
+				keystone.CreateKeystoneAPI(ironicNames.Namespace))
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(ironicNames.Namespace))
+			spec := GetDefaultIronicSpec()
+			spec["ironicNeutronAgent"].(map[string]any)["extraMounts"] = GetExtraMounts(extraMountsSecretName, extraMountsPath)
+			DeferCleanup(
+				th.DeleteInstance,
+				CreateIronic(ironicNames.IronicName, spec),
+			)
+			DeferCleanup(
+				k8sClient.Delete,
+				ctx,
+				CreateMessageBusSecret(ironicNames.Namespace, MessageBusSecretName),
+			)
+
+			mariadb.GetMariaDBDatabase(ironicNames.IronicDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.IronicDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.IronicDatabaseName)
+			th.SimulateJobSuccess(ironicNames.IronicDBSyncJobName)
+
+			keystone.SimulateKeystoneServiceReady(ironicNames.IronicName)
+			keystone.SimulateKeystoneEndpointReady(ironicNames.IronicName)
+
+			mariadb.GetMariaDBDatabase(ironicNames.InspectorDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(ironicNames.InspectorDatabaseAccount)
+			mariadb.SimulateMariaDBDatabaseCompleted(ironicNames.InspectorDatabaseName)
+			th.SimulateJobSuccess(ironicNames.InspectorDBSyncJobName)
+
+			nestedINATransportURLName := ironicNames.INATransportURLName
+			nestedINATransportURLName.Name = ironicNames.IronicName.Name + "-" + nestedINATransportURLName.Name
+			infra.GetTransportURL(nestedINATransportURLName)
+			infra.SimulateTransportURLReady(nestedINATransportURLName)
+
+			th.SimulateDeploymentReplicaReady(ironicNames.INAName)
+		})
+
+		It("propagates the extraMounts to the IronicNeutronAgent CR and its Deployment", func() {
+			// The sub-CR spawned by the Ironic controller is named
+			// <ironic-name>-ironic-neutron-agent, while the Deployment is
+			// named after the service (ironicNames.INAName).
+			ina := GetIronicNeutronAgent(types.NamespacedName{
+				Namespace: ironicNames.IronicName.Namespace,
+				Name:      fmt.Sprintf("%s-ironic-neutron-agent", ironicNames.IronicName.Name),
+			})
+			Expect(ina.Spec.ExtraMounts).To(HaveLen(1))
+			Expect(ina.Spec.ExtraMounts[0].Name).To(Equal(extraMountsSecretName))
+			Expect(ina.Spec.ExtraMounts[0].Region).To(Equal("az0"))
+			Expect(ina.Spec.ExtraMounts[0].VolMounts).To(HaveLen(1))
+			Expect(ina.Spec.ExtraMounts[0].VolMounts[0].Volumes).To(HaveLen(1))
+			Expect(ina.Spec.ExtraMounts[0].VolMounts[0].Volumes[0].Secret.SecretName).To(Equal(extraMountsSecretName))
+			Expect(ina.Spec.ExtraMounts[0].VolMounts[0].Mounts).To(HaveLen(1))
+			Expect(ina.Spec.ExtraMounts[0].VolMounts[0].Mounts[0].MountPath).To(Equal(extraMountsPath))
+
+			depl := th.GetDeployment(ironicNames.INAName)
+			// config secret volume + var-log-neutron + the extraMount volume
+			Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			th.AssertVolumeExists(extraMountsSecretName, depl.Spec.Template.Spec.Volumes)
+			th.AssertVolumeMountPathExists(
+				extraMountsSecretName, extraMountsPath, "",
+				depl.Spec.Template.Spec.Containers[0].VolumeMounts)
+		})
+	})
+
 	When("Ironic is created with rpc=oslo and quorum queue enabled transport URL", func() {
 		BeforeEach(func() {
 			DeferCleanup(

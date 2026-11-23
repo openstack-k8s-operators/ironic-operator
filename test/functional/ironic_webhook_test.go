@@ -173,4 +173,68 @@ var _ = Describe("Ironic webhook", func() {
 			}
 		}
 	})
+
+	Describe("ironicNeutronAgent extraMounts validation", func() {
+		// createIronicWithExtraMountsVolume creates an Ironic CR whose
+		// ironicNeutronAgent extraMounts reference a volume with the given
+		// name and returns the admission result.
+		createIronicWithExtraMountsVolume := func(volumeName string) error {
+			spec := GetDefaultIronicSpec()
+			spec["ironicNeutronAgent"].(map[string]any)["extraMounts"] = GetExtraMounts(
+				volumeName, "/etc/neutron/"+volumeName)
+			obj := &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "ironic.openstack.org/v1beta1",
+				"kind":       "Ironic",
+				"metadata": map[string]any{
+					"name":      "ironic-extramounts-test",
+					"namespace": ironicNames.Namespace,
+				},
+				"spec": spec,
+			}}
+			// Dry run exercises the webhook without persisting (and thereby
+			// reconciling) the CR.
+			return k8sClient.Create(ctx, obj, client.DryRunAll)
+		}
+
+		for _, reserved := range []string{
+			"config",
+			"var-log-neutron",
+			"combined-ca-bundle",
+			"ovndb-tls-certs",
+		} {
+			It("rejects an extraMounts volume named "+reserved, func() {
+				err := createIronicWithExtraMountsVolume(reserved)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(
+					"spec.ironicNeutronAgent.extraMounts[0].extraVol[0].volumes[0].name"))
+				Expect(err.Error()).To(ContainSubstring(
+					"is reserved for an operator-owned volume of the ironic-neutron-agent pod"))
+				Expect(err.Error()).To(ContainSubstring(reserved))
+			})
+		}
+
+		It("rejects a duplicate extraMounts volume name", func() {
+			spec := GetDefaultIronicSpec()
+			spec["ironicNeutronAgent"].(map[string]any)["extraMounts"] = append(
+				GetExtraMounts("dup-volume", "/etc/neutron/dup1.yaml"),
+				GetExtraMounts("dup-volume", "/etc/neutron/dup2.yaml")...)
+			obj := &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "ironic.openstack.org/v1beta1",
+				"kind":       "Ironic",
+				"metadata": map[string]any{
+					"name":      "ironic-extramounts-test",
+					"namespace": ironicNames.Namespace,
+				},
+				"spec": spec,
+			}}
+			err := k8sClient.Create(ctx, obj, client.DryRunAll)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(
+				"spec.ironicNeutronAgent.extraMounts[1].extraVol[0].volumes[0].name: Duplicate value"))
+		})
+
+		It("accepts an extraMounts volume with a non-reserved name", func() {
+			Expect(createIronicWithExtraMountsVolume("l2vni-network-nodes")).To(Succeed())
+		})
+	})
 })

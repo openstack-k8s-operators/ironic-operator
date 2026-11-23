@@ -21,6 +21,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -490,6 +492,136 @@ func TestValidateNeutronAgentSpec(t *testing.T) {
 					t.Errorf("validateNeutronAgentSpec() error mismatch at index %d:\n    expected: %s\n    got:      %s",
 						i, tc.expectedErrs[i].Error(), errs[i].Error())
 				}
+			}
+		})
+	}
+}
+
+func TestValidateExtraMounts(t *testing.T) {
+	extraMountsPath := field.NewPath("spec").Child("ironicNeutronAgent")
+
+	extraMounts := func(names ...string) []IronicNeutronAgentExtraVolMounts {
+		volumes := []storage.Volume{}
+		for _, name := range names {
+			volumes = append(volumes, storage.Volume{Name: name})
+		}
+		return []IronicNeutronAgentExtraVolMounts{
+			{
+				Name: "test",
+				VolMounts: []storage.VolMounts{
+					{
+						Volumes: volumes,
+					},
+				},
+			},
+		}
+	}
+
+	volumeNamePath := extraMountsPath.Child("extraMounts").Index(0).
+		Child("extraVol").Index(0).Child("volumes").Index(0).Child("name")
+
+	testCases := []struct {
+		name         string
+		spec         *IronicNeutronAgentTemplate
+		expectedErrs field.ErrorList
+	}{
+		{
+			name:         "No extraMounts",
+			spec:         &IronicNeutronAgentTemplate{},
+			expectedErrs: nil,
+		},
+		{
+			name: "Valid extraMounts volume name",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: extraMounts("l2vni-network-nodes"),
+			},
+			expectedErrs: nil,
+		},
+		{
+			name: "Reserved volume name config",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: extraMounts(ConfigVolumeName),
+			},
+			expectedErrs: field.ErrorList{
+				field.Invalid(
+					volumeNamePath,
+					ConfigVolumeName,
+					"volume name \""+ConfigVolumeName+"\" is reserved for an operator-owned volume of the ironic-neutron-agent pod",
+				),
+			},
+		},
+		{
+			name: "Reserved volume name var-log-neutron",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: extraMounts(LogsVolumeName),
+			},
+			expectedErrs: field.ErrorList{
+				field.Invalid(
+					volumeNamePath,
+					LogsVolumeName,
+					"volume name \""+LogsVolumeName+"\" is reserved for an operator-owned volume of the ironic-neutron-agent pod",
+				),
+			},
+		},
+		{
+			name: "Reserved volume name combined-ca-bundle",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: extraMounts(tls.CABundleLabel),
+			},
+			expectedErrs: field.ErrorList{
+				field.Invalid(
+					volumeNamePath,
+					tls.CABundleLabel,
+					"volume name \""+tls.CABundleLabel+"\" is reserved for an operator-owned volume of the ironic-neutron-agent pod",
+				),
+			},
+		},
+		{
+			name: "Reserved volume name ovndb-tls-certs",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: extraMounts(OvnDBCertVolumeName),
+			},
+			expectedErrs: field.ErrorList{
+				field.Invalid(
+					volumeNamePath,
+					OvnDBCertVolumeName,
+					"volume name \""+OvnDBCertVolumeName+"\" is reserved for an operator-owned volume of the ironic-neutron-agent pod",
+				),
+			},
+		},
+		{
+			name: "Duplicate volume name within extraMounts",
+			spec: &IronicNeutronAgentTemplate{
+				ExtraMounts: []IronicNeutronAgentExtraVolMounts{
+					{
+						Name: "test",
+						VolMounts: []storage.VolMounts{
+							{
+								Volumes: []storage.Volume{
+									{Name: "l2vni-network-nodes"},
+									{Name: "l2vni-network-nodes"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrs: field.ErrorList{
+				field.Duplicate(
+					extraMountsPath.Child("extraMounts").Index(0).
+						Child("extraVol").Index(0).Child("volumes").Index(1).Child("name"),
+					"l2vni-network-nodes",
+				),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := tc.spec.ValidateExtraMounts(extraMountsPath)
+
+			if !reflect.DeepEqual(errs, tc.expectedErrs) {
+				t.Errorf("ValidateExtraMounts() failed:\n    expected: %v\n    got:      %v", tc.expectedErrs, errs)
 			}
 		})
 	}
