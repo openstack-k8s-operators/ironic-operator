@@ -1,6 +1,6 @@
 module github.com/openstack-k8s-operators/ironic-operator/api
 
-go 1.26.3
+go 1.26.10
 
 require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261121142711-b2f4c9065eb8
