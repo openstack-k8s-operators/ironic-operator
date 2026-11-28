@@ -3,9 +3,9 @@ module github.com/openstack-k8s-operators/ironic-operator/api
 go 1.26.10
 
 require (
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261121142711-b2f4c9065eb8
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261123070539-cb6d1296bc91
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261123070539-cb6d1296bc91
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261127104837-231af4a2a64a
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261127133425-40f6cd116a00
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261127133425-40f6cd116a00
 	k8s.io/api v0.33.13
 	k8s.io/apimachinery v0.33.13
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2

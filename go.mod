@@ -9,15 +9,15 @@ require (
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261121142711-b2f4c9065eb8
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20261127104837-231af4a2a64a
 	github.com/openstack-k8s-operators/ironic-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261123110919-aa7663a5e214
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261123070539-cb6d1296bc91
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261123070539-cb6d1296bc91
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261123070539-cb6d1296bc91
-	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261123070539-cb6d1296bc91
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261123091648-5a0f46e89326
-	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20261122230641-cf96724cbf26
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20261127085402-0d9c6f045e88
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20261127133425-40f6cd116a00
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20261127133425-40f6cd116a00
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20261127133425-40f6cd116a00
+	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261127133425-40f6cd116a00
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261127084933-f0f7a1b8ef95
+	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20261127084932-ec43279d2fa6
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.13
